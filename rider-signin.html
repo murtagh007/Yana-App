@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Rider Sign In</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    #toast {
+      display:none;
+      position:fixed;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#00eaff;
+      color:#001;
+      padding:10px 16px;
+      border-radius:6px;
+      font-weight:600;
+      z-index:1000;
+      box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rider Sign In</h1>
+    <div class="muted">Enter your registered email to continue. If you don’t have an account, sign up first.</div>
+
+    <!-- Email -->
+    <label>Email</label>
+    <input id="signinEmail" type="email" placeholder="Enter email"/>
+
+    <!-- Buttons -->
+    <button class="btn" id="signinBtn">Sign In</button>
+    <button class="btn secondary" onclick="window.location.href='rider-signup.html'">New user? Sign Up</button>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
+
+    document.getElementById('signinBtn').addEventListener('click', async () => {
+      try {
+        const email = signinEmail.value.trim();
+        if(!email){
+          toast('Please enter your email.');
+          return;
+        }
+
+        const ref = db.collection('users').doc(email);
+        const snap = await ref.get();
+
+        if(!snap.exists){
+          toast('No rider found. Redirecting to Sign Up…');
+          setTimeout(()=>window.location.href='rider-signup.html',1500);
+          return;
+        }
+
+        const data = snap.data() || {};
+
+        if(data.status === 'approved'){
+          toast('Sign in successful. Redirecting…');
+          setTimeout(()=>window.location.href='scanner.html?email=' + encodeURIComponent(email),1500);
+        } 
+        else if(data.status === 'pending'){
+          toast('Your registration is pending admin approval.');
+        } 
+        else if(data.status === 'rejected'){
+          toast('Your registration was rejected. Contact admin.');
+        } 
+        else {
+          toast('Unknown status. Please contact support.');
+        }
+
+      } catch(err){
+        console.error(err);
+        toast('Error: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
