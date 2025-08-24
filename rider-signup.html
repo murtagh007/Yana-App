@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Rider Sign Up</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Toast styling */
+    #toast {
+      display:none;
+      position:fixed;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#00eaff;
+      color:#001;
+      padding:10px 16px;
+      border-radius:6px;
+      font-weight:600;
+      z-index:1000;
+      box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rider Sign Up</h1>
+    <div class="muted">Fill in your details. If already registered, sign in instead.</div>
+
+    <label>Name</label>
+    <input id="regName" type="text" placeholder="Enter full name"/>
+
+    <label>Email</label>
+    <input id="regEmail" type="email" placeholder="Enter email"/>
+
+    <label>Phone Number</label>
+    <input id="regPhone" type="text" placeholder="Enter phone number"/>
+
+    <label>Vendor (optional)</label>
+    <input id="regVendor" type="text" placeholder="Enter vendor name"/>
+
+    <label>Business Partners</label>
+    <select id="regPartners" multiple>
+      <option value="BigBasket Daily">BigBasket Daily</option>
+      <option value="Zomato">Zomato</option>
+      <option value="Swiggy">Swiggy</option>
+      <option value="Swiggy Instamart">Swiggy Instamart</option>
+      <option value="BlinkIt">BlinkIt</option>
+      <option value="Jio Instamart">Jio Instamart</option>
+    </select>
+
+    <label>Aadhaar Number</label>
+    <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
+
+    <button class="btn" id="submitRegistration">Sign Up</button>
+    <button class="btn secondary" onclick="window.location.href='rider-signin.html'">Already registered? Sign In</button>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Firebase SDK (v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
+
+    document.getElementById('submitRegistration').addEventListener('click', async () => {
+      try {
+        const name = regName.value.trim();
+        const email = regEmail.value.trim();
+        const phone = regPhone.value.trim();
+        const vendor = regVendor.value.trim();
+        const partners = Array.from(regPartners.selectedOptions).map(o=>o.value);
+        const aadhar = regAadhar.value.trim();
+
+        if(!name || !email || !phone || !aadhar){
+          toast('Please fill all required fields.');
+          return;
+        }
+
+        const ref = db.collection('users').doc(email);
+        const snap = await ref.get();
+        if(snap.exists){
+          toast('Rider already exists. Redirecting to sign in…');
+          setTimeout(()=>window.location.href='rider-signin.html',1500);
+          return;
+        }
+
+        await ref.set({
+          name,email,phone,vendor,partners,aadhar,
+          role:"rider",        // default role
+          status:"pending",    // needs admin approval
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        toast('Registered successfully. Await admin approval.');
+        setTimeout(()=>window.location.href='homepage.html',1500);
+
+      } catch(err){
+        console.error(err);
+        toast('Error: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
