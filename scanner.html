@@ -6,122 +6,258 @@
   <title>YANA — Scanner</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <style>
-    #toast {display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-      background:#00eaff;color:#001;padding:10px 16px;border-radius:6px;font-weight:600;
-      z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
-  </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Rider Scanner</h1>
-    <div class="muted">Scan your Scooter or Battery QR code.</div>
+  <header class="header">
+    <div id="riderInfo"></div>
+    <button class="btn secondary" onclick="signOut()">Sign Out</button>
+  </header>
 
-    <div id="reader" style="width:300px;margin:auto"></div>
-    <button class="btn" id="startScan">Start Scanner</button>
-    <button class="btn secondary" id="stopScan">Stop Scanner</button>
-    <button class="btn secondary" onclick="logout()">Logout</button>
+  <main class="container">
+    <!-- Scanner Panel -->
+    <section class="card">
+      <h2>QR Scanner</h2>
+      <div id="qr-reader" style="width:100%"></div>
+      <div class="controls">
+        <label>Camera:</label>
+        <select id="cameraSelect"></select>
 
-    <h3>Linked Devices</h3>
-    <div id="devices">Loading...</div>
+        <label>Mode:</label>
+        <select id="scanMode">
+          <option value="scooty">Scooty Scan</option>
+          <option value="battery">Battery Scan</option>
+        </select>
 
-    <h3>Recent Logs</h3>
-    <ul id="logs"></ul>
-  </div>
+        <button class="btn" id="startScan">Start</button>
+        <button class="btn secondary" id="stopScan">Stop</button>
+      </div>
+      <p><strong>Last Scan:</strong> <span id="lastScan">None</span></p>
+    </section>
 
+    <!-- Assignment Status -->
+    <section class="card">
+      <h2>Current Assignment</h2>
+      <p><strong>Scooty ID:</strong> <span id="currentScooty">None</span></p>
+      <p><strong>Battery ID:</strong> <span id="currentBattery">None</span></p>
+
+      <!-- Location (only for returns) -->
+      <div id="locationBox" style="display:none;">
+        <label>Select Return Location:</label>
+        <select id="returnLocation">
+          <option value="">-- Select --</option>
+          <option value="Hub 1">Hub 1</option>
+          <option value="Hub 2">Hub 2</option>
+          <option value="Hub 3">Hub 3</option>
+        </select>
+        <button class="btn" id="submitReturn">Submit Return</button>
+      </div>
+    </section>
+
+    <!-- Logs -->
+    <section class="card">
+      <h2>Activity Logs</h2>
+      <div id="logs" class="logs"></div>
+    </section>
+  </main>
+
+  <!-- Toast -->
   <div id="toast"></div>
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const toast = msg => {
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+    const toast = (msg,err=false) => {
       const t=document.getElementById("toast");
-      t.innerText=msg;t.style.display="block";
+      t.innerText=msg;
+      t.style.background=err?"#c00":"#333";
+      t.style.display="block";
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const email = urlParams.get("email");
-    if(!email){ window.location.href="rider-signin.html"; }
+    let riderEmail=null;
+    let currentScooty=null;
+    let currentBattery=null;
+    let scanner=null;
 
-    const ref = db.collection("users").doc(email);
-
-    // ✅ Access Check
-    ref.get().then(snap=>{
-      if(!snap.exists){ toast("Not registered."); window.location.href="rider-signup.html"; }
-      else {
-        const data = snap.data();
-        if(data.status!=="approved"){
-          toast("Not approved yet."); window.location.href="rider-signin.html";
-        }
+    // --- Auth check ---
+    auth.onAuthStateChanged(async user=>{
+      if(!user){
+        window.location.href="rider-signin.html";
+        return;
       }
-    });
+      riderEmail=user.email;
+      document.getElementById("riderInfo").innerText=`Signed in as ${user.displayName||user.email}`;
 
-    // ✅ Real-time Devices
-    ref.onSnapshot(doc=>{
-      if(doc.exists){
-        const d=doc.data();
-        document.getElementById("devices").innerHTML=
-          `<p><strong>Scooter:</strong> ${d.scooterId||'-'}</p>
-           <p><strong>Battery:</strong> ${d.batteryId||'-'}</p>`;
+      const ref=db.collection("users").doc(riderEmail);
+      const snap=await ref.get();
+      if(!snap.exists){
+        toast("Not registered. Redirecting…",true);
+        window.location.href="rider-signup.html";
+        return;
       }
+      const data=snap.data();
+      if(data.status!=="approved"){
+        toast("Account not approved yet.",true);
+        auth.signOut();
+        return;
+      }
+
+      loadAssignments();
+      loadLogs();
     });
 
-    // ✅ Real-time Logs
-    db.collection("logs")
-      .where("email","==",email)
-      .orderBy("createdAt","desc")
-      .limit(5)
-      .onSnapshot(snap=>{
-        const list=document.getElementById("logs");
-        list.innerHTML="";
-        snap.forEach(doc=>{
-          const l=doc.data();
-          const li=document.createElement("li");
-          li.textContent=`[${l.type}] ${l.code} — ${l.createdAt?.toDate().toLocaleString()||''}`;
-          list.appendChild(li);
-        });
-      });
+    function signOut(){ auth.signOut(); }
 
-    // ✅ Scanner
-    let html5QrCode;
-    document.getElementById("startScan").addEventListener("click", ()=>{
-      html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        async (decodedText) => {
-          await handleScan(decodedText);
-        }
-      ).catch(err=>toast("Camera error: "+err));
-    });
-
-    document.getElementById("stopScan").addEventListener("click", ()=>{
-      if(html5QrCode){ html5QrCode.stop().then(()=>toast("Scanner stopped")); }
-    });
-
-    async function handleScan(code){
-      let type="unknown";
-      if(code.toLowerCase().includes("scooter")) type="scooter";
-      else if(code.toLowerCase().includes("battery")) type="battery";
-
-      // Update user record
-      if(type==="scooter"){ await ref.update({scooterId:code}); }
-      if(type==="battery"){ await ref.update({batteryId:code}); }
-
-      // Add log
-      await db.collection("logs").add({
-        email, code, type,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      toast(`Logged ${type}: ${code}`);
+    // --- Load assignment status ---
+    async function loadAssignments(){
+      const ref=db.collection("assignments").doc(riderEmail);
+      const snap=await ref.get();
+      if(snap.exists){
+        const d=snap.data();
+        currentScooty=d.scootyId||null;
+        currentBattery=d.batteryId||null;
+        document.getElementById("currentScooty").innerText=currentScooty||"None";
+        document.getElementById("currentBattery").innerText=currentBattery||"None";
+      }
     }
 
-    function logout(){
-      window.location.href="index.html";
+    // --- Load logs ---
+    async function loadLogs(){
+      const ref=db.collection("logs").where("email","==",riderEmail).orderBy("timestamp","desc").limit(20);
+      const snap=await ref.get();
+      const logs=document.getElementById("logs");
+      logs.innerHTML="";
+      snap.forEach(doc=>{
+        const d=doc.data();
+        const li=document.createElement("div");
+        li.className="log";
+        li.innerText=`${d.action} → ${d.itemId||""} @ ${d.timestamp.toDate().toLocaleString()} ${d.location?`[${d.location}]`:""}`;
+        logs.appendChild(li);
+      });
+    }
+
+    // --- QR Scanner ---
+    document.getElementById("startScan").addEventListener("click",async()=>{
+      if(scanner){return;}
+      scanner=new Html5Qrcode("qr-reader");
+      const devices=await Html5Qrcode.getCameras();
+      const camSel=document.getElementById("cameraSelect");
+      camSel.innerHTML="";
+      devices.forEach(d=>{
+        const o=document.createElement("option");
+        o.value=d.id;o.text=d.label;
+        camSel.appendChild(o);
+      });
+      const id=camSel.value||devices[0].id;
+      scanner.start({deviceId:{exact:id}},{fps:10,qrbox:250},qr=>handleScan(qr));
+    });
+    document.getElementById("stopScan").addEventListener("click",()=>{
+      if(scanner){scanner.stop();scanner.clear();scanner=null;}
+    });
+
+    // --- Handle QR ---
+    async function handleScan(code){
+      document.getElementById("lastScan").innerText=code;
+      const mode=document.getElementById("scanMode").value;
+
+      if(mode==="scooty"){
+        if(currentScooty && !currentBattery){
+          toast("Return battery first before returning scooty.",true);
+          return;
+        }
+        await assignOrReturn("scooty",code);
+      }else if(mode==="battery"){
+        if(!currentScooty){
+          toast("Assign a scooty first before assigning battery.",true);
+          return;
+        }
+        if(currentBattery){
+          toast("Battery already assigned.",true);
+          return;
+        }
+        await assignOrReturn("battery",code);
+      }
+    }
+
+    // --- Assignment / Return logic ---
+    async function assignOrReturn(type,id){
+      const master=db.collection(type==="scooty"?"scooties":"batteries").doc(id);
+      const snap=await master.get();
+      if(!snap.exists){ toast("Invalid "+type+" ID.",true); return; }
+      const d=snap.data();
+      if(d.state!=="active"){ toast(type+" not active.",true); return; }
+
+      const assignmentRef=db.collection("assignments").doc(riderEmail);
+      const assignSnap=await assignmentRef.get();
+
+      // Determine if assigning or returning
+      if(type==="scooty"){
+        if(!currentScooty){
+          if(d.status!=="returned"){ toast("Scooty not available.",true); return; }
+          await assignmentRef.set({scootyId:id,batteryId:null});
+          await master.update({status:"assigned"});
+          currentScooty=id;
+          logAction("Assign Scooty",id);
+          toast("Scooty assigned!");
+        }else if(currentScooty===id && !currentBattery){
+          // Return scooty (battery already returned)
+          document.getElementById("locationBox").style.display="block";
+          document.getElementById("submitReturn").onclick=async()=>{
+            const loc=document.getElementById("returnLocation").value;
+            if(!loc){ toast("Select location before returning.",true); return; }
+            await assignmentRef.set({scootyId:null,batteryId:null});
+            await master.update({status:"returned"});
+            currentScooty=null;
+            document.getElementById("locationBox").style.display="none";
+            logAction("Return Scooty",id,loc);
+            toast("Scooty returned!");
+            loadAssignments();
+          };
+        }
+      }
+
+      if(type==="battery"){
+        if(!currentBattery){
+          if(d.status!=="returned"){ toast("Battery not available.",true); return; }
+          await assignmentRef.update({batteryId:id});
+          await master.update({status:"assigned"});
+          currentBattery=id;
+          logAction("Assign Battery",id);
+          toast("Battery assigned!");
+        }else if(currentBattery===id){
+          // Return battery
+          document.getElementById("locationBox").style.display="block";
+          document.getElementById("submitReturn").onclick=async()=>{
+            const loc=document.getElementById("returnLocation").value;
+            if(!loc){ toast("Select location before returning.",true); return; }
+            await assignmentRef.update({batteryId:null});
+            await master.update({status:"returned"});
+            currentBattery=null;
+            document.getElementById("locationBox").style.display="none";
+            logAction("Return Battery",id,loc);
+            toast("Battery returned!");
+            loadAssignments();
+          };
+        }
+      }
+
+      loadAssignments();
+    }
+
+    // --- Log action ---
+    async function logAction(action,itemId,location=null){
+      await db.collection("logs").add({
+        email:riderEmail,
+        action, itemId, location,
+        timestamp:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      loadLogs();
     }
   </script>
 </body>
