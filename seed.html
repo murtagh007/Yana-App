@@ -1,46 +1,62 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Seed Masterlists</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Seed Master IDs</title>
+</head>
+<body style="font-family:system-ui;padding:20px;">
+  <h1>🚀 Seed Master IDs</h1>
+  <p>This will upload <b>scootyid.txt</b> and <b>batteryid.txt</b> into Firestore.</p>
+  <button id="seedBtn">Start Seeding</button>
+  <pre id="output"></pre>
+
+  <!-- Firebase v8 SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="firebase-config.js"></script>
-</head>
-<body style="font-family:sans-serif;background:#111;color:#eee;padding:20px">
-  <h1>Seed Scooty & Battery IDs</h1>
-  <button id="seedScooty">Seed Scooty IDs</button>
-  <button id="seedBattery">Seed Battery IDs</button>
-  <div id="log"></div>
 
-<script>
-  const log = msg => {
-    document.getElementById('log').innerHTML += msg + "<br>";
-  };
+  <script>
+    const output = document.getElementById('output');
+    const log = msg => output.textContent += msg + "\n";
 
-  async function seed(file, collection) {
-    const res = await fetch(file);
-    const text = await res.text();
-    const ids = text.split("\n").map(l=>l.trim()).filter(Boolean);
+    async function seedCollection(fileUrl, collectionName) {
+      log(`📂 Reading ${fileUrl}...`);
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}`);
+      const text = await response.text();
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
 
-    for (let id of ids) {
-      const ref = db.collection(collection).doc(id);
-      const snap = await ref.get();
-      if(!snap.exists){   // only add if missing
-        await ref.set({
-          active: true,
-          assignedTo: null,
-          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        log(`✅ Added ${id} → ${collection}`);
-      } else {
-        log(`⚠️ Already exists: ${id}`);
+      for (const id of lines) {
+        try {
+          await db.collection(collectionName).doc(id).set({
+            id,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          log(`✅ Added ${id} to ${collectionName}`);
+        } catch (err) {
+          log(`❌ Error adding ${id}: ${err.message}`);
+        }
       }
     }
-  }
 
-  document.getElementById('seedScooty').onclick = () => seed("assets/scootyid.txt","scooters");
-  document.getElementById('seedBattery').onclick = () => seed("assets/batteryid.txt","batteries");
-</script>
+    document.getElementById('seedBtn').addEventListener('click', async () => {
+      log("🔑 Signing in anonymously (needs admin rules to seed)...");
+
+      try {
+        await auth.signInAnonymously();
+        log("Signed in, starting seeding...");
+
+        await seedCollection('scootyid.txt', 'scootyMaster');
+        await seedCollection('batteryid.txt', 'batteryMaster');
+
+        log("🎉 Seeding complete!");
+      } catch (err) {
+        log("❌ Seeding failed: " + err.message);
+      }
+    });
+  </script>
 </body>
 </html>
+
