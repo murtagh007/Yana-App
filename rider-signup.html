@@ -5,108 +5,104 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Sign Up</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    /* Toast styling */
-    #toast {
-      display:none;
-      position:fixed;
-      bottom:20px;
-      left:50%;
-      transform:translateX(-50%);
-      background:#00eaff;
-      color:#001;
-      padding:10px 16px;
-      border-radius:6px;
-      font-weight:600;
-      z-index:1000;
-      box-shadow:0 4px 12px rgba(0,0,0,0.3);
-    }
-  </style>
 </head>
 <body>
   <div class="card">
     <h1>Rider Sign Up</h1>
-    <div class="muted">Fill in your details. If already registered, sign in instead.</div>
+    <div class="muted">Use your Google account to sign up.</div>
 
-    <label>Name</label>
-    <input id="regName" type="text" placeholder="Enter full name"/>
+    <!-- Google Button -->
+    <button class="btn" id="googleSignup">Sign Up with Google</button>
 
-    <label>Email</label>
-    <input id="regEmail" type="email" placeholder="Enter email"/>
+    <!-- Extra details form (hidden until after Google sign-in) -->
+    <div id="extraForm" style="display:none; margin-top:20px;">
+      <label>Phone Number</label>
+      <input id="regPhone" type="text" placeholder="Enter phone number"/>
 
-    <label>Phone Number</label>
-    <input id="regPhone" type="text" placeholder="Enter phone number"/>
+      <label>Vendor (optional)</label>
+      <input id="regVendor" type="text" placeholder="Enter vendor name"/>
 
-    <label>Vendor (optional)</label>
-    <input id="regVendor" type="text" placeholder="Enter vendor name"/>
+      <label>Business Partners</label>
+      <select id="regPartners" multiple>
+        <option value="BigBasket Daily">BigBasket Daily</option>
+        <option value="Zomato">Zomato</option>
+        <option value="Swiggy">Swiggy</option>
+        <option value="Swiggy Instamart">Swiggy Instamart</option>
+        <option value="BlinkIt">BlinkIt</option>
+        <option value="Jio Instamart">Jio Instamart</option>
+      </select>
 
-    <label>Business Partners</label>
-    <select id="regPartners" multiple>
-      <option value="BigBasket Daily">BigBasket Daily</option>
-      <option value="Zomato">Zomato</option>
-      <option value="Swiggy">Swiggy</option>
-      <option value="Swiggy Instamart">Swiggy Instamart</option>
-      <option value="BlinkIt">BlinkIt</option>
-      <option value="Jio Instamart">Jio Instamart</option>
-    </select>
+      <label>Aadhaar Number</label>
+      <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
 
-    <label>Aadhaar Number</label>
-    <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
-
-    <button class="btn" id="submitRegistration">Sign Up</button>
-    <button class="btn secondary" onclick="window.location.href='rider-signin.html'">Already registered? Sign In</button>
+      <button class="btn" id="completeSignup">Complete Registration</button>
+    </div>
   </div>
 
-  <div id="toast"></div>
-
-  <!-- Firebase SDK (v8) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const toast = msg => {
-      const t = document.getElementById("toast");
-      t.innerText = msg;
-      t.style.display = "block";
-      setTimeout(()=>t.style.display="none",3000);
-    };
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    document.getElementById('submitRegistration').addEventListener('click', async () => {
+    let currentUser = null; // store Google user info
+
+    document.getElementById("googleSignup").addEventListener("click", async () => {
       try {
-        const name = regName.value.trim();
-        const email = regEmail.value.trim();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        currentUser = user;
+
+        const ref = db.collection("users").doc(user.email);
+        const snap = await ref.get();
+
+        if (snap.exists) {
+          alert("Rider already exists. Please sign in instead.");
+          window.location.href = "rider-signin.html";
+          return;
+        }
+
+        // Show extra form
+        document.getElementById("extraForm").style.display = "block";
+
+      } catch (err) {
+        console.error(err);
+        alert("Google Sign-In error: " + err.message);
+      }
+    });
+
+    document.getElementById("completeSignup").addEventListener("click", async () => {
+      try {
         const phone = regPhone.value.trim();
         const vendor = regVendor.value.trim();
-        const partners = Array.from(regPartners.selectedOptions).map(o=>o.value);
+        const partners = Array.from(regPartners.selectedOptions).map(o => o.value);
         const aadhar = regAadhar.value.trim();
 
-        if(!name || !email || !phone || !aadhar){
-          toast('Please fill all required fields.');
+        if (!phone || !aadhar) {
+          alert("Phone and Aadhaar are required.");
           return;
         }
 
-        const ref = db.collection('users').doc(email);
-        const snap = await ref.get();
-        if(snap.exists){
-          toast('Rider already exists. Redirecting to sign in…');
-          setTimeout(()=>window.location.href='rider-signin.html',1500);
-          return;
-        }
-
-        await ref.set({
-          name,email,phone,vendor,partners,aadhar,
-          role:"rider",        // default role
-          status:"pending",    // needs admin approval
-          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        await db.collection("users").doc(currentUser.email).set({
+          name: currentUser.displayName,
+          email: currentUser.email,
+          phone, vendor, partners, aadhar,
+          role: "rider",
+          status: "pending",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        toast('Registered successfully. Await admin approval.');
-        setTimeout(()=>window.location.href='homepage.html',1500);
+        alert("Registered successfully. Await admin approval.");
+        window.location.href = "homepage.html";
 
-      } catch(err){
+      } catch (err) {
         console.error(err);
-        toast('Error: ' + err.message);
+        alert("Error saving data: " + err.message);
       }
     });
   </script>
