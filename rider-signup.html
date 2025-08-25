@@ -9,61 +9,129 @@
 <body>
   <div class="card">
     <h1>Rider Sign Up</h1>
-    <div class="muted">Sign up with Google. Your name and email will be auto-filled.</div>
+    <div class="muted">Choose how you want to sign up</div>
 
-    <!-- Google Sign Up Button -->
-    <button class="btn" id="googleSignupBtn">Sign Up with Google</button>
+    <!-- Choice Buttons -->
+    <div style="margin-bottom:16px;">
+      <button class="btn" id="googleSignupBtn">Sign up with Google</button>
+      <button class="btn secondary" id="manualSignupBtn">Manual Sign Up</button>
+    </div>
 
-    <!-- Link to Sign In -->
-    <button class="btn secondary" onclick="window.location.href='rider-signin.html'">
-      Already registered? Sign In
-    </button>
+    <!-- Form -->
+    <form id="signupForm" style="display:none;">
+      <label>Name</label>
+      <input id="regName" type="text" placeholder="Enter full name"/>
+
+      <label>Email</label>
+      <input id="regEmail" type="email" placeholder="Enter email"/>
+
+      <label>Phone Number</label>
+      <input id="regPhone" type="text" placeholder="Enter phone number"/>
+
+      <label>Vendor (optional)</label>
+      <input id="regVendor" type="text" placeholder="Enter vendor name"/>
+
+      <label>Business Partners</label>
+      <select id="regPartners" multiple>
+        <option value="BigBasket Daily">BigBasket Daily</option>
+        <option value="Zomato">Zomato</option>
+        <option value="Swiggy">Swiggy</option>
+        <option value="Swiggy Instamart">Swiggy Instamart</option>
+        <option value="BlinkIt">BlinkIt</option>
+        <option value="Jio Instamart">Jio Instamart</option>
+      </select>
+
+      <label>Aadhaar Number</label>
+      <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
+
+      <button type="submit" class="btn">Submit</button>
+      <button type="button" class="btn secondary" onclick="window.location.href='rider-signin.html'">Already registered? Sign In</button>
+    </form>
   </div>
 
-  <!-- Firebase Scripts -->
+  <div id="toast"></div>
+
+  <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script> <!-- contains db + auth -->
+  <script src="firebase-config.js"></script>
 
   <script>
-    const provider = new firebase.auth.GoogleAuthProvider();
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
 
-    document.getElementById("googleSignupBtn").addEventListener("click", () => {
-      console.log("✅ Google button clicked"); // Debug log
+    let signupMode = null; // "google" or "manual"
 
-      auth.signInWithPopup(provider)
-        .then(async (result) => {
-          const user = result.user;
-          const email = user.email;
-          const name = user.displayName;
+    // Google Sign Up
+    document.getElementById('googleSignupBtn').addEventListener('click', async () => {
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await firebase.auth().signInWithPopup(provider);
+        const user = result.user;
 
-          console.log("✅ Google Sign-In Success:", email);
+        signupMode = "google";
+        document.getElementById('signupForm').style.display = "block";
+        regName.value = user.displayName || "";
+        regEmail.value = user.email || "";
+        regName.readOnly = true;
+        regEmail.readOnly = true;
+      } catch (err) {
+        console.error(err);
+        toast("❌ Google Sign-In Error: " + err.message);
+      }
+    });
 
-          const ref = db.collection("users").doc(email);
-          const snap = await ref.get();
+    // Manual Sign Up
+    document.getElementById('manualSignupBtn').addEventListener('click', () => {
+      signupMode = "manual";
+      document.getElementById('signupForm').style.display = "block";
+      regName.value = "";
+      regEmail.value = "";
+      regName.readOnly = false;
+      regEmail.readOnly = false;
+    });
 
-          if (snap.exists) {
-            alert("Rider already exists. Please sign in.");
-            window.location.href = "rider-signin.html";
-            return;
-          }
+    // Submit Form
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const name = regName.value.trim();
+        const email = regEmail.value.trim();
+        const phone = regPhone.value.trim();
+        const vendor = regVendor.value.trim();
+        const partners = Array.from(regPartners.selectedOptions).map(o=>o.value);
+        const aadhar = regAadhar.value.trim();
 
-          // Create new rider record
-          await ref.set({
-            name,
-            email,
-            status: "pending",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+        if(!name || !email || !phone || !aadhar){
+          toast("⚠️ Please fill all required fields.");
+          return;
+        }
 
-          alert("Registration successful. Await admin approval.");
-          window.location.href = "homepage.html";
-        })
-        .catch(err => {
-          console.error("❌ Google Sign-In Error:", err);
-          alert(err.message);
+        const ref = db.collection('users').doc(email);
+        const snap = await ref.get();
+        if(snap.exists){
+          toast("⚠️ Rider already exists. Please sign in.");
+          return;
+        }
+
+        await ref.set({
+          name, email, phone, vendor, partners, aadhar,
+          status:"pending",
+          role:"rider",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        toast("✅ Registered successfully. Await admin approval.");
+        window.location.href = "homepage.html";
+      } catch(err){
+        console.error(err);
+        toast("❌ Registration Error: " + err.message);
+      }
     });
   </script>
 </body>
