@@ -2,86 +2,75 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>YANA — Seeder</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>YANA Seeder</title>
+  <style>
+    body { font-family: monospace; background:#111; color:#0f0; padding:20px; }
+    pre { background:#000; padding:15px; border-radius:8px; }
+    button { padding:10px 15px; background:#0f0; border:none; border-radius:6px; cursor:pointer; }
+  </style>
 </head>
 <body>
-  <div class="card">
-    <h1>YANA Seeder</h1>
-    <p class="muted">Sign in as admin to seed Scooty IDs and Battery IDs.</p>
+  <h2>🚀 YANA Seeder</h2>
+  <p>Seeds <code>scooties</code> and <code>batteries</code> masterlist into Firestore.</p>
+  <button id="startBtn">Start Seeding</button>
 
-    <button id="googleSignIn" class="btn">Sign in with Google</button>
-    <button id="seedData" class="btn secondary" disabled>Seed Master Data</button>
+  <pre id="log"></pre>
 
-    <div id="status" class="muted"></div>
-  </div>
-
-  <!-- Firebase SDK v8 -->
+  <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const authProvider = new firebase.auth.GoogleAuthProvider();
-    let currentUser = null;
+    const logBox = document.getElementById("log");
+    const log = msg => logBox.textContent += msg + "\n";
 
-    const statusEl = document.getElementById("status");
-    const seedBtn = document.getElementById("seedData");
-
-    // Google Sign In
-    document.getElementById("googleSignIn").addEventListener("click", async () => {
+    document.getElementById("startBtn").addEventListener("click", async () => {
+      log("🔑 Signing in anonymously (admin-only rules required)...");
       try {
-        const result = await firebase.auth().signInWithPopup(authProvider);
-        currentUser = result.user;
-        statusEl.innerText = "✅ Signed in as " + currentUser.email;
-
-        if (currentUser.email === "adityasatpathy789@gmail.com") {
-          seedBtn.disabled = false;
-        } else {
-          statusEl.innerText = "❌ You are not authorized. Use admin email.";
-        }
-      } catch (err) {
-        console.error(err);
-        statusEl.innerText = "❌ Sign in failed: " + err.message;
-      }
-    });
-
-    // Seeder function
-    async function seedCollection(filename, collectionName) {
-      const response = await fetch(filename);
-      if (!response.ok) throw new Error("Failed to load " + filename);
-      const text = await response.text();
-      const ids = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
-
-      for (const id of ids) {
-        try {
-          await db.collection(collectionName).doc(id).set({
-            id: id,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          console.log(`✅ Added ${id} → ${collectionName}`);
-        } catch (e) {
-          console.error(`❌ Failed for ${id}:`, e);
-        }
-      }
-    }
-
-    // On seed button click
-    seedBtn.addEventListener("click", async () => {
-      if (!currentUser || currentUser.email !== "adityasatpathy789@gmail.com") {
-        statusEl.innerText = "❌ Not authorized.";
+        await firebase.auth().signInAnonymously();
+      } catch(err){
+        log("❌ Auth failed: " + err.message);
         return;
       }
-      try {
-        statusEl.innerText = "⏳ Seeding in progress...";
-        await seedCollection("scootyid.txt", "scooty_master");
-        await seedCollection("batteryid.txt", "battery_master");
-        statusEl.innerText = "✅ Seeding completed!";
-      } catch (err) {
-        console.error(err);
-        statusEl.innerText = "❌ Seeding failed: " + err.message;
+
+      const db = firebase.firestore();
+
+      async function seedCollection(filename, collectionName) {
+        log(`\n📂 Seeding ${collectionName} from ${filename}...`);
+        try {
+          const res = await fetch(filename);
+          if(!res.ok) throw new Error(`Failed to fetch ${filename}`);
+          const text = await res.text();
+          const ids = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+
+          let success = 0, fail = 0;
+          for(const id of ids){
+            try {
+              await db.collection(collectionName).doc(id).set({
+                state: "active",
+                status: "returned",
+                lastAssignedTo: null,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              log(`✅ Added ${collectionName.slice(0,-1)}: ${id}`);
+              success++;
+            } catch(err){
+              log(`❌ Failed ${id}: ${err.message}`);
+              fail++;
+            }
+          }
+          log(`\n✔️ Completed ${collectionName}. Success: ${success}, Failed: ${fail}`);
+        } catch(err){
+          log(`❌ Seeding ${collectionName} failed: ${err.message}`);
+        }
       }
+
+      await seedCollection("scootyid.txt", "scooties");
+      await seedCollection("batteryid.txt", "batteries");
+
+      log("\n🎉 Seeding completed.");
     });
   </script>
 </body>
