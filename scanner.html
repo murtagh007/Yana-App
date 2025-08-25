@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Scanner</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    #toast {display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+      background:#00eaff;color:#001;padding:10px 16px;border-radius:6px;font-weight:600;
+      z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Rider Scanner</h1>
+    <div class="muted">Scan your Scooter or Battery QR code.</div>
+
+    <div id="reader" style="width:300px;margin:auto"></div>
+    <button class="btn" id="startScan">Start Scanner</button>
+    <button class="btn secondary" id="stopScan">Stop Scanner</button>
+    <button class="btn secondary" onclick="logout()">Logout</button>
+
+    <h3>Linked Devices</h3>
+    <div id="devices">Loading...</div>
+
+    <h3>Recent Logs</h3>
+    <ul id="logs"></ul>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    const toast = msg => {
+      const t=document.getElementById("toast");
+      t.innerText=msg;t.style.display="block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const email = urlParams.get("email");
+    if(!email){ window.location.href="rider-signin.html"; }
+
+    const ref = db.collection("users").doc(email);
+
+    // ✅ Access Check
+    ref.get().then(snap=>{
+      if(!snap.exists){ toast("Not registered."); window.location.href="rider-signup.html"; }
+      else {
+        const data = snap.data();
+        if(data.status!=="approved"){
+          toast("Not approved yet."); window.location.href="rider-signin.html";
+        }
+      }
+    });
+
+    // ✅ Real-time Devices
+    ref.onSnapshot(doc=>{
+      if(doc.exists){
+        const d=doc.data();
+        document.getElementById("devices").innerHTML=
+          `<p><strong>Scooter:</strong> ${d.scooterId||'-'}</p>
+           <p><strong>Battery:</strong> ${d.batteryId||'-'}</p>`;
+      }
+    });
+
+    // ✅ Real-time Logs
+    db.collection("logs")
+      .where("email","==",email)
+      .orderBy("createdAt","desc")
+      .limit(5)
+      .onSnapshot(snap=>{
+        const list=document.getElementById("logs");
+        list.innerHTML="";
+        snap.forEach(doc=>{
+          const l=doc.data();
+          const li=document.createElement("li");
+          li.textContent=`[${l.type}] ${l.code} — ${l.createdAt?.toDate().toLocaleString()||''}`;
+          list.appendChild(li);
+        });
+      });
+
+    // ✅ Scanner
+    let html5QrCode;
+    document.getElementById("startScan").addEventListener("click", ()=>{
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          await handleScan(decodedText);
+        }
+      ).catch(err=>toast("Camera error: "+err));
+    });
+
+    document.getElementById("stopScan").addEventListener("click", ()=>{
+      if(html5QrCode){ html5QrCode.stop().then(()=>toast("Scanner stopped")); }
+    });
+
+    async function handleScan(code){
+      let type="unknown";
+      if(code.toLowerCase().includes("scooter")) type="scooter";
+      else if(code.toLowerCase().includes("battery")) type="battery";
+
+      // Update user record
+      if(type==="scooter"){ await ref.update({scooterId:code}); }
+      if(type==="battery"){ await ref.update({batteryId:code}); }
+
+      // Add log
+      await db.collection("logs").add({
+        email, code, type,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast(`Logged ${type}: ${code}`);
+    }
+
+    function logout(){
+      window.location.href="index.html";
+    }
+  </script>
+</body>
+</html>
