@@ -9,18 +9,10 @@
 <body>
   <div class="card">
     <h1>Rider Sign Up</h1>
-    <div class="muted">Sign up with Google. Your email is fixed, but you may edit your name.</div>
+    <div class="muted">Sign up with Google. Your name and email will be auto-filled.</div>
 
-    <!-- Step 1: Google Sign Up -->
+    <!-- Google Sign Up Button -->
     <button class="btn" id="googleSignupBtn">Sign Up with Google</button>
-
-    <!-- Step 2: Show Name Field After Google Login -->
-    <div id="extraFields" style="display:none; margin-top:16px;">
-      <label>Name</label>
-      <input id="riderName" type="text" placeholder="Enter full name"/>
-
-      <button class="btn" id="completeSignupBtn">Complete Sign Up</button>
-    </div>
 
     <!-- Link to Sign In -->
     <button class="btn secondary" onclick="window.location.href='rider-signin.html'">
@@ -28,22 +20,25 @@
     </button>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
+  <script src="firebase-config.js"></script> <!-- contains db + auth -->
 
   <script>
-    let googleUser = null;
     const provider = new firebase.auth.GoogleAuthProvider();
 
-    // Step 1: Sign in with Google
     document.getElementById("googleSignupBtn").addEventListener("click", () => {
+      console.log("✅ Google button clicked"); // Debug log
+
       auth.signInWithPopup(provider)
         .then(async (result) => {
-          googleUser = result.user;
-          const email = googleUser.email;
+          const user = result.user;
+          const email = user.email;
+          const name = user.displayName;
+
+          console.log("✅ Google Sign-In Success:", email);
 
           const ref = db.collection("users").doc(email);
           const snap = await ref.get();
@@ -54,40 +49,21 @@
             return;
           }
 
-          // Show editable name field
-          document.getElementById("extraFields").style.display = "block";
-          document.getElementById("riderName").value = googleUser.displayName || "";
+          // Create new rider record
+          await ref.set({
+            name,
+            email,
+            status: "pending",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          alert("Registration successful. Await admin approval.");
+          window.location.href = "homepage.html";
         })
         .catch(err => {
-          console.error("Google Sign-Up Error:", err);
+          console.error("❌ Google Sign-In Error:", err);
           alert(err.message);
         });
-    });
-
-    // Step 2: Save rider record
-    document.getElementById("completeSignupBtn").addEventListener("click", async () => {
-      if (!googleUser) {
-        alert("Please sign in with Google first.");
-        return;
-      }
-
-      const email = googleUser.email;
-      const name = document.getElementById("riderName").value.trim();
-
-      if (!name) {
-        alert("Please enter your name.");
-        return;
-      }
-
-      await db.collection("users").doc(email).set({
-        name,
-        email,
-        status: "pending",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      alert("Registration successful. Await admin approval.");
-      window.location.href = "homepage.html";
     });
   </script>
 </body>
