@@ -2,61 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Seed Master IDs</title>
+  <title>YANA — Seeder</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body style="font-family:system-ui;padding:20px;">
-  <h1>🚀 Seed Master IDs</h1>
-  <p>This will upload <b>scootyid.txt</b> and <b>batteryid.txt</b> into Firestore.</p>
-  <button id="seedBtn">Start Seeding</button>
-  <pre id="output"></pre>
+<body>
+  <div class="card">
+    <h1>YANA Seeder</h1>
+    <p class="muted">Sign in as admin to seed Scooty IDs and Battery IDs.</p>
 
-  <!-- Firebase v8 SDK -->
+    <button id="googleSignIn" class="btn">Sign in with Google</button>
+    <button id="seedData" class="btn secondary" disabled>Seed Master Data</button>
+
+    <div id="status" class="muted"></div>
+  </div>
+
+  <!-- Firebase SDK v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const output = document.getElementById('output');
-    const log = msg => output.textContent += msg + "\n";
+    const authProvider = new firebase.auth.GoogleAuthProvider();
+    let currentUser = null;
 
-    async function seedCollection(fileUrl, collectionName) {
-      log(`📂 Reading ${fileUrl}...`);
-      const response = await fetch(fileUrl);
-      if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}`);
+    const statusEl = document.getElementById("status");
+    const seedBtn = document.getElementById("seedData");
+
+    // Google Sign In
+    document.getElementById("googleSignIn").addEventListener("click", async () => {
+      try {
+        const result = await firebase.auth().signInWithPopup(authProvider);
+        currentUser = result.user;
+        statusEl.innerText = "✅ Signed in as " + currentUser.email;
+
+        if (currentUser.email === "adityasatpathy789@gmail.com") {
+          seedBtn.disabled = false;
+        } else {
+          statusEl.innerText = "❌ You are not authorized. Use admin email.";
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Sign in failed: " + err.message;
+      }
+    });
+
+    // Seeder function
+    async function seedCollection(filename, collectionName) {
+      const response = await fetch(filename);
+      if (!response.ok) throw new Error("Failed to load " + filename);
       const text = await response.text();
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+      const ids = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
 
-      for (const id of lines) {
+      for (const id of ids) {
         try {
           await db.collection(collectionName).doc(id).set({
-            id,
+            id: id,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
-          log(`✅ Added ${id} to ${collectionName}`);
-        } catch (err) {
-          log(`❌ Error adding ${id}: ${err.message}`);
+          console.log(`✅ Added ${id} → ${collectionName}`);
+        } catch (e) {
+          console.error(`❌ Failed for ${id}:`, e);
         }
       }
     }
 
-    document.getElementById('seedBtn').addEventListener('click', async () => {
-      log("🔑 Signing in anonymously (needs admin rules to seed)...");
-
+    // On seed button click
+    seedBtn.addEventListener("click", async () => {
+      if (!currentUser || currentUser.email !== "adityasatpathy789@gmail.com") {
+        statusEl.innerText = "❌ Not authorized.";
+        return;
+      }
       try {
-        await auth.signInAnonymously();
-        log("Signed in, starting seeding...");
-
-        await seedCollection('scootyid.txt', 'scootyMaster');
-        await seedCollection('batteryid.txt', 'batteryMaster');
-
-        log("🎉 Seeding complete!");
+        statusEl.innerText = "⏳ Seeding in progress...";
+        await seedCollection("scootyid.txt", "scooty_master");
+        await seedCollection("batteryid.txt", "battery_master");
+        statusEl.innerText = "✅ Seeding completed!";
       } catch (err) {
-        log("❌ Seeding failed: " + err.message);
+        console.error(err);
+        statusEl.innerText = "❌ Seeding failed: " + err.message;
       }
     });
   </script>
 </body>
 </html>
-
