@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — QR Scanner</title>
+  <title>YANA — Rider QR Scanner</title>
   <link rel="stylesheet" href="styles.css">
 
   <!-- QR Scanner library -->
@@ -28,7 +28,7 @@
     </div>
 
     <!-- Location selector (only for returns) -->
-    <div id="locationSection" style="display:none;">
+    <div id="locationSection" style="display:none; margin-top:15px;">
       <label>Select Return Location</label>
       <select id="returnLocation">
         <option value="">-- Select Location --</option>
@@ -58,6 +58,8 @@
 
     let currentScooty = null;
     let currentBattery = null;
+    let lastScan = "";
+    let lastScanTime = 0;
 
     if(!email){
       alert("Not signed in!");
@@ -72,11 +74,52 @@
         window.location.href="rider-signup.html";
       }
       const data = doc.data();
-      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
-      if(data.status !== "approved"){
-        alert("Your account is not approved.");
+      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}, State: ${data.state}`;
+
+      if(data.status !== "approved" || data.state !== "active"){
+        alert("Your account is not approved or active.");
         window.location.href="rider-signin.html";
       }
+    }
+
+    // Load current assignment
+    async function loadAssignment(){
+      // Scooty
+      const scootySnap = await db.collection("scooties")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .get();
+      if(!scootySnap.empty){
+        currentScooty = scootySnap.docs[0].id;
+      }
+
+      // Battery
+      const batterySnap = await db.collection("batteries")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .get();
+      if(!batterySnap.empty){
+        currentBattery = batterySnap.docs[0].id;
+      }
+
+      updateAssignmentUI();
+    }
+
+    // Load logs
+    async function loadLogs(){
+      const logsSnap = await db.collection("logs")
+        .where("email","==",email)
+        .orderBy("timestamp","desc")
+        .limit(20)
+        .get();
+      const logsList = document.getElementById("logsList");
+      logsList.innerHTML = "";
+      logsSnap.forEach(doc=>{
+        const d = doc.data();
+        const li = document.createElement("li");
+        li.textContent = `${d.timestamp?.toDate().toLocaleString() || ""} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
+        logsList.appendChild(li);
+      });
     }
 
     // Update UI
@@ -98,6 +141,14 @@
 
     // Handle scan
     async function handleScan(qrMessage){
+      const now = Date.now();
+      if(qrMessage === lastScan && (now - lastScanTime) < 5000){
+        console.log("Duplicate scan ignored:", qrMessage);
+        return;
+      }
+      lastScan = qrMessage;
+      lastScanTime = now;
+
       const id = qrMessage.trim();
 
       // Determine type
@@ -164,6 +215,8 @@
           updateAssignmentUI();
           await logAction("returned", id, type, location);
           alert(`Battery ${id} returned.`);
+          document.getElementById("locationSection").style.display = "none"; // reset
+          document.getElementById("returnLocation").value = "";
         }
         else if(type === "scooty"){
           if(currentBattery){
@@ -175,6 +228,8 @@
           updateAssignmentUI();
           await logAction("returned", id, type, location);
           alert(`Scooty ${id} returned.`);
+          document.getElementById("locationSection").style.display = "none"; // reset
+          document.getElementById("returnLocation").value = "";
         }
       }
       else {
@@ -197,7 +252,12 @@
       );
     }
 
-    loadRider().then(startScanner);
+    // Init
+    loadRider()
+      .then(loadAssignment)
+      .then(loadLogs)
+      .then(startScanner);
   </script>
 </body>
 </html>
+
