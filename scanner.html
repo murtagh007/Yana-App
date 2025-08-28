@@ -106,15 +106,12 @@
       const id = qrMessage.trim();
       let type = null, ref = null;
 
-      if((await db.collection("scooty_master")
-.doc(id).get()).exists){
-        type = "scooty"; ref = db.collection("scooty_master")
-.doc(id);
-      } else if((await db.collection("battery_master")
-.doc(id).get()).exists){
-        type = "battery"; ref = db.collection("battery_master")
-.doc(id);
-      } else {
+      if((await db.collection("scooty_master").doc(id).get()).exists){
+  type = "scooty"; ref = db.collection("scooty_master").doc(id);
+} else if((await db.collection("battery_master").doc(id).get()).exists){
+  type = "battery"; ref = db.collection("battery_master").doc(id);
+}
+ else {
         alert("Unknown QR code: " + id);
         return;
       }
