@@ -2,40 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>YANA Seeder</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Seeder</title>
+  <link rel="stylesheet" href="styles.css">
   <style>
-    body { font-family: monospace; background:#111; color:#0f0; padding:20px; }
-    pre { background:#000; padding:15px; border-radius:8px; }
-    button { padding:10px 15px; background:#0f0; border:none; border-radius:6px; cursor:pointer; }
+    #log {
+      background:#000;
+      color:#0f0;
+      padding:10px;
+      margin-top:20px;
+      border-radius:6px;
+      height:200px;
+      overflow:auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
-  <h2>🚀 YANA Seeder</h2>
-  <p>Seeds <code>scooties</code> and <code>batteries</code> masterlist into Firestore.</p>
-  <button id="startBtn">Start Seeding</button>
+  <!-- Navbar -->
+  <div class="navbar">
+    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
+    <span id="adminEmail"></span>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
+  </div>
 
-  <pre id="log"></pre>
+  <!-- Seeder UI -->
+  <div class="container">
+    <h1>🚀 YANA Seeder</h1>
+    <p class="muted">Seeds <code>scooty_master</code> and <code>battery_master</code> into Firestore.</p>
+    <button class="btn" id="startBtn">Start Seeding</button>
+
+    <div id="log"></div>
+  </div>
 
   <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
     const logBox = document.getElementById("log");
     const log = msg => logBox.textContent += msg + "\n";
 
-    document.getElementById("startBtn").addEventListener("click", async () => {
-      log("🔑 Signing in anonymously (admin-only rules required)...");
-      try {
-        await firebase.auth().signInAnonymously();
-      } catch(err){
-        log("❌ Auth failed: " + err.message);
+    // Auth check (must be admin)
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = "admin-signin.html";
         return;
       }
+      document.getElementById("adminEmail").innerText = "👤 " + user.email;
 
-      const db = firebase.firestore();
+      const doc = await db.collection("users").doc(user.email).get();
+      if (!doc.exists || doc.data().role !== "admin") {
+        alert("❌ Not an admin.");
+        window.location.href = "index.html";
+        return;
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+
+    // Seeder function
+    document.getElementById("startBtn").addEventListener("click", async () => {
+      log("🔑 Seeding as admin: " + auth.currentUser.email);
 
       async function seedCollection(filename, collectionName) {
         log(`\n📂 Seeding ${collectionName} from ${filename}...`);
@@ -54,25 +85,25 @@
                 lastAssignedTo: null,
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
-              log(`✅ Added ${collectionName.slice(0,-1)}: ${id}`);
+              log(`✅ Added ${collectionName}: ${id}`);
               success++;
             } catch(err){
               log(`❌ Failed ${id}: ${err.message}`);
               fail++;
             }
           }
-          log(`\n✔️ Completed ${collectionName}. Success: ${success}, Failed: ${fail}`);
+          log(`✔️ Completed ${collectionName}. Success: ${success}, Failed: ${fail}`);
         } catch(err){
           log(`❌ Seeding ${collectionName} failed: ${err.message}`);
         }
       }
 
       await seedCollection("scootyid.txt", "scooty_master");
-await seedCollection("batteryid.txt", "battery_master");
-
+      await seedCollection("batteryid.txt", "battery_master");
 
       log("\n🎉 Seeding completed.");
     });
   </script>
 </body>
 </html>
+
