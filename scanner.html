@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <!-- QR Scanner library -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
   <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -26,7 +26,8 @@
     <div id="riderInfo"></div>
 
     <!-- Scanner -->
-    <div id="reader" style="width:300px; margin:auto;"></div>
+<video id="video" playsinline></video>
+
     <button id="startCam" class="btn">Start Camera</button>
     <button id="stopCam" class="btn" style="display:none">Stop Camera</button>
 
@@ -62,7 +63,6 @@
 
     let currentScooty = null;
     let currentBattery = null;
-    let html5QrCode = null;
 
     if(!email){
       alert("Not signed in!");
@@ -168,33 +168,64 @@
     }
 
     // Camera start/stop
-    async function startScanner(){
-      if(html5QrCode) return;
-      html5QrCode = new Html5Qrcode("reader");
-      try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
-          qrCodeMessage => handleScan(qrCodeMessage),
-          errorMessage => console.log("QR error", errorMessage)
-        );
-        document.getElementById("startCam").style.display="none";
-        document.getElementById("stopCam").style.display="inline-block";
-      } catch (err) {
-        console.error("Camera start failed", err);
-        alert("Unable to start camera. Please allow permissions.");
-      }
-    }
+    let stream = null;
+let scanning = false;
+let scanInterval = null;
+let lastRawResult = null;
 
-    async function stopScanner(){
-      if(html5QrCode){
-        await html5QrCode.stop();
-        html5QrCode.clear();
-        html5QrCode = null;
-      }
-      document.getElementById("startCam").style.display="inline-block";
-      document.getElementById("stopCam").style.display="none";
+async function startCamera() {
+  try {
+    const video = document.getElementById("video");
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    scanning = true;
+    scanLoop();
+    document.getElementById("startCam").style.display = "none";
+    document.getElementById("stopCam").style.display = "inline-block";
+  } catch (err) {
+    console.error("Camera error", err);
+    alert("Camera access denied or not available");
+  }
+}
+
+function stopCamera() {
+  scanning = false;
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
+  }
+  document.getElementById("startCam").style.display = "inline-block";
+  document.getElementById("stopCam").style.display = "none";
+}
+
+function scanLoop() {
+  const video = document.getElementById("video");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  scanInterval = setInterval(() => {
+    if (!scanning || !video.videoWidth) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+    if (code && code.data && code.data !== lastRawResult) {
+      lastRawResult = code.data;
+      console.log("Scanned QR:", code.data);
+      handleScan(code.data); // <-- reuse your existing handleScan()
     }
+  }, 400);
+}
+
+document.getElementById("startCam").addEventListener("click", startCamera);
+document.getElementById("stopCam").addEventListener("click", stopCamera);
 
     document.getElementById("startCam").addEventListener("click", startScanner);
     document.getElementById("stopCam").addEventListener("click", stopScanner);
