@@ -18,8 +18,12 @@
     <p class="muted">Scan a Scooty or Battery QR to update its state.</p>
 
     <!-- QR Scanner -->
-    <div id="reader" style="width:300px"></div>
-    <p id="scanResult" class="muted"></p>
+<video id="video" width="300" height="200" style="border:1px solid #00eaff;" autoplay></video>
+<canvas id="canvas" width="300" height="200" style="display:none"></canvas>
+<button id="startCam" class="btn">Start Camera</button>
+<button id="stopCam" class="btn" style="display:none">Stop Camera</button>
+<p id="scanResult" class="muted"></p>
+
 
     <!-- State Selector -->
     <div id="stateSection" style="display:none;">
@@ -39,7 +43,7 @@
   </div>
 
   <!-- QR Scanner library -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -101,9 +105,53 @@
         document.getElementById("stateSection").style.display="block";
       });
     }
+    let stream = null;
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let scanning = false;
 
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader",{fps:10, qrbox:250});
-    html5QrcodeScanner.render(onScanSuccess);
+document.getElementById("startCam").addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+    scanning = true;
+    scanFrame();
+    document.getElementById("startCam").style.display="none";
+    document.getElementById("stopCam").style.display="inline-block";
+  } catch (err) {
+    alert("Camera access denied or not available.");
+    console.error(err);
+  }
+});
+
+document.getElementById("stopCam").addEventListener("click", () => {
+  if(stream){
+    stream.getTracks().forEach(track => track.stop());
+  }
+  scanning = false;
+  document.getElementById("startCam").style.display="inline-block";
+  document.getElementById("stopCam").style.display="none";
+});
+
+function scanFrame(){
+  if(!scanning) return;
+  if(video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code = jsQR(imageData.data,imageData.width,imageData.height);
+    if(code){
+      onScanSuccess(code.data);
+      scanning = false;
+      document.getElementById("stopCam").click(); // auto stop after scan
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+
 
     // Submit new state
     document.getElementById("submitBtn").addEventListener("click", async () => {
