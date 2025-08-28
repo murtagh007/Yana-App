@@ -67,8 +67,9 @@
         }
       }
 
-      await seedCollection("scootyid.txt", "scooties");
-      await seedCollection("batteryid.txt", "batteries");
+      await seedCollection("scootyid.txt", "scooty_master");
+await seedCollection("batteryid.txt", "battery_master");
+
 
       log("\n🎉 Seeding completed.");
     });
