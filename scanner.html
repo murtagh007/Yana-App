@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Rider Scanner</title>
+  <title>YANA — QR Scanner</title>
   <link rel="stylesheet" href="styles.css">
 
   <!-- QR Scanner -->
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
-  <!-- Firebase v8 -->
+  <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -21,15 +21,16 @@
     <p class="muted">Scan a Scooty or Battery QR</p>
 
     <!-- Scanner -->
-    <video id="video" playsinline style="display:none;"></video>
-    <button id="openScanner" class="btn">Open QR Scanner</button>
+    <video id="video" playsinline></video>
+    <button class="btn" id="startCam">Open QR Scanner</button>
+    <button class="btn" id="stopCam" style="display:none">Stop Camera</button>
 
     <!-- Pending Action -->
     <div id="pendingSection" style="display:none; margin-top:20px;">
       <h3>Pending Action</h3>
       <p id="pendingText"></p>
-      <div id="locationSection" style="display:none;">
-        <label>Select Return Location</label>
+      <div id="locationSection" style="display:none; margin:10px 0;">
+        <label>Select Return Location:</label>
         <select id="returnLocation">
           <option value="">-- Select Location --</option>
           <option value="Hub 1">Hub 1</option>
@@ -37,123 +38,160 @@
           <option value="Hub 3">Hub 3</option>
         </select>
       </div>
-      <button class="btn" id="confirmBtn">Submit</button>
+      <button class="btn" id="confirmBtn">Confirm</button>
       <button class="btn secondary" id="cancelBtn">Cancel</button>
     </div>
   </div>
 
-<script>
-const params = new URLSearchParams(window.location.search);
-const email = params.get("email");
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
 
-let currentScooty = null;
-let currentBattery = null;
-let pendingAction = null;
-
-// Load rider current assignments
-async function loadAssignments() {
-  const s = await db.collection("scooty_master")
-    .where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  s.forEach(d => currentScooty = d.id);
-
-  const b = await db.collection("battery_master")
-    .where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  b.forEach(d => currentBattery = d.id);
-}
-
-// Handle Scan
-async function handleScan(raw){
-  const id = raw.trim();
-  let type=null, ref=null;
-
-  const s = await db.collection("scooty_master").doc(id).get();
-  const b = !s.exists ? await db.collection("battery_master").doc(id).get() : null;
-
-  if(s.exists){ type="scooty"; ref=db.collection("scooty_master").doc(id); }
-  else if(b && b.exists){ type="battery"; ref=db.collection("battery_master").doc(id); }
-  else { alert("Unknown QR"); return; }
-
-  const data = (await ref.get()).data();
-  if(data.state!=="active"){ alert("Not active"); return; }
-
-  let action=null;
-  if(data.status==="returned"){
-    if(type==="scooty"){
-      if(currentScooty && currentScooty!==id){ alert("Return your current scooty first."); return; }
-      action="assign";
-    } else {
-      if(!currentScooty){ alert("Assign a scooty first."); return; }
-      if(currentBattery && currentBattery!==id){ alert("Return your battery first."); return; }
-      action="assign";
+    if (!email) {
+      alert("Not signed in!");
+      window.location.href = "rider-signin.html";
     }
-  } else if(data.status==="assigned" && data.assignedTo===email){
-    if(type==="scooty" && currentBattery){ alert("Return battery first."); return; }
-    action="return";
-  } else { alert("Not eligible."); return; }
 
-  pendingAction={action,id,type,ref};
-  document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
-  document.getElementById("pendingSection").style.display="block";
-  document.getElementById("locationSection").style.display = (action==="return")?"block":"none";
-}
+    let pendingAction = null;
+    let stream = null;
+    let scanning = false;
+    let scanInterval = null;
+    let lastRawResult = null;
 
-// Camera
-let stream=null, scanning=false, scanInterval=null, lastResult=null;
-document.getElementById("openScanner").addEventListener("click", async()=>{
-  await loadAssignments();
-  const video=document.getElementById("video");
-  video.style.display="block";
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    video.srcObject=stream; await video.play(); scanning=true;
-    scanLoop();
-  } catch(e){ alert("Camera error"); }
-});
+    // QR Scan loop
+    function scanLoop() {
+      const video = document.getElementById("video");
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-function scanLoop(){
-  const video=document.getElementById("video");
-  const canvas=document.createElement("canvas");
-  const ctx=canvas.getContext("2d",{willReadFrequently:true});
-  scanInterval=setInterval(()=>{
-    if(!scanning||!video.videoWidth)return;
-    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    const img=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code=jsQR(img.data,canvas.width,canvas.height);
-    if(code && code.data!==lastResult){
-      lastResult=code.data; scanning=false;
-      stream.getTracks().forEach(t=>t.stop());
-      handleScan(code.data);
+      scanInterval = setInterval(() => {
+        if (!scanning || !video.videoWidth) return;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+        if (code && code.data && code.data !== lastRawResult) {
+          lastRawResult = code.data;
+          console.log("Scanned QR:", code.data);
+          handleScan(code.data);
+        }
+      }, 400);
     }
-  },400);
-}
 
-// Confirm / Cancel
-document.getElementById("confirmBtn").addEventListener("click",async()=>{
-  if(!pendingAction) return;
-  const {action,id,type,ref}=pendingAction;
-  try{
-    if(action==="assign"){
-      await ref.update({status:"assigned",assignedTo:email,location:firebase.firestore.FieldValue.delete()});
-    } else {
-      const loc=document.getElementById("returnLocation").value;
-      if(!loc){ alert("Select location"); return; }
-      await ref.update({status:"returned",assignedTo:null,location:loc});
+    async function startCamera() {
+      try {
+        const video = document.getElementById("video");
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        await video.play();
+        scanning = true;
+        scanLoop();
+        document.getElementById("startCam").style.display = "none";
+        document.getElementById("stopCam").style.display = "inline-block";
+      } catch (err) {
+        console.error("Camera error", err);
+        alert("Camera access denied or not available");
+      }
     }
-    // update user doc
-    await db.collection("users").doc(email).update({
-      scooterId: type==="scooty" && action==="assign"? id : (type==="scooty"? null: currentScooty),
-      batteryId: type==="battery" && action==="assign"? id : (type==="battery"? null: currentBattery)
+
+    function stopCamera() {
+      scanning = false;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+      document.getElementById("startCam").style.display = "inline-block";
+      document.getElementById("stopCam").style.display = "none";
+    }
+
+    document.getElementById("startCam").addEventListener("click", startCamera);
+    document.getElementById("stopCam").addEventListener("click", stopCamera);
+
+    // Handle scan (assign/return detection only)
+    async function handleScan(raw) {
+      const id = raw.trim();
+      let type = null, ref = null;
+
+      const scootyDoc = await db.collection("scooty_master").doc(id).get();
+      const batteryDoc = !scootyDoc.exists ? await db.collection("battery_master").doc(id).get() : null;
+
+      if (scootyDoc.exists) {
+        type = "scooty";
+        ref = db.collection("scooty_master").doc(id);
+      } else if (batteryDoc && batteryDoc.exists) {
+        type = "battery";
+        ref = db.collection("battery_master").doc(id);
+      } else {
+        alert("Unknown QR code: " + id);
+        return;
+      }
+
+      const data = (await ref.get()).data() || {};
+      if (data.state !== "active") {
+        alert(`${type} ${id} is not active.`);
+        return;
+      }
+
+      let action = null;
+      if (data.status === "returned") {
+        action = "assign";
+      } else if (data.status === "assigned" && data.assignedTo === email) {
+        action = "return";
+      } else {
+        alert(`${type} ${id} is not eligible for you.`);
+        return;
+      }
+
+      pendingAction = { action, id, type, ref };
+      document.getElementById("pendingText").innerText =
+        `${action.toUpperCase()} ${type} ${id}?`;
+      document.getElementById("pendingSection").style.display = "block";
+      document.getElementById("locationSection").style.display =
+        action === "return" ? "block" : "none";
+    }
+
+    // Confirm / Cancel
+    document.getElementById("confirmBtn").addEventListener("click", async () => {
+      if (!pendingAction) return;
+      const { action, id, type, ref } = pendingAction;
+
+      try {
+        if (action === "assign") {
+          await ref.update({
+            status: "assigned",
+            assignedTo: email,
+            location: firebase.firestore.FieldValue.delete()
+          });
+        } else {
+          const location = document.getElementById("returnLocation").value;
+          if (!location) { alert("Select return location before returning."); return; }
+          await ref.update({
+            status: "returned",
+            assignedTo: null,
+            location
+          });
+        }
+
+        alert(`✅ ${action.toUpperCase()} complete!`);
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
+      } catch (e) {
+        console.error(e);
+        alert("Failed: " + e.message);
+      }
     });
-    alert("Success!");
-    window.location.href="rider-dashboard.html?email="+email;
-  }catch(e){ alert("Error:"+e.message); }
-});
 
-document.getElementById("cancelBtn").addEventListener("click",()=>{
-  pendingAction=null;
-  document.getElementById("pendingSection").style.display="none";
-});
-</script>
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      pendingAction = null;
+      document.getElementById("pendingSection").style.display = "none";
+      document.getElementById("locationSection").style.display = "none";
+    });
+  </script>
 </body>
 </html>
+
