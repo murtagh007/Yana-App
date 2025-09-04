@@ -27,21 +27,26 @@
         <option value="">-- Select --</option>
       </select>
 
-      <label for="issueText">Describe the issue:</label>
-      <textarea id="issueText" rows="4" placeholder="Describe your issue..." required></textarea>
+      <label for="issueType">Select Issue Type:</label>
+      <select id="issueType" required>
+        <option value="">-- Select Issue --</option>
+      </select>
+
+      <label for="issueText">Additional Details (Optional):</label>
+      <textarea id="issueText" rows="4" placeholder="Add extra details..."></textarea>
 
       <button class="btn" type="submit">Submit Issue</button>
     </form>
   </div>
 
   <script>
+    // Get email from URL
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
     if (!email) {
       alert("Not signed in!");
       window.location.href = "rider-signin.html";
     }
-
     document.getElementById("riderEmail").innerText = "👤 " + email;
 
     // Logout
@@ -49,10 +54,30 @@
       window.location.href = "rider-signin.html";
     });
 
-    const assetSelect = document.getElementById("assetSelect");
+    // Firestore reference
+    const db = firebase.firestore();
 
+    // Assets & Issue Types
+    const assetSelect = document.getElementById("assetSelect");
+    const issueTypeSelect = document.getElementById("issueType");
+    const issueTypes = {
+      scooty: [
+        "Horn Issue",
+        "Brake Issue",
+        "Light Issue",
+        "Tyre Issue",
+        "Lock Issue",
+        "Ignition Issue",
+        "Vehicle Noise Issue"
+      ],
+      battery: [
+        "Charging Issue",
+        "Display/On-Off Issue"
+      ]
+    };
+
+    // Load current assignments
     async function loadAssignments() {
-      // Load current assignments
       let scooty = null, battery = null;
 
       const s = await db.collection("scooty_master")
@@ -82,29 +107,52 @@
       }
     }
 
+    // Populate issue type based on asset selection
+    assetSelect.addEventListener("change", () => {
+      const assetId = assetSelect.value;
+      issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
+      if (!assetId) return;
+
+      const assetText = assetSelect.options[assetSelect.selectedIndex].text;
+      const type = assetText.startsWith("Scooty") ? "scooty" : "battery";
+
+      issueTypes[type].forEach(issue => {
+        const opt = document.createElement("option");
+        opt.value = issue;
+        opt.textContent = issue;
+        issueTypeSelect.appendChild(opt);
+      });
+    });
+
+    // Handle form submission
     document.getElementById("issueForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const assetId = assetSelect.value;
-      const description = document.getElementById("issueText").value.trim();
 
-      if (!assetId || !description) {
-        alert("Please select an asset and enter a description.");
+      const assetId = assetSelect.value;
+      const issue = issueTypeSelect.value;
+      const additionalDetails = document.getElementById("issueText").value.trim();
+
+      if (!assetId || !issue) {
+        alert("Please select an asset and an issue type.");
         return;
       }
 
       await db.collection("issues").add({
         email,
         assetId,
-        description,
+        issue,
+        additionalDetails,
         status: "open",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       alert("✅ Issue submitted successfully!");
       document.getElementById("issueForm").reset();
+      issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
     });
 
     loadAssignments();
   </script>
 </body>
 </html>
+
