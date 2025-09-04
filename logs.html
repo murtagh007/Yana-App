@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Logs Viewer</title>
+  <title>YANA — Admin Logs Viewer</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     table {
@@ -20,6 +20,8 @@
     .filter {
       margin: 15px 0;
     }
+    .issue { color: #4CAF50; }       /* Green for issue resolution */
+    .state { color: #2196F3; }       /* Blue for asset state changes */
   </style>
 </head>
 <body>
@@ -30,24 +32,15 @@
   </div>
 
   <div class="container">
-    <h1> Logs Viewer </h1>
-    <p class="muted">See both Rider Scans and Admin Actions.</p>
-
-    <div class="filter">
-      <label>Filter: </label>
-      <select id="logFilter">
-        <option value="all">All</option>
-        <option value="rider">Rider Logs</option>
-        <option value="admin">Admin Logs</option>
-      </select>
-    </div>
+    <h1>Admin Logs Viewer</h1>
+    <p class="muted">Shows issue resolutions and asset state changes only.</p>
 
     <table id="logsTable">
       <thead>
         <tr>
           <th>Time</th>
-          <th>User</th>
-          <th>Type</th>
+          <th>Admin</th>
+          <th>Action Type</th>
           <th>Action</th>
           <th>Item ID</th>
           <th>Extra Info</th>
@@ -66,7 +59,6 @@
   <script>
     const tbody = document.querySelector("#logsTable tbody");
 
-    // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) {
         window.location.href = "admin-signin.html";
@@ -87,23 +79,29 @@
     document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
 
     function loadLogs() {
-      db.collection("logs").orderBy("timestamp", "desc").onSnapshot(snapshot => {
-        renderLogs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
+      db.collection("logs")
+        .where("type", "==", "admin")
+        .orderBy("timestamp", "desc")
+        .onSnapshot(snapshot => {
+          const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderLogs(logs);
+        });
     }
 
     function renderLogs(logs) {
-      const filter = document.getElementById("logFilter").value;
       tbody.innerHTML = "";
 
       logs.forEach(log => {
-        if (filter !== "all" && log.type !== filter) return;
+        // Determine if it's issue resolution or asset state change
+        const actionType = log.action.toLowerCase().includes("issue resolved") ? "Issue Resolution" : "Asset State Change";
+        const rowClass = actionType === "Issue Resolution" ? "issue" : "state";
 
         const tr = document.createElement("tr");
+        tr.classList.add(rowClass);
         tr.innerHTML = `
           <td>${log.timestamp?.toDate().toLocaleString() || "-"}</td>
           <td>${log.user || "-"}</td>
-          <td>${log.type}</td>
+          <td>${actionType}</td>
           <td>${log.action}</td>
           <td>${log.itemId || "-"}</td>
           <td>${log.extra || "-"}</td>
@@ -111,8 +109,6 @@
         tbody.appendChild(tr);
       });
     }
-
-    document.getElementById("logFilter").addEventListener("change", () => loadLogs());
   </script>
 </body>
 </html>
