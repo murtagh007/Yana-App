@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA Admin — Issues</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
+</head>
+<body>
+  <div class="navbar">
+    <button class="btn secondary" onclick="history.back()">⬅ Back</button>
+    <h2>All Raised Issues</h2>
+  </div>
+
+  <div class="container">
+    <table id="issuesTable">
+      <thead>
+        <tr>
+          <th>Rider Email</th>
+          <th>Asset ID</th>
+          <th>Issue Type</th>
+          <th>Additional Details</th>
+          <th>Status</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Issues will be populated here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const db = firebase.firestore();
+    const tableBody = document.querySelector("#issuesTable tbody");
+
+    const statusOptions = ["open", "in progress", "resolved"];
+
+    // Fetch all issues in real-time
+    db.collection("issues")
+      .orderBy("createdAt", "desc")
+      .onSnapshot(snapshot => {
+        tableBody.innerHTML = ""; // Clear table first
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const tr = document.createElement("tr");
+
+          // Create a dropdown for status
+          const statusSelect = document.createElement("select");
+          statusOptions.forEach(opt => {
+            const option = document.createElement("option");
+            option.value = opt;
+            option.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+            if (data.status === opt) option.selected = true;
+            statusSelect.appendChild(option);
+          });
+
+          // Update Firestore when status changes
+          statusSelect.addEventListener("change", async () => {
+            await db.collection("issues").doc(doc.id).update({
+              status: statusSelect.value
+            });
+            alert(`Status updated to "${statusSelect.value}"`);
+          });
+
+          tr.innerHTML = `
+            <td>${data.email || "-"}</td>
+            <td>${data.assetId || "-"}</td>
+            <td>${data.issue || "-"}</td>
+            <td>${data.additionalDetails || "-"}</td>
+            <td></td> <!-- Status dropdown will be appended here -->
+            <td>${data.createdAt ? data.createdAt.toDate().toLocaleString() : "-"}</td>
+          `;
+
+          // Append the dropdown into the status cell
+          tr.children[4].appendChild(statusSelect);
+
+          tableBody.appendChild(tr);
+        });
+      }, err => {
+        console.error("Error fetching issues:", err);
+      });
+  </script>
+</body>
+</html>
