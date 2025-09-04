@@ -3,346 +3,157 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Rider QR Scanner</title>
+  <title>YANA — Rider Scanner</title>
   <link rel="stylesheet" href="styles.css">
 
-  <!-- QR Scanner library -->
+  <!-- QR Scanner -->
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
-  <!-- Firebase v8 SDKs -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-  <!-- Your Firebase config (make sure this file exists in same folder) -->
   <script src="firebase-config.js"></script>
 </head>
 <body>
   <div class="card">
-    <h1>Rider QR Scanner</h1>
-    <p class="muted">Scan Scooty or Battery QR to Assign / Return</p>
-
-    <!-- Rider Info -->
-    <div id="riderInfo"></div>
+    <h1>QR Scanner</h1>
+    <p class="muted">Scan a Scooty or Battery QR</p>
 
     <!-- Scanner -->
-    <video id="video" playsinline></video>
-    <button id="startCam" class="btn">Start Camera</button>
-    <button id="stopCam" class="btn" style="display:none">Stop Camera</button>
-
-    <!-- Current assignment -->
-    <div class="status">
-      <h2>Current Assignment</h2>
-      <p>Scooty: <span id="currentScooty">None</span></p>
-      <p>Battery: <span id="currentBattery">None</span></p>
-    </div>
-
-    <!-- Location selector (only for returns) -->
-    <div id="locationSection" style="display:none;">
-      <label>Select Return Location</label>
-      <select id="returnLocation">
-        <option value="">-- Select Location --</option>
-        <option value="Hub 1">Hub 1</option>
-        <option value="Hub 2">Hub 2</option>
-        <option value="Hub 3">Hub 3</option>
-      </select>
-    </div>
-
-    <!-- Logs -->
-    <div class="logs">
-      <h2>Scan Logs</h2>
-      <ul id="logsList"></ul>
-    </div>
+    <video id="video" playsinline style="display:none;"></video>
+    <button id="openScanner" class="btn">Open QR Scanner</button>
 
     <!-- Pending Action -->
     <div id="pendingSection" style="display:none; margin-top:20px;">
       <h3>Pending Action</h3>
       <p id="pendingText"></p>
-      <button class="btn" id="confirmBtn">Confirm</button>
+      <div id="locationSection" style="display:none;">
+        <label>Select Return Location</label>
+        <select id="returnLocation">
+          <option value="">-- Select Location --</option>
+          <option value="Hub 1">Hub 1</option>
+          <option value="Hub 2">Hub 2</option>
+          <option value="Hub 3">Hub 3</option>
+        </select>
+      </div>
+      <button class="btn" id="confirmBtn">Submit</button>
       <button class="btn secondary" id="cancelBtn">Cancel</button>
     </div>
   </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const email = params.get("email");
-    const riderInfoDiv = document.getElementById("riderInfo");
+<script>
+const params = new URLSearchParams(window.location.search);
+const email = params.get("email");
 
-    let currentScooty = null;
-    let currentBattery = null;
-    let pendingAction = null;
+let currentScooty = null;
+let currentBattery = null;
+let pendingAction = null;
 
-    if(!email){
-      alert("Not signed in!");
-      window.location.href="rider-signin.html";
-    }
+// Load rider current assignments
+async function loadAssignments() {
+  const s = await db.collection("scooty_master")
+    .where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+  s.forEach(d => currentScooty = d.id);
 
-// Load + listen to rider logs in real time
-function loadLogs() {
-  const list = document.getElementById("logsList");
-
-  db.collection("logs")
-    .where("email", "==", email)
-    .orderBy("timestamp", "desc")
-    .limit(20)
-    .onSnapshot(snapshot => {
-      list.innerHTML = ""; // clear old list
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        const li = document.createElement("li");
-        li.textContent = `${d.timestamp?.toDate().toLocaleString()} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
-        list.appendChild(li);
-      });
-    });
+  const b = await db.collection("battery_master")
+    .where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+  b.forEach(d => currentBattery = d.id);
 }
 
+// Handle Scan
+async function handleScan(raw){
+  const id = raw.trim();
+  let type=null, ref=null;
 
-    // Load rider info
-    async function loadRider() {
-      const doc = await db.collection("users").doc(email).get();
-      if (!doc.exists) {
-        alert("Rider not found.");
-        window.location.href = "rider-signup.html";
-        return;
-      }
+  const s = await db.collection("scooty_master").doc(id).get();
+  const b = !s.exists ? await db.collection("battery_master").doc(id).get() : null;
 
-      const data = doc.data();
-      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
+  if(s.exists){ type="scooty"; ref=db.collection("scooty_master").doc(id); }
+  else if(b && b.exists){ type="battery"; ref=db.collection("battery_master").doc(id); }
+  else { alert("Unknown QR"); return; }
 
-      if (data.status !== "approved") {
-        alert("Your account is not approved.");
-        window.location.href = "rider-signin.html";
-        return;
-      }
+  const data = (await ref.get()).data();
+  if(data.state!=="active"){ alert("Not active"); return; }
 
-      // Load current assignments from Firestore user doc
-      currentScooty = data.scooterId || null;
-      currentBattery = data.batteryId || null;
-      updateAssignmentUI();
+  let action=null;
+  if(data.status==="returned"){
+    if(type==="scooty"){
+      if(currentScooty && currentScooty!==id){ alert("Return your current scooty first."); return; }
+      action="assign";
+    } else {
+      if(!currentScooty){ alert("Assign a scooty first."); return; }
+      if(currentBattery && currentBattery!==id){ alert("Return your battery first."); return; }
+      action="assign";
     }
+  } else if(data.status==="assigned" && data.assignedTo===email){
+    if(type==="scooty" && currentBattery){ alert("Return battery first."); return; }
+    action="return";
+  } else { alert("Not eligible."); return; }
 
-    // Update UI
-    function updateAssignmentUI(){
-      document.getElementById("currentScooty").innerText = currentScooty || "None";
-      document.getElementById("currentBattery").innerText = currentBattery || "None";
+  pendingAction={action,id,type,ref};
+  document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
+  document.getElementById("pendingSection").style.display="block";
+  document.getElementById("locationSection").style.display = (action==="return")?"block":"none";
+}
+
+// Camera
+let stream=null, scanning=false, scanInterval=null, lastResult=null;
+document.getElementById("openScanner").addEventListener("click", async()=>{
+  await loadAssignments();
+  const video=document.getElementById("video");
+  video.style.display="block";
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    video.srcObject=stream; await video.play(); scanning=true;
+    scanLoop();
+  } catch(e){ alert("Camera error"); }
+});
+
+function scanLoop(){
+  const video=document.getElementById("video");
+  const canvas=document.createElement("canvas");
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  scanInterval=setInterval(()=>{
+    if(!scanning||!video.videoWidth)return;
+    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(img.data,canvas.width,canvas.height);
+    if(code && code.data!==lastResult){
+      lastResult=code.data; scanning=false;
+      stream.getTracks().forEach(t=>t.stop());
+      handleScan(code.data);
     }
+  },400);
+}
 
-    // Log helper
-    async function logAction(action, itemId, itemType, location=""){
-      await db.collection("logs").add({
-        email, action, itemId, itemType, location,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      const li = document.createElement("li");
-      li.textContent = `${new Date().toLocaleString()} — ${action} ${itemType} ${itemId} ${location}`;
-      document.getElementById("logsList").prepend(li);
+// Confirm / Cancel
+document.getElementById("confirmBtn").addEventListener("click",async()=>{
+  if(!pendingAction) return;
+  const {action,id,type,ref}=pendingAction;
+  try{
+    if(action==="assign"){
+      await ref.update({status:"assigned",assignedTo:email,location:firebase.firestore.FieldValue.delete()});
+    } else {
+      const loc=document.getElementById("returnLocation").value;
+      if(!loc){ alert("Select location"); return; }
+      await ref.update({status:"returned",assignedTo:null,location:loc});
     }
-
-    // Restore assignments directly from master collections
-    async function loadMyAssignments() {
-      currentScooty = null;
-      currentBattery = null;
-
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => currentScooty = d.id);
-
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => currentBattery = d.id);
-
-      updateAssignmentUI();
-    }
-
-    // Handle scan
-    async function handleScan(raw) {
-      const id = raw.trim();
-      let type = null, ref = null;
-
-      // Identify collection
-      const scootyDoc = await db.collection("scooty_master").doc(id).get();
-      const batteryDoc = !scootyDoc.exists
-        ? await db.collection("battery_master").doc(id).get()
-        : null;
-
-      if (scootyDoc.exists) {
-        type = "scooty";
-        ref = db.collection("scooty_master").doc(id);
-      } else if (batteryDoc && batteryDoc.exists) {
-        type = "battery";
-        ref = db.collection("battery_master").doc(id);
-      } else {
-        alert("Unknown QR code: " + id);
-        return;
-      }
-
-      const snap = await ref.get();
-      const data = snap.data() || {};
-
-      if (data.state !== "active") {
-        alert(`${type} ${id} is not active.`);
-        return;
-      }
-
-      let action = null;
-      if (data.status === "returned") {
-        if (type === "scooty") {
-          if (currentScooty && currentScooty !== id) {
-            alert("Return your current scooty first.");
-            return;
-          }
-          action = "assign";
-        } else {
-          if (!currentScooty) {
-            alert("Assign a scooty before taking a battery.");
-            return;
-          }
-          if (currentBattery && currentBattery !== id) {
-            alert("Return your current battery first.");
-            return;
-          }
-          action = "assign";
-        }
-      } else if (data.status === "assigned" && data.assignedTo === email) {
-        if (type === "scooty" && currentBattery) {
-          alert("Return the battery first before returning the scooty.");
-          return;
-        }
-        action = "return";
-      } else {
-        alert(`${type} ${id} is not eligible for you.`);
-        return;
-      }
-
-      pendingAction = { action, id, type, ref };
-      document.getElementById("pendingText").innerText =
-        `${action.toUpperCase()} ${type} ${id}?`;
-      document.getElementById("pendingSection").style.display = "block";
-      document.getElementById("locationSection").style.display =
-        action === "return" ? "block" : "none";
-    }
-
-    // Camera start/stop
-    let stream = null;
-    let scanning = false;
-    let scanInterval = null;
-    let lastRawResult = null;
-
-    async function startCamera() {
-      try {
-        const video = document.getElementById("video");
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-        video.srcObject = stream;
-        await video.play();
-        scanning = true;
-        scanLoop();
-        document.getElementById("startCam").style.display = "none";
-        document.getElementById("stopCam").style.display = "inline-block";
-      } catch (err) {
-        console.error("Camera error", err);
-        alert("Camera access denied or not available");
-      }
-    }
-
-    function stopCamera() {
-      scanning = false;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
-      if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-      }
-      document.getElementById("startCam").style.display = "inline-block";
-      document.getElementById("stopCam").style.display = "none";
-    }
-
-    function scanLoop() {
-      const video = document.getElementById("video");
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-      scanInterval = setInterval(() => {
-        if (!scanning || !video.videoWidth) return;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-        if (code && code.data && code.data !== lastRawResult) {
-          lastRawResult = code.data;
-          console.log("Scanned QR:", code.data);
-          handleScan(code.data);
-        }
-      }, 400);
-    }
-
-    document.getElementById("startCam").addEventListener("click", startCamera);
-    document.getElementById("stopCam").addEventListener("click", stopCamera);
-
-    // Confirm / Cancel
-    document.getElementById("confirmBtn").addEventListener("click", async () => {
-      if (!pendingAction) return;
-
-      const { action, id, type, ref } = pendingAction;
-
-      try {
-        if (action === "assign") {
-          await ref.update({
-            status: "assigned",
-            assignedTo: email,
-            location: firebase.firestore.FieldValue.delete()
-          });
-          if (type === "scooty") currentScooty = id; else currentBattery = id;
-          await logAction("assigned", id, type);
-        } else {
-          const location = document.getElementById("returnLocation").value;
-          if (!location) { alert("Select return location before returning."); return; }
-
-          await ref.update({
-            status: "returned",
-            assignedTo: null,
-            location
-          });
-          if (type === "scooty") currentScooty = null; else currentBattery = null;
-          await logAction("returned", id, type, location);
-        }
-
-        // Keep user doc synced
-        await db.collection("users").doc(email).update({
-          scooterId: currentScooty || null,
-          batteryId: currentBattery || null
-        });
-
-        updateAssignmentUI();
-      } catch (e) {
-        console.error(e);
-        alert("Failed to update: " + e.message);
-      } finally {
-        pendingAction = null;
-        document.getElementById("pendingSection").style.display = "none";
-        document.getElementById("locationSection").style.display = "none";
-      }
+    // update user doc
+    await db.collection("users").doc(email).update({
+      scooterId: type==="scooty" && action==="assign"? id : (type==="scooty"? null: currentScooty),
+      batteryId: type==="battery" && action==="assign"? id : (type==="battery"? null: currentBattery)
     });
+    alert("Success!");
+    window.location.href="rider-dashboard.html?email="+email;
+  }catch(e){ alert("Error:"+e.message); }
+});
 
-    document.getElementById("cancelBtn").addEventListener("click", () => {
-      pendingAction = null;
-      document.getElementById("pendingSection").style.display = "none";
-      document.getElementById("locationSection").style.display = "none";
-    });
-
-    // Run on page load
-    (async () => {
-      await loadRider();
-      await loadMyAssignments();
-      loadLogs();
-    })();
-  </script>
+document.getElementById("cancelBtn").addEventListener("click",()=>{
+  pendingAction=null;
+  document.getElementById("pendingSection").style.display="none";
+});
+</script>
 </body>
 </html>
