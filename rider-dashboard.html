@@ -97,7 +97,7 @@
       window.location.href = `rider-logs.html?email=${email}`;
     });
     document.getElementById("issueBtn").addEventListener("click", () => {
-      window.location.href = `rider-issue.html?email=${email}`;
+      window.location.href = `issue.html?email=${email}`;
     });
     document.getElementById("logoutBtn").addEventListener("click", () => {
       firebase.auth().signOut().then(()=>{
