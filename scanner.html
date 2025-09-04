@@ -77,7 +77,7 @@
       window.location.href="rider-signin.html";
     }
 
-// Load existing + live logs for this rider
+// Load + listen to rider logs in real time
 function loadLogs() {
   const list = document.getElementById("logsList");
 
@@ -85,28 +85,13 @@ function loadLogs() {
     .where("email", "==", email)
     .orderBy("timestamp", "desc")
     .limit(20)
-    .get()
-    .then(snapshot => {
+    .onSnapshot(snapshot => {
       list.innerHTML = ""; // clear old list
       snapshot.forEach(doc => {
         const d = doc.data();
         const li = document.createElement("li");
         li.textContent = `${d.timestamp?.toDate().toLocaleString()} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
         list.appendChild(li);
-      });
-    });
-
-  // Also subscribe to new logs in real time
-  db.collection("logs")
-    .where("email", "==", email)
-    .orderBy("timestamp", "desc")
-    .limit(1) // only listen to latest
-    .onSnapshot(snapshot => {
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        const li = document.createElement("li");
-        li.textContent = `${d.timestamp?.toDate().toLocaleString()} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
-        list.prepend(li);
       });
     });
 }
