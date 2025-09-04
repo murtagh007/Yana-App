@@ -6,75 +6,72 @@
   <title>YANA — Rider Dashboard</title>
   <link rel="stylesheet" href="styles.css">
 
-  <!-- Firebase -->
+  <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Your Firebase config -->
   <script src="firebase-config.js"></script>
 </head>
 <body>
-  <div class="navbar">
-    <h2>Rider Dashboard</h2>
-    <span id="riderEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
-  </div>
+  <div class="card">
+    <h1>🚴 Rider Dashboard</h1>
 
-  <div class="container">
-    <h1 id="riderName">Loading...</h1>
-    <p class="muted" id="riderStatus"></p>
+    <!-- Rider Info -->
+    <div id="riderInfo" class="muted"></div>
 
     <!-- Current assignment -->
     <div class="status">
       <h2>Current Assignment</h2>
-      <p>Scooty: <span id="currentScooty">None</span></p>
-      <p>Battery: <span id="currentBattery">None</span></p>
+      <p>Scooty: <span id="currentScooty">Loading...</span></p>
+      <p>Battery: <span id="currentBattery">Loading...</span></p>
     </div>
 
     <!-- Actions -->
     <div class="actions">
-      <button class="btn" id="scannerBtn">📷 Start Scanner</button>
-      <button class="btn" id="logsBtn">📜 View Logs</button>
+      <button class="btn" id="scanBtn">📷 Scan QR</button>
+      <button class="btn" id="logsBtn">📜 Rider Logs</button>
       <button class="btn" id="issueBtn">⚠️ Raise Issue</button>
+      <button class="btn secondary" id="logoutBtn">🚪 Logout</button>
     </div>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
-    if (!email) {
+    const riderInfoDiv = document.getElementById("riderInfo");
+
+    let currentScooty = null;
+    let currentBattery = null;
+
+    if(!email){
       alert("Not signed in!");
-      window.location.href = "rider-signin.html";
+      window.location.href="rider-signin.html";
     }
 
-    document.getElementById("riderEmail").innerText = "👤 " + email;
-
-    // Logout
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      window.location.href = "rider-signin.html";
-    });
-
-    // Firestore
-    async function loadRider() {
+    // Load rider info
+    async function loadRider(){
       const doc = await db.collection("users").doc(email).get();
-      if (!doc.exists) {
+      if(!doc.exists){
         alert("Rider not found.");
-        window.location.href = "rider-signup.html";
+        window.location.href="rider-signup.html";
         return;
       }
-
       const data = doc.data();
-      document.getElementById("riderName").innerText = data.name || email;
-      document.getElementById("riderStatus").innerText = "Status: " + data.status;
-
-      if (data.status !== "approved") {
+      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
+      if(data.status !== "approved"){
         alert("Your account is not approved.");
-        window.location.href = "rider-signin.html";
+        window.location.href="rider-signin.html";
         return;
       }
+      loadMyAssignments();
+    }
 
-      // Load current assignment
-      let currentScooty = null;
-      let currentBattery = null;
+    // Load current assignments from master collections
+    async function loadMyAssignments(){
+      currentScooty = null;
+      currentBattery = null;
 
       const s = await db.collection("scooty_master")
         .where("assignedTo", "==", email)
@@ -92,18 +89,23 @@
       document.getElementById("currentBattery").innerText = currentBattery || "None";
     }
 
-    // Button navigation
-    document.getElementById("scannerBtn").addEventListener("click", () => {
-      window.location.href = `scanner.html?email=${encodeURIComponent(email)}`;
+    // Button actions
+    document.getElementById("scanBtn").addEventListener("click", () => {
+      window.location.href = `scanner.html?email=${email}`;
     });
     document.getElementById("logsBtn").addEventListener("click", () => {
-      window.location.href = `rider-logs.html?email=${encodeURIComponent(email)}`;
+      window.location.href = `rider-logs.html?email=${email}`;
     });
     document.getElementById("issueBtn").addEventListener("click", () => {
-      window.location.href = `issue.html?email=${encodeURIComponent(email)}`;
+      window.location.href = `rider-issue.html?email=${email}`;
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      firebase.auth().signOut().then(()=>{
+        window.location.href="rider-signin.html";
+      });
     });
 
-    // Init
+    // Run
     loadRider();
   </script>
 </body>
