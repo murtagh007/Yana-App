@@ -77,35 +77,44 @@
     };
 
     // Load current assignments
-    async function loadAssignments() {
-      let scooty = null, battery = null;
+ async function loadAssignments() {
+  let scooty = null, battery = null;
 
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => scooty = d.id);
+  const s = await db.collection("scooty_master")
+    .where("assignedTo", "==", email)
+    .where("status", "==", "assigned")
+    .limit(1).get();
 
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => battery = d.id);
+  s.forEach(d => {
+    scooty = d.data().id; // Use the 'id' field in the document
+  });
 
-      if (scooty) {
-        const opt = document.createElement("option");
-        opt.value = scooty;
-        opt.textContent = "Scooty: " + scooty;
-        assetSelect.appendChild(opt);
-      }
+  const b = await db.collection("battery_master")
+    .where("assignedTo", "==", email)
+    .where("status", "==", "assigned")
+    .limit(1).get();
 
-      if (battery) {
-        const opt = document.createElement("option");
-        opt.value = battery;
-        opt.textContent = "Battery: " + battery;
-        assetSelect.appendChild(opt);
-      }
-    }
+  b.forEach(d => {
+    battery = d.data().id; // Use the 'id' field
+  });
+
+  console.log("Scooty:", scooty, "Battery:", battery);
+
+  if (scooty) {
+    const opt = document.createElement("option");
+    opt.value = scooty;
+    opt.textContent = "Scooty: " + scooty;
+    assetSelect.appendChild(opt);
+  }
+
+  if (battery) {
+    const opt = document.createElement("option");
+    opt.value = battery;
+    opt.textContent = "Battery: " + battery;
+    assetSelect.appendChild(opt);
+  }
+}
+
 
     // Populate issue type based on asset selection
     assetSelect.addEventListener("change", () => {
