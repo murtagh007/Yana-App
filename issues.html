@@ -28,78 +28,88 @@
           <th>Additional Details</th>
           <th>Status</th>
           <th>Created At</th>
+          <th>Select</th>
         </tr>
       </thead>
       <tbody>
         <!-- Issues will populate here -->
       </tbody>
     </table>
+
+    <button id="resolveBtn" class="btn" style="margin-top:10px;">Mark Selected as Resolved</button>
   </div>
 
   <script>
     const tableBody = document.querySelector("#issuesTable tbody");
-    const statusOptions = ["open", "in progress", "resolved"];
-
-    // Debug function to log snapshot
-    function logSnapshot(snapshot) {
-      console.log("Snapshot size:", snapshot.size);
-      snapshot.forEach(doc => console.log(doc.id, doc.data()));
-    }
+    const resolveBtn = document.getElementById("resolveBtn");
+    let issuesSnapshot = null; // store latest snapshot
 
     // Real-time listener for issues
     db.collection("issues")
       .orderBy("createdAt", "desc")
       .onSnapshot(snapshot => {
-        console.clear();
-        logSnapshot(snapshot);
-
-        tableBody.innerHTML = ""; // Clear table
+        issuesSnapshot = snapshot; // store snapshot for resolve button
+        tableBody.innerHTML = ""; // clear table
 
         snapshot.forEach(doc => {
           const data = doc.data();
           const tr = document.createElement("tr");
 
-          // Create status dropdown
-          const statusSelect = document.createElement("select");
-          statusOptions.forEach(opt => {
-            const option = document.createElement("option");
-            option.value = opt;
-            option.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
-            if (data.status === opt) option.selected = true;
-            statusSelect.appendChild(option);
-          });
-
-          // Update Firestore when status changes
-          statusSelect.addEventListener("change", async () => {
-            try {
-              await db.collection("issues").doc(doc.id).update({
-                status: statusSelect.value
-              });
-              console.log(`Status for ${doc.id} updated to "${statusSelect.value}"`);
-            } catch (err) {
-              console.error("Error updating status:", err);
-            }
-          });
-
-          // Populate table row
           tr.innerHTML = `
             <td>${data.email || "-"}</td>
             <td>${data.assetId || "-"}</td>
             <td>${data.issue || "-"}</td>
             <td>${data.additionalDetails || "-"}</td>
-            <td></td> <!-- Status dropdown will go here -->
+            <td>${data.status || "-"}</td>
             <td>${data.createdAt ? data.createdAt.toDate().toLocaleString() : "-"}</td>
+            <td></td>
           `;
 
-          // Append status dropdown
-          tr.children[4].appendChild(statusSelect);
+          // Add checkbox to select issues to resolve
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.disabled = data.status === "resolved"; // can't select resolved
+          tr.children[6].appendChild(checkbox);
 
           tableBody.appendChild(tr);
         });
       }, err => {
         console.error("Error fetching issues:", err);
       });
+
+    // Handle “Mark Selected as Resolved” button
+    resolveBtn.addEventListener("click", async () => {
+      if (!issuesSnapshot) return;
+
+      const rows = Array.from(tableBody.children);
+      const updates = [];
+
+      rows.forEach((tr, index) => {
+        const checkbox = tr.children[6].querySelector("input");
+        const statusCell = tr.children[4].textContent;
+        if (checkbox.checked && statusCell !== "resolved") {
+          const docId = issuesSnapshot.docs[index].id;
+          updates.push(db.collection("issues").doc(docId).update({
+            status: "resolved"
+          }));
+        }
+      });
+
+      if (updates.length === 0) {
+        alert("No issues selected or selected issues are already resolved.");
+        return;
+      }
+
+      try {
+        await Promise.all(updates);
+        alert("✅ Selected issues marked as resolved!");
+      } catch (err) {
+        console.error("Error updating issues:", err);
+        alert("❌ Failed to update issues.");
+      }
+    });
   </script>
 </body>
 </html>
+
 
