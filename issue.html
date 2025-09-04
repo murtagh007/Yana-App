@@ -77,16 +77,20 @@
     };
 
     // Load current assignments
- async function loadAssignments() {
+async function loadAssignments() {
   let scooty = null, battery = null;
+
+  console.log("Email from URL:", email);
 
   const s = await db.collection("scooty_master")
     .where("assignedTo", "==", email)
     .where("status", "==", "assigned")
     .limit(1).get();
 
+  console.log("Scooty query docs:", s.docs.map(d => d.data()));
+
   s.forEach(d => {
-    scooty = d.data().id; // Use the 'id' field in the document
+    scooty = d.data().id;
   });
 
   const b = await db.collection("battery_master")
@@ -94,11 +98,13 @@
     .where("status", "==", "assigned")
     .limit(1).get();
 
+  console.log("Battery query docs:", b.docs.map(d => d.data()));
+
   b.forEach(d => {
-    battery = d.data().id; // Use the 'id' field
+    battery = d.data().id;
   });
 
-  console.log("Scooty:", scooty, "Battery:", battery);
+  console.log("Final assets:", { scooty, battery });
 
   if (scooty) {
     const opt = document.createElement("option");
