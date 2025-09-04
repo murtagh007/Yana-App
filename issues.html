@@ -31,28 +31,35 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Issues will be populated here -->
+        <!-- Issues will populate here -->
       </tbody>
     </table>
   </div>
 
   <script>
-    
     const tableBody = document.querySelector("#issuesTable tbody");
-
     const statusOptions = ["open", "in progress", "resolved"];
 
-    // Fetch all issues in real-time
+    // Debug function to log snapshot
+    function logSnapshot(snapshot) {
+      console.log("Snapshot size:", snapshot.size);
+      snapshot.forEach(doc => console.log(doc.id, doc.data()));
+    }
+
+    // Real-time listener for issues
     db.collection("issues")
       .orderBy("createdAt", "desc")
       .onSnapshot(snapshot => {
-        tableBody.innerHTML = ""; // Clear table first
+        console.clear();
+        logSnapshot(snapshot);
+
+        tableBody.innerHTML = ""; // Clear table
 
         snapshot.forEach(doc => {
           const data = doc.data();
           const tr = document.createElement("tr");
 
-          // Create a dropdown for status
+          // Create status dropdown
           const statusSelect = document.createElement("select");
           statusOptions.forEach(opt => {
             const option = document.createElement("option");
@@ -64,22 +71,27 @@
 
           // Update Firestore when status changes
           statusSelect.addEventListener("change", async () => {
-            await db.collection("issues").doc(doc.id).update({
-              status: statusSelect.value
-            });
-            alert(`Status updated to "${statusSelect.value}"`);
+            try {
+              await db.collection("issues").doc(doc.id).update({
+                status: statusSelect.value
+              });
+              console.log(`Status for ${doc.id} updated to "${statusSelect.value}"`);
+            } catch (err) {
+              console.error("Error updating status:", err);
+            }
           });
 
+          // Populate table row
           tr.innerHTML = `
             <td>${data.email || "-"}</td>
             <td>${data.assetId || "-"}</td>
             <td>${data.issue || "-"}</td>
             <td>${data.additionalDetails || "-"}</td>
-            <td></td> <!-- Status dropdown will be appended here -->
+            <td></td> <!-- Status dropdown will go here -->
             <td>${data.createdAt ? data.createdAt.toDate().toLocaleString() : "-"}</td>
           `;
 
-          // Append the dropdown into the status cell
+          // Append status dropdown
           tr.children[4].appendChild(statusSelect);
 
           tableBody.appendChild(tr);
@@ -90,3 +102,4 @@
   </script>
 </body>
 </html>
+
