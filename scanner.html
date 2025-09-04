@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <!-- QR Scanner library -->
-<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
   <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -26,8 +26,7 @@
     <div id="riderInfo"></div>
 
     <!-- Scanner -->
-<video id="video" playsinline></video>
-
+    <video id="video" playsinline></video>
     <button id="startCam" class="btn">Start Camera</button>
     <button id="stopCam" class="btn" style="display:none">Stop Camera</button>
 
@@ -54,6 +53,14 @@
       <h2>Scan Logs</h2>
       <ul id="logsList"></ul>
     </div>
+
+    <!-- Pending Action -->
+    <div id="pendingSection" style="display:none; margin-top:20px;">
+      <h3>Pending Action</h3>
+      <p id="pendingText"></p>
+      <button class="btn" id="confirmBtn">Confirm</button>
+      <button class="btn secondary" id="cancelBtn">Cancel</button>
+    </div>
   </div>
 
   <script>
@@ -63,25 +70,53 @@
 
     let currentScooty = null;
     let currentBattery = null;
+    let pendingAction = null;
 
     if(!email){
       alert("Not signed in!");
       window.location.href="rider-signin.html";
     }
 
+    // Load logs for this rider
+    function loadLogs() {
+      db.collection("logs")
+        .where("email", "==", email)
+        .orderBy("timestamp", "desc")
+        .limit(20)
+        .onSnapshot(snapshot => {
+          const list = document.getElementById("logsList");
+          list.innerHTML = "";
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            const li = document.createElement("li");
+            li.textContent = `${d.timestamp?.toDate().toLocaleString()} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
+            list.appendChild(li);
+          });
+        });
+    }
+
     // Load rider info
-    async function loadRider(){
+    async function loadRider() {
       const doc = await db.collection("users").doc(email).get();
-      if(!doc.exists){
+      if (!doc.exists) {
         alert("Rider not found.");
-        window.location.href="rider-signup.html";
+        window.location.href = "rider-signup.html";
+        return;
       }
+
       const data = doc.data();
       riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
-      if(data.status !== "approved"){
+
+      if (data.status !== "approved") {
         alert("Your account is not approved.");
-        window.location.href="rider-signin.html";
+        window.location.href = "rider-signin.html";
+        return;
       }
+
+      // Load current assignments from Firestore user doc
+      currentScooty = data.scooterId || null;
+      currentBattery = data.batteryId || null;
+      updateAssignmentUI();
     }
 
     // Update UI
@@ -101,143 +136,211 @@
       document.getElementById("logsList").prepend(li);
     }
 
+    // Restore assignments directly from master collections
+    async function loadMyAssignments() {
+      currentScooty = null;
+      currentBattery = null;
+
+      const s = await db.collection("scooty_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      s.forEach(d => currentScooty = d.id);
+
+      const b = await db.collection("battery_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      b.forEach(d => currentBattery = d.id);
+
+      updateAssignmentUI();
+    }
+
     // Handle scan
-    async function handleScan(qrMessage){
-      const id = qrMessage.trim();
+    async function handleScan(raw) {
+      const id = raw.trim();
       let type = null, ref = null;
 
-      if((await db.collection("scooty_master").doc(id).get()).exists){
-  type = "scooty"; ref = db.collection("scooty_master").doc(id);
-} else if((await db.collection("battery_master").doc(id).get()).exists){
-  type = "battery"; ref = db.collection("battery_master").doc(id);
-}
- else {
+      // Identify collection
+      const scootyDoc = await db.collection("scooty_master").doc(id).get();
+      const batteryDoc = !scootyDoc.exists
+        ? await db.collection("battery_master").doc(id).get()
+        : null;
+
+      if (scootyDoc.exists) {
+        type = "scooty";
+        ref = db.collection("scooty_master").doc(id);
+      } else if (batteryDoc && batteryDoc.exists) {
+        type = "battery";
+        ref = db.collection("battery_master").doc(id);
+      } else {
         alert("Unknown QR code: " + id);
         return;
       }
 
       const snap = await ref.get();
-      const data = snap.data();
-    if (data.state !== "active") {
-  alert(`${type} ${id} is not active.`);
-  return;
-}
+      const data = snap.data() || {};
 
+      if (data.state !== "active") {
+        alert(`${type} ${id} is not active.`);
+        return;
+      }
 
-      if(data.status === "returned"){
-        if(type === "scooty"){
-          if(currentScooty){ alert("You already have a scooty assigned."); return; }
-          currentScooty = id;
-          await ref.update({status:"assigned", assignedTo:email});
-          updateAssignmentUI();
-          await logAction("assigned", id, type);
-          alert(`Scooty ${id} assigned. Now scan a battery.`);
+      let action = null;
+      if (data.status === "returned") {
+        if (type === "scooty") {
+          if (currentScooty && currentScooty !== id) {
+            alert("Return your current scooty first.");
+            return;
+          }
+          action = "assign";
+        } else {
+          if (!currentScooty) {
+            alert("Assign a scooty before taking a battery.");
+            return;
+          }
+          if (currentBattery && currentBattery !== id) {
+            alert("Return your current battery first.");
+            return;
+          }
+          action = "assign";
         }
-        else if(type === "battery"){
-          if(!currentScooty){ alert("Scan a scooty first before assigning a battery."); return; }
-          if(currentBattery){ alert("You already have a battery assigned."); return; }
-          currentBattery = id;
-          await ref.update({status:"assigned", assignedTo:email});
-          updateAssignmentUI();
-          await logAction("assigned", id, type);
-          alert(`Battery ${id} assigned.`);
+      } else if (data.status === "assigned" && data.assignedTo === email) {
+        if (type === "scooty" && currentBattery) {
+          alert("Return the battery first before returning the scooty.");
+          return;
         }
+        action = "return";
+      } else {
+        alert(`${type} ${id} is not eligible for you.`);
+        return;
       }
-      else if(data.status === "assigned" && data.assignedTo === email){
-        document.getElementById("locationSection").style.display = "block";
-        const location = document.getElementById("returnLocation").value;
-        if(!location){ alert("Select return location before returning."); return; }
 
-        if(type === "battery"){
-          await ref.update({status:"returned", assignedTo:null, location});
-          currentBattery = null;
-          updateAssignmentUI();
-          await logAction("returned", id, type, location);
-          alert(`Battery ${id} returned.`);
-        }
-        else if(type === "scooty"){
-          if(currentBattery){ alert("Return the battery first before returning the scooty."); return; }
-          await ref.update({status:"returned", assignedTo:null, location});
-          currentScooty = null;
-          updateAssignmentUI();
-          await logAction("returned", id, type, location);
-          alert(`Scooty ${id} returned.`);
-        }
-      }
-      else {
-        alert(`${type} ${id} is not eligible for this operation.`);
-      }
+      pendingAction = { action, id, type, ref };
+      document.getElementById("pendingText").innerText =
+        `${action.toUpperCase()} ${type} ${id}?`;
+      document.getElementById("pendingSection").style.display = "block";
+      document.getElementById("locationSection").style.display =
+        action === "return" ? "block" : "none";
     }
 
     // Camera start/stop
     let stream = null;
-let scanning = false;
-let scanInterval = null;
-let lastRawResult = null;
+    let scanning = false;
+    let scanInterval = null;
+    let lastRawResult = null;
 
-async function startCamera() {
-  try {
-    const video = document.getElementById("video");
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-    video.srcObject = stream;
-    await video.play();
-    scanning = true;
-    scanLoop();
-    document.getElementById("startCam").style.display = "none";
-    document.getElementById("stopCam").style.display = "inline-block";
-  } catch (err) {
-    console.error("Camera error", err);
-    alert("Camera access denied or not available");
-  }
-}
-
-function stopCamera() {
-  scanning = false;
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
-  if (scanInterval) {
-    clearInterval(scanInterval);
-    scanInterval = null;
-  }
-  document.getElementById("startCam").style.display = "inline-block";
-  document.getElementById("stopCam").style.display = "none";
-}
-
-function scanLoop() {
-  const video = document.getElementById("video");
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-  scanInterval = setInterval(() => {
-    if (!scanning || !video.videoWidth) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-    if (code && code.data && code.data !== lastRawResult) {
-      lastRawResult = code.data;
-      console.log("Scanned QR:", code.data);
-      handleScan(code.data); // <-- reuse your existing handleScan()
+    async function startCamera() {
+      try {
+        const video = document.getElementById("video");
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        scanning = true;
+        scanLoop();
+        document.getElementById("startCam").style.display = "none";
+        document.getElementById("stopCam").style.display = "inline-block";
+      } catch (err) {
+        console.error("Camera error", err);
+        alert("Camera access denied or not available");
+      }
     }
-  }, 400);
-}
 
-document.getElementById("startCam").addEventListener("click", startCamera);
-document.getElementById("stopCam").addEventListener("click", stopCamera);
+    function stopCamera() {
+      scanning = false;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+      document.getElementById("startCam").style.display = "inline-block";
+      document.getElementById("stopCam").style.display = "none";
+    }
 
-    document.getElementById("startCam").addEventListener("click", startScanner);
-    document.getElementById("stopCam").addEventListener("click", stopScanner);
+    function scanLoop() {
+      const video = document.getElementById("video");
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-    // Run
-    loadRider();
+      scanInterval = setInterval(() => {
+        if (!scanning || !video.videoWidth) return;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+        if (code && code.data && code.data !== lastRawResult) {
+          lastRawResult = code.data;
+          console.log("Scanned QR:", code.data);
+          handleScan(code.data);
+        }
+      }, 400);
+    }
+
+    document.getElementById("startCam").addEventListener("click", startCamera);
+    document.getElementById("stopCam").addEventListener("click", stopCamera);
+
+    // Confirm / Cancel
+    document.getElementById("confirmBtn").addEventListener("click", async () => {
+      if (!pendingAction) return;
+
+      const { action, id, type, ref } = pendingAction;
+
+      try {
+        if (action === "assign") {
+          await ref.update({
+            status: "assigned",
+            assignedTo: email,
+            location: firebase.firestore.FieldValue.delete()
+          });
+          if (type === "scooty") currentScooty = id; else currentBattery = id;
+          await logAction("assigned", id, type);
+        } else {
+          const location = document.getElementById("returnLocation").value;
+          if (!location) { alert("Select return location before returning."); return; }
+
+          await ref.update({
+            status: "returned",
+            assignedTo: null,
+            location
+          });
+          if (type === "scooty") currentScooty = null; else currentBattery = null;
+          await logAction("returned", id, type, location);
+        }
+
+        // Keep user doc synced
+        await db.collection("users").doc(email).update({
+          scooterId: currentScooty || null,
+          batteryId: currentBattery || null
+        });
+
+        updateAssignmentUI();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to update: " + e.message);
+      } finally {
+        pendingAction = null;
+        document.getElementById("pendingSection").style.display = "none";
+        document.getElementById("locationSection").style.display = "none";
+      }
+    });
+
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      pendingAction = null;
+      document.getElementById("pendingSection").style.display = "none";
+      document.getElementById("locationSection").style.display = "none";
+    });
+
+    // Run on page load
+    (async () => {
+      await loadRider();
+      await loadMyAssignments();
+      loadLogs();
+    })();
   </script>
 </body>
 </html>
-
-
-
-
