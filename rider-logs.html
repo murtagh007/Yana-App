@@ -27,6 +27,7 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
+
     if (!email) {
       alert("Not signed in!");
       window.location.href = "rider-signin.html";
@@ -34,30 +35,69 @@
 
     document.getElementById("riderEmail").innerText = "👤 " + email;
 
-    // Logout
+    // Logout button
     document.getElementById("logoutBtn").addEventListener("click", () => {
       window.location.href = "rider-signin.html";
     });
 
-    // Load logs
-    function loadLogs() {
-      db.collection("logs")
-        .where("email", "==", email)
-        .orderBy("timestamp", "desc")
-        .limit(50)
-        .onSnapshot(snapshot => {
-          const list = document.getElementById("logsList");
-          list.innerHTML = "";
-          snapshot.forEach(doc => {
-            const d = doc.data();
-            const li = document.createElement("li");
-            li.textContent = `${d.timestamp?.toDate().toLocaleString()} — ${d.action} ${d.itemType} ${d.itemId} ${d.location || ""}`;
-            list.appendChild(li);
-          });
+    // Load assignment/return logs
+    async function loadLogs() {
+      const list = document.getElementById("logsList");
+      list.innerHTML = "";
+
+      function addLog(action, assetType, assetId, status, timestamp) {
+        const li = document.createElement("li");
+        li.textContent = `${timestamp?.toDate().toLocaleString()} — ${action} ${assetType}: ${assetId}, Status: ${status}`;
+        list.appendChild(li);
+      }
+
+      try {
+        // Current Scooty assignments
+        const scootySnap = await db.collection("scooty_master")
+          .where("assignedTo", "==", email)
+          .get();
+        scootySnap.forEach(doc => {
+          const d = doc.data();
+          addLog("Assigned", "Scooty", d.id, d.status, d.createdAt);
         });
+
+        // Previous Scooty assignments (returned)
+        const scootyPrevSnap = await db.collection("scooty_master")
+          .where("lastAssignedTo", "==", email)
+          .get();
+        scootyPrevSnap.forEach(doc => {
+          const d = doc.data();
+          addLog("Returned", "Scooty", d.id, d.status, d.lastUpdated);
+        });
+
+        // Current Battery assignments
+        const batterySnap = await db.collection("battery_master")
+          .where("assignedTo", "==", email)
+          .get();
+        batterySnap.forEach(doc => {
+          const d = doc.data();
+          addLog("Assigned", "Battery", d.id, d.status, d.createdAt);
+        });
+
+        // Previous Battery assignments (returned)
+        const batteryPrevSnap = await db.collection("battery_master")
+          .where("lastAssignedTo", "==", email)
+          .get();
+        batteryPrevSnap.forEach(doc => {
+          const d = doc.data();
+          addLog("Returned", "Battery", d.id, d.status, d.lastUpdated);
+        });
+
+      } catch (err) {
+        console.error("Error loading logs:", err);
+        const li = document.createElement("li");
+        li.textContent = "❌ Failed to load logs.";
+        list.appendChild(li);
+      }
     }
 
     loadLogs();
   </script>
 </body>
 </html>
+
