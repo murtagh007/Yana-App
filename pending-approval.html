@@ -3,83 +3,63 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Pending Rider Approvals</title>
+  <title>YANA — Pending Rider Approval</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Search Bar */
-    #searchBar {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      margin-bottom: 16px;
-      background: var(--bg2);
-      color: var(--text);
-    }
-
-    /* Card Grid */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
-      gap: 12px;
-    }
-
-    /* Rider Card */
+    /* Card layout */
     .card {
-      background: var(--card);
-      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: var(--radius);
       padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
       display: flex;
-      flex-direction: column;
       justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
       transition: var(--transition);
     }
-    .card:hover { border-color: var(--action); box-shadow: 0 0 12px var(--action); }
-
-    .card-header {
-      font-weight: 600;
-      font-size: 14px;
-      margin-bottom: 6px;
+    .card:hover {
+      border-color: var(--action);
+      box-shadow: 0 0 10px var(--action);
     }
-
-    .chip {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: var(--radius);
-      font-size: 12px;
-      margin: 2px 2px 4px 0;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid var(--border);
+    .card-left {
+      flex: 1;
+      min-width: 150px;
     }
-
+    .card-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     select {
-      width: 100%;
-      padding: 6px;
-      margin-top: 6px;
+      padding: 4px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg2);
       color: var(--text);
     }
-
-    #submitBtn {
-      margin-top: 20px;
-      float: right;
-      background: var(--action);
-      color: #000;
-      padding: 10px 16px;
+    #searchBar {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
       border-radius: var(--radius);
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      transition: var(--transition);
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
     }
-    #submitBtn:hover { box-shadow: 0 0 8px var(--action); }
+    #submitBtn {
+      float: right;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
     <div class="profile">
@@ -92,14 +72,16 @@
   </div>
 
   <div class="container">
-    <h2>Pending Rider Approvals</h2>
-    <p class="muted">Review riders awaiting approval.</p>
+    <h2>Pending Rider Approval</h2>
+    <p class="muted">Review riders awaiting approval. Choose Approve, Reject, or No Action.</p>
 
-    <input type="text" id="searchBar" placeholder="Search by name, vendor, or partner…">
+    <!-- Search bar -->
+    <input type="text" id="searchBar" placeholder="Search by name, vendor, or partner">
 
-    <div id="ridersGrid" class="grid"></div>
+    <!-- Cards container -->
+    <div id="cardsContainer"></div>
 
-    <button id="submitBtn">Submit Changes</button>
+    <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
   </div>
 
   <!-- Firebase -->
@@ -109,66 +91,80 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    const ridersGrid = document.getElementById("ridersGrid");
-    const searchBar = document.getElementById("searchBar");
-    const actionsMap = new Map(); // Track selected actions
+    const cardsContainer = document.getElementById("cardsContainer");
+    let pendingRiders = [];
 
+    // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
+      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
+
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
         return location.href="index.html";
       }
-      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
-      loadRiders();
+
+      loadPendingRiders();
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    function createCard(doc) {
-      const d = doc.data();
-      const card = document.createElement("div");
-      card.classList.add("card");
-      card.innerHTML = `
-        <div class="card-header">${d.name || ""}</div>
-        <div><span class="chip">Vendor: ${d.vendor || ""}</span></div>
-        <div><span class="chip">Partners: ${(d.partners||[]).join(", ")}</span></div>
-        <select data-id="${doc.id}">
-          <option value="none" selected>No Action</option>
-          <option value="approved">Approve</option>
-          <option value="rejected">Reject</option>
-        </select>
-      `;
-      const sel = card.querySelector("select");
-      sel.addEventListener("change", e => {
-        actionsMap.set(doc.id, e.target.value);
-      });
-      return card;
-    }
-
-    function loadRiders() {
+    // Load pending riders
+    function loadPendingRiders() {
       db.collection("users").where("status","==","pending")
-        .onSnapshot(snap => {
-          ridersGrid.innerHTML = "";
-          snap.docs.forEach(doc => {
-            ridersGrid.appendChild(createCard(doc));
+        .onSnapshot(snapshot => {
+          pendingRiders = [];
+          cardsContainer.innerHTML = "";
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            d.id = doc.id;
+            pendingRiders.push(d);
           });
+          renderCards(pendingRiders);
         });
     }
 
-    searchBar.addEventListener("input", () => {
-      const query = searchBar.value.toLowerCase();
-      document.querySelectorAll("#ridersGrid .card").forEach(card => {
-        const text = card.innerText.toLowerCase();
-        card.style.display = text.includes(query) ? "flex" : "none";
+    function renderCards(list) {
+      cardsContainer.innerHTML = "";
+      list.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-left">
+            <b>${d.name || ""}</b><br>
+            Vendor: ${d.vendor || ""}<br>
+            Partners: ${(d.partners||[]).join(", ")}
+          </div>
+          <div class="card-right">
+            <select data-id="${d.id}">
+              <option value="none" selected>No Action</option>
+              <option value="approved">Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+        `;
+        cardsContainer.appendChild(card);
       });
+    }
+
+    // Search filter
+    document.getElementById("searchBar").addEventListener("input", e => {
+      const term = e.target.value.toLowerCase();
+      renderCards(pendingRiders.filter(d => 
+        (d.name || "").toLowerCase().includes(term) ||
+        (d.vendor || "").toLowerCase().includes(term) ||
+        (d.partners || []).join(", ").toLowerCase().includes(term)
+      ));
     });
 
+    // Submit changes
     document.getElementById("submitBtn").addEventListener("click", async () => {
       const updates = [];
-      actionsMap.forEach((action,email) => {
-        if (action !== "none") updates.push(db.collection("users").doc(email).update({ status: action }));
+      document.querySelectorAll("select[data-id]").forEach(sel => {
+        if (sel.value !== "none") {
+          updates.push(db.collection("users").doc(sel.dataset.id).update({status: sel.value}));
+        }
       });
       if (updates.length === 0) return alert("ℹ No actions selected.");
       await Promise.all(updates);
