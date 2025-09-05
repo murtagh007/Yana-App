@@ -52,24 +52,56 @@ h2 { margin:16px 0 8px; font-size:16px; }
 
 /* Grid Layout */
 .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+@media(max-width:700px){ .grid-2 { grid-template-columns:1fr; } }
 
-/* Buttons & Cards */
-.menu-btn,.card {
+/* Buttons */
+.menu-btn {
   background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
   padding:12px 6px; text-align:center; font-size:11px; cursor:pointer;
   backdrop-filter:blur(10px); transition:var(--transition); position:relative; overflow:hidden;
 }
-.menu-btn i,.card i { display:block; font-size:14px; margin-bottom:2px; color:var(--action); }
-.card span { display:block; font-size:14px; font-weight:600; margin-top:2px; color:#fff; }
-.menu-btn:hover,.card:hover { box-shadow:0 0 10px var(--action); border-color:var(--action); transform:translateY(-2px); }
+.menu-btn i { display:block; font-size:14px; margin-bottom:2px; color:var(--action); }
+.menu-btn:hover { box-shadow:0 0 10px var(--action); border-color:var(--action); transform:translateY(-2px); }
 
-/* Ripple */
+/* Ripple effect */
 .ripple::after {
   content:""; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
   background:radial-gradient(circle,rgba(0,234,255,0.2) 0%,transparent 70%);
   transform:scale(0); transition:transform 0.5s ease;
 }
 .ripple:active::after { transform:scale(1); }
+
+/* Panels */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  transition: var(--transition);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.panel:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
+
+.panel-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px;
+}
+.panel-header i { font-size:18px; color:var(--action); }
+.panel-title { font-size:14px; font-weight:500; }
+.panel-total { font-size:18px; font-weight:bold; color:#fff; }
+
+/* Chips */
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip {
+  background: rgba(255,255,255,0.1);
+  padding:4px 8px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
 
 /* Utilisation Bars */
 .util-section { margin-bottom: 20px; }
@@ -103,6 +135,16 @@ h2 { margin:16px 0 8px; font-size:16px; }
 }
 
 /* Overlay */
-.overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
-  display:flex;align-items:center;justify-content:center;z-index:2000; }
-.detail-card { background:var(--card); padding:16px; border-radius:var(--radius); max-width:320px; width:90%; max-height:70vh; overflow-y:auto; }
+.overlay {
+  position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
+  display:flex;align-items:center;justify-content:center;z-index:2000;
+}
+.detail-card {
+  background:var(--card);
+  padding:16px;
+  border-radius:var(--radius);
+  max-width:320px;
+  width:90%;
+  max-height:70vh;
+  overflow-y:auto;
+}
