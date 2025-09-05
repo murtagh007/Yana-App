@@ -96,16 +96,21 @@ h2 { margin:16px 0 8px; font-size:16px; }
 .chips {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;  /* ✅ Center horizontally */
+  justify-content: center;   /* ✅ center the chips */
+  align-items: center;       /* ✅ vertical centering */
+  text-align: center;        /* ✅ center text inside */
   gap: 6px;
+  width: 100%;               /* ✅ span full panel width */
 }
 .chip {
+  display: inline-block;      /* prevent full-width stretching */
   background: rgba(255,255,255,0.1);
-  padding:4px 8px;
+  padding: 4px 8px;
   border-radius: var(--radius);
   font-size: 12px;
   color: var(--text);
   border: 1px solid var(--border);
+  text-align: center;         /* ✅ ensures content centers */
 }
 
 /* Utilisation Bars */
