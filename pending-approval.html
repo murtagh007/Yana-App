@@ -3,52 +3,103 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Pending Rider Approval</title>
+  <title>YANA — Pending Rider Approvals</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    table {
+    /* Search Bar */
+    #searchBar {
       width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      background: var(--bg2);
+      color: var(--text);
     }
-    th, td {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 8px;
-      text-align: left;
+
+    /* Card Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+      gap: 12px;
     }
+
+    /* Rider Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: var(--transition);
+    }
+    .card:hover { border-color: var(--action); box-shadow: 0 0 12px var(--action); }
+
+    .card-header {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      margin: 2px 2px 4px 0;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid var(--border);
+    }
+
     select {
-      padding: 4px;
-      border-radius: 6px;
+      width: 100%;
+      padding: 6px;
+      margin-top: 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
     }
+
+    #submitBtn {
+      margin-top: 20px;
+      float: right;
+      background: var(--action);
+      color: #000;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: var(--transition);
+    }
+    #submitBtn:hover { box-shadow: 0 0 8px var(--action); }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
   <div class="container">
-    <h1>Pending Rider Approval</h1>
-    <p class="muted">Review riders awaiting approval. Choose Approve, Reject, or No Action.</p>
+    <h2>Pending Rider Approvals</h2>
+    <p class="muted">Review riders awaiting approval.</p>
 
-    <table id="ridersTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Vendor</th>
-          <th>Business Partners</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <input type="text" id="searchBar" placeholder="Search by name, vendor, or partner…">
 
-    <!-- Submit button updated -->
-    <button id="submitBtn" style="float:right; color:white; background:var(--action); padding:8px 16px; border:none; border-radius:var(--radius); cursor:pointer;">
-      Submit Changes
-    </button>
+    <div id="ridersGrid" class="grid"></div>
+
+    <button id="submitBtn">Submit Changes</button>
   </div>
 
   <!-- Firebase -->
@@ -58,51 +109,65 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    const ridersGrid = document.getElementById("ridersGrid");
+    const searchBar = document.getElementById("searchBar");
+    const actionsMap = new Map(); // Track selected actions
+
     auth.onAuthStateChanged(async user => {
-      if (!user) return window.location.href="admin-signin.html";
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      if (!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
-        window.location.href = "index.html";
+        return location.href="index.html";
       }
+      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
+      loadRiders();
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    const tbody = document.querySelector("#ridersTable tbody");
+    function createCard(doc) {
+      const d = doc.data();
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.innerHTML = `
+        <div class="card-header">${d.name || ""}</div>
+        <div><span class="chip">Vendor: ${d.vendor || ""}</span></div>
+        <div><span class="chip">Partners: ${(d.partners||[]).join(", ")}</span></div>
+        <select data-id="${doc.id}">
+          <option value="none" selected>No Action</option>
+          <option value="approved">Approve</option>
+          <option value="rejected">Reject</option>
+        </select>
+      `;
+      const sel = card.querySelector("select");
+      sel.addEventListener("change", e => {
+        actionsMap.set(doc.id, e.target.value);
+      });
+      return card;
+    }
 
-    function loadPendingRiders() {
-      db.collection("users")
-        .where("status", "==", "pending")
-        .onSnapshot(snapshot => {
-          tbody.innerHTML = "";
-          snapshot.forEach(doc => {
-            const d = doc.data();
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td>${d.name || ""}</td>
-              <td>${d.vendor || ""}</td>
-              <td>${(d.partners || []).join(", ")}</td>
-              <td>
-                <select data-id="${doc.id}">
-                  <option value="none" selected>No Action</option>
-                  <option value="approved">Approve</option>
-                  <option value="rejected">Reject</option>
-                </select>
-              </td>
-            `;
-            tbody.appendChild(tr);
+    function loadRiders() {
+      db.collection("users").where("status","==","pending")
+        .onSnapshot(snap => {
+          ridersGrid.innerHTML = "";
+          snap.docs.forEach(doc => {
+            ridersGrid.appendChild(createCard(doc));
           });
         });
     }
-    loadPendingRiders();
+
+    searchBar.addEventListener("input", () => {
+      const query = searchBar.value.toLowerCase();
+      document.querySelectorAll("#ridersGrid .card").forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = text.includes(query) ? "flex" : "none";
+      });
+    });
 
     document.getElementById("submitBtn").addEventListener("click", async () => {
       const updates = [];
-      document.querySelectorAll("select[data-id]").forEach(sel => {
-        const action = sel.value;
-        const email = sel.dataset.id;
+      actionsMap.forEach((action,email) => {
         if (action !== "none") updates.push(db.collection("users").doc(email).update({ status: action }));
       });
       if (updates.length === 0) return alert("ℹ No actions selected.");
