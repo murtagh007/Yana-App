@@ -21,10 +21,6 @@
   </div>
 
   <div class="container">
-    <!-- Page Header -->
-    <h2 id="adminEmail">Admin Scan</h2>
-    <p class="muted">📷 Scan a Scooty or Battery QR to update its state.</p>
-
     <!-- Scanner Panel -->
     <div class="panel">
       <div class="panel-header">
@@ -32,13 +28,13 @@
         <span class="panel-title">QR Scanner</span>
       </div>
       <div style="text-align:center;">
-        <video id="video" width="300" height="200" style="border:1px solid var(--action);border-radius:var(--radius);" autoplay></video>
-        <canvas id="canvas" width="300" height="200" style="display:none"></canvas>
-        <div style="margin-top:10px;">
+        <video id="video" width="400" height="280" style="border:1px solid var(--action);border-radius:var(--radius);" autoplay></video>
+        <canvas id="canvas" width="400" height="280" style="display:none"></canvas>
+        <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
           <button id="startCam" class="menu-btn ripple"><i class="fas fa-play"></i> Start Camera</button>
           <button id="stopCam" class="menu-btn ripple" style="display:none"><i class="fas fa-stop"></i> Stop Camera</button>
         </div>
-        <p id="scanResult" class="muted" style="margin-top:8px;"></p>
+        <p id="scanResult" class="muted" style="margin-top:10px;"></p>
       </div>
     </div>
 
@@ -92,7 +88,6 @@
         alert("❌ Not an admin."); 
         return location.href="index.html";
       }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
       document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
     });
 
@@ -103,14 +98,10 @@
       scannedId = decodedText.trim();
       document.getElementById("scanResult").innerText = "✅ Scanned: " + scannedId;
 
-      if (scannedId.startsWith("S")) {
-        scannedType = "scooty_master";
-      } else if (scannedId.startsWith("B")) {
-        scannedType = "battery_master";
-      } else {
-        alert("❌ Invalid QR ID");
-        return;
-      }
+      if (scannedId.startsWith("S")) scannedType = "scooty_master";
+      else if (scannedId.startsWith("B")) scannedType = "battery_master";
+      else return alert("❌ Invalid QR ID");
+
       checkEligibility();
     }
 
