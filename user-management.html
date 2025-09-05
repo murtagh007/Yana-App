@@ -1,156 +1,118 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>YANA — User Management</title>
-<link rel="stylesheet" href="styles.css">
-<style>
-  .search-bar {
-    margin: 12px 0;
-    display: flex;
-    gap: 8px;
-  }
-  .search-bar input {
-    flex: 1;
-    padding: 8px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    color: var(--text);
-  }
-  .grid-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
-    gap: 12px;
-  }
-  .user-card {
-    background: var(--card);
-    padding: 12px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    transition: var(--transition);
-  }
-  .user-card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
-  .user-card h3 { margin: 0 0 8px; font-size: 16px; color: var(--action); }
-  .user-card p { margin: 2px 0; font-size: 13px; }
-  .user-card label { font-size: 12px; display: block; margin-top: 6px; }
-  .user-card select {
-    width: 100%;
-    padding: 6px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    color: var(--text);
-  }
-  #submitBtn { margin-top: 16px; }
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — User Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 8px;
+      text-align: left;
+    }
+    select {
+      padding: 4px;
+      border-radius: 6px;
+    }
+  </style>
 </head>
 <body>
-<div class="navbar">
-  <h2>⚡ YANA Admin</h2>
-  <div class="profile">
-    <div class="profile-pic">A</div>
-    <div class="dropdown">
-      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-      <button id="logoutBtn">Logout</button>
-    </div>
-  </div>
-</div>
-
-<div class="container">
-  <h2>User Management</h2>
-  <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
-
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search by name, email, or vendor...">
+  <div class="navbar">
+    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
+    <span id="adminEmail"></span>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
   </div>
 
-  <div class="grid-cards" id="usersGrid"></div>
+  <div class="container">
+    <h1>User Management</h1>
+    <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
 
-  <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
-</div>
+    <table id="usersTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Vendor</th>
+          <th>Partners</th>
+          <th>Role</th>
+          <th>State</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="firebase-config.js"></script>
+    <!-- Submit button updated -->
+    <button id="submitBtn" style="float:right; color:white; background:var(--action); padding:8px 16px; border:none; border-radius:var(--radius); cursor:pointer;">
+      Submit Changes
+    </button>
+  </div>
 
-<script>
-  let allUsers = [];
-  const usersGrid = document.getElementById("usersGrid");
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
 
-  // Admin auth check
-  auth.onAuthStateChanged(async user => {
-    if (!user) return location.href="admin-signin.html";
-    const doc = await db.collection("users").doc(user.email).get();
-    if (!doc.exists || doc.data().role !== "admin") {
-      alert("❌ Not an admin."); 
-      return location.href="index.html";
+  <script>
+    auth.onAuthStateChanged(async user => {
+      if (!user) return window.location.href="admin-signin.html";
+      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      const doc = await db.collection("users").doc(user.email).get();
+      if (!doc.exists || doc.data().role !== "admin") {
+        alert("❌ Not an admin.");
+        window.location.href = "index.html";
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+
+    const tbody = document.querySelector("#usersTable tbody");
+
+    function loadUsers() {
+      db.collection("users").onSnapshot(snapshot => {
+        tbody.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${d.name || ""}</td>
+            <td>${d.vendor || ""}</td>
+            <td>${(d.partners || []).join(", ")}</td>
+            <td>
+              <select data-id="${doc.id}" data-field="role">
+                <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
+                <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
+                <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
+              </select>
+            </td>
+            <td>
+              <select data-id="${doc.id}" data-field="state">
+                <option value="active" ${d.state==="active"?"selected":""}>Active</option>
+                <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
+                <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
+              </select>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
     }
-    document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
-  });
+    loadUsers();
 
-  document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-  function renderUsers(users) {
-    usersGrid.innerHTML = "";
-    users.forEach(d => {
-      const card = document.createElement("div");
-      card.className = "user-card";
-      card.innerHTML = `
-        <h3>${d.name || ""}</h3>
-        <p><b>Email:</b> ${d.email}</p>
-        <p><b>Phone:</b> ${d.phone || ""}</p>
-        <p><b>Vendor:</b> ${d.vendor || ""}</p>
-        <p><b>Partners:</b> ${(d.partners||[]).join(", ")}</p>
-        <label>Role:</label>
-        <select data-id="${d.email}" data-field="role">
-          <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
-          <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
-          <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
-        </select>
-        <label>State:</label>
-        <select data-id="${d.email}" data-field="state">
-          <option value="active" ${d.state==="active"?"selected":""}>Active</option>
-          <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
-          <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
-        </select>
-      `;
-      usersGrid.appendChild(card);
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const updates = [];
+      document.querySelectorAll("select[data-id]").forEach(sel => {
+        updates.push(db.collection("users").doc(sel.dataset.id).update({ [sel.dataset.field]: sel.value }));
+      });
+      if (updates.length === 0) return alert("ℹ No changes to save.");
+      await Promise.all(updates);
+      alert("✅ Changes applied!");
     });
-  }
-
-  // Load users
-  db.collection("users").onSnapshot(snap => {
-    allUsers = snap.docs.map(d => ({email:d.id,...d.data()}));
-    renderUsers(allUsers);
-  });
-
-  // Search filter
-  document.getElementById("searchInput").addEventListener("input", e => {
-    const term = e.target.value.toLowerCase();
-    renderUsers(allUsers.filter(u =>
-      (u.name||"").toLowerCase().includes(term) ||
-      (u.email||"").toLowerCase().includes(term) ||
-      (u.vendor||"").toLowerCase().includes(term)
-    ));
-  });
-
-  // Submit bulk updates
-  document.getElementById("submitBtn").addEventListener("click", async () => {
-    const updates = [];
-    document.querySelectorAll("select[data-id]").forEach(sel => {
-      const email = sel.dataset.id;
-      const field = sel.dataset.field;
-      const value = sel.value;
-      updates.push(db.collection("users").doc(email).update({ [field]: value }));
-    });
-    if(updates.length===0){ alert("ℹ No changes to save."); return; }
-    await Promise.all(updates);
-    alert("✅ Changes applied!");
-  });
-</script>
+  </script>
 </body>
 </html>
