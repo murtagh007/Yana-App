@@ -28,17 +28,17 @@
         <span class="panel-title">QR Scanner</span>
       </div>
       <div style="text-align:center;">
-        <video id="video" width="400" height="280" style="border:1px solid var(--action);border-radius:var(--radius);" autoplay></video>
-        <canvas id="canvas" width="400" height="280" style="display:none"></canvas>
+        <video id="video" width="450" height="315" style="border:1px solid var(--action);border-radius:var(--radius);" autoplay></video>
+        <canvas id="canvas" width="450" height="315" style="display:none"></canvas>
         <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
-          <button id="startCam" class="menu-btn ripple"><i class="fas fa-play"></i> Start Camera</button>
-          <button id="stopCam" class="menu-btn ripple" style="display:none"><i class="fas fa-stop"></i> Stop Camera</button>
+          <button id="startCam" class="menu-btn ripple" style="color:#fff;"><i class="fas fa-play"></i> Start Camera</button>
+          <button id="stopCam" class="menu-btn ripple" style="color:#fff; display:none;"><i class="fas fa-stop"></i> Stop Camera</button>
         </div>
         <p id="scanResult" class="muted" style="margin-top:10px;"></p>
       </div>
     </div>
 
-    <!-- State Selector -->
+    <!-- State Selector Panel -->
     <div id="stateSection" class="panel" style="display:none;">
       <div class="panel-header">
         <i class="fas fa-tools"></i>
@@ -51,10 +51,10 @@
         <option value="repair">Repair</option>
         <option value="maintenance">Maintenance</option>
       </select>
-      <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit</button>
+      <button class="menu-btn ripple" id="submitBtn" style="color:#fff;"><i class="fas fa-check"></i> Submit</button>
     </div>
 
-    <!-- Logs -->
+    <!-- Recent Admin Logs -->
     <h2>📝 Recent Admin Logs</h2>
     <div class="panel">
       <ul id="logsList" style="font-size:13px;line-height:1.4;"></ul>
@@ -80,7 +80,7 @@
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
-    // auth check
+    // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
@@ -93,7 +93,7 @@
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    // QR Scan success handler
+    // QR Scan success
     function onScanSuccess(decodedText) {
       scannedId = decodedText.trim();
       document.getElementById("scanResult").innerText = "✅ Scanned: " + scannedId;
