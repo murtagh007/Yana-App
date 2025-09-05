@@ -1,131 +1,87 @@
 :root {
   --bg: #0a0f12;
-  --bg-gradient: linear-gradient(135deg, #0a0f12, #141a1f 60%);
-  --card: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.12);
+  --bg2: #141a1f;
+  --card: rgba(255,255,255,0.1);
+  --border: rgba(255,255,255,0.2);
   --action: #00eaff;
   --text: #eaf4f8;
-  --radius: 10px;
-  --transition: 0.25s ease;
-  --shadow: 0 4px 12px rgba(0,0,0,0.4);
+  --radius: 12px;
+  --transition: 0.3s ease;
 }
 
+/* Background Animation */
 body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
-  background: var(--bg-gradient);
-  color: var(--text);
+  margin:0;
+  font-family:'Inter',sans-serif;
+  color:var(--text);
+  background:linear-gradient(270deg,var(--bg),var(--bg2),var(--bg));
+  background-size:600% 600%;
+  animation:gradientShift 20s ease infinite;
+}
+@keyframes gradientShift {
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
 }
 
-h2 {
-  margin: 16px 0 8px;
-  font-size: 16px;
-  font-weight: 600;
-}
+h2 { margin:16px 0 8px; font-size:16px; cursor:pointer; }
 
+/* Navbar */
 .navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--card);
-  padding: 10px 16px;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  backdrop-filter: blur(6px);
-  box-shadow: var(--shadow);
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--card); padding:10px 16px;
+  position:sticky; top:0; z-index:1000; backdrop-filter:blur(6px);
+}
+.profile { position:relative; cursor:pointer; }
+.profile-pic {
+  width:28px;height:28px;border-radius:50%;background:var(--action);color:#000;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;
+}
+.dropdown { display:none; position:absolute; right:0; top:36px; background:var(--card); border-radius:var(--radius); }
+.profile:hover .dropdown { display:block; }
+.dropdown button { background:none; border:none; color:var(--text); padding:8px 12px; cursor:pointer; }
+
+/* Grids */
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+
+/* Buttons */
+.menu-btn,.card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 6px; text-align:center; font-size:11px; cursor:pointer;
+  backdrop-filter:blur(10px); transition:var(--transition); position:relative; overflow:hidden;
+}
+.menu-btn i,.card i { display:block; font-size:14px; margin-bottom:2px; color:var(--action); }
+.card span { display:block; font-size:14px; font-weight:600; margin-top:2px; color:#fff; }
+.menu-btn:hover,.card:hover { box-shadow:0 0 10px var(--action); border-color:var(--action); transform:translateY(-2px); }
+
+/* Ripple */
+.ripple::after {
+  content:""; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+  background:radial-gradient(circle,rgba(0,234,255,0.2) 0%,transparent 70%);
+  transform:scale(0); transition:transform 0.5s ease;
+}
+.ripple:active::after { transform:scale(1); }
+
+/* Collapsible sections */
+.section.collapsed { display:none; }
+
+/* Progress Ring */
+.progress-ring { position:relative; width:120px; height:120px; margin:20px auto; }
+.progress-ring svg { transform:rotate(-90deg); width:100%; height:100%; }
+.progress-ring circle { fill:none; stroke-width:10; }
+.progress-ring .bg { stroke:rgba(255,255,255,0.1); }
+.progress-ring .progress { stroke:var(--action); stroke-linecap:round; transition:stroke-dashoffset 0.5s ease; }
+.progress-ring span {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-size:18px; font-weight:600;
 }
 
-.btn {
-  background: var(--action);
-  color: #000;
-  border: none;
-  border-radius: var(--radius);
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-}
-.btn.secondary {
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn:hover { opacity: 0.9; }
+/* Overlay */
+.overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
+  display:flex;align-items:center;justify-content:center;z-index:2000; }
+.detail-card { background:var(--card); padding:16px; border-radius:var(--radius); max-width:320px; width:90%; max-height:70vh; overflow-y:auto; }
 
-/* Uniform 4-col grid */
-.grid-4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-/* Action buttons */
-.menu-btn {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 10px 4px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--text);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: var(--transition);
-}
-.menu-btn i {
-  font-size: 14px;
-  display: block;
-  margin-bottom: 2px;
-  color: var(--action);
-}
-.menu-btn:hover { background: rgba(255,255,255,0.1); }
-
-/* Stat cards */
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 12px 4px;
-  text-align: center;
-  font-size: 11px;
-  box-shadow: var(--shadow);
-  transition: var(--transition);
-  cursor: pointer;
-}
-.card i {
-  font-size: 14px;
-  margin-bottom: 2px;
-  color: var(--action);
-}
-.card span {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 2px;
-  color: #fff;
-}
-.card:hover { transform: translateY(-1px); }
-
-/* Overlay modal */
-.overlay {
-  position: fixed;
-  top:0; left:0; right:0; bottom:0;
-  background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-.detail-card {
-  background: var(--card);
-  padding: 16px;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  max-width: 320px;
-  width: 90%;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-.detail-card h3 { margin-top:0; font-size:14px; }
-.detail-card ul { padding-left:16px; margin:0; font-size:12px; }
+/* Toasts */
+#toast-container { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:10px; z-index:3000; }
+.toast { background:var(--card); padding:10px 16px; border-radius:var(--radius); opacity:0; transform:translateY(20px); transition:all 0.3s ease; }
+.toast.show { opacity:1; transform:translateY(0); box-shadow:0 0 10px var(--action); }
