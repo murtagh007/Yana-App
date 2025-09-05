@@ -12,49 +12,43 @@
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
     <div>
-      <span id="adminEmail"></span>
       <button class="btn secondary" id="logoutBtn">Logout</button>
     </div>
   </div>
 
-  <!-- Container -->
-  <div class="container" style="padding:20px;">
-    <h1>📊 Admin Dashboard</h1>
-    <p class="muted">Overview of scooties, batteries & riders</p>
+  <div class="container" style="padding:16px;">
+    <h1>📊 Dashboard</h1>
 
-    <!-- Menu -->
-    <div class="grid">
-      <button class="btn" onclick="window.location.href='admin-scan.html'"><i class="fas fa-qrcode"></i> Admin Scan</button>
-      <button class="btn" onclick="window.location.href='pending-approval.html'"><i class="fas fa-user-check"></i> Pending Rider Approval</button>
-      <button class="btn" onclick="window.location.href='user-management.html'"><i class="fas fa-users-cog"></i> User Management</button>
-      <button class="btn" onclick="window.location.href='masterlist.html'"><i class="fas fa-list"></i> Scooty/Battery Masterlist</button>
-      <button class="btn" onclick="window.location.href='logs-viewer.html'"><i class="fas fa-clipboard-list"></i> Logs Viewer</button>
-      <button class="btn" onclick="window.location.href='issues.html'"><i class="fas fa-exclamation-triangle"></i> Issues</button>
-      <button class="btn" onclick="window.location.href='seed.html'"><i class="fas fa-database"></i> Seed Data</button>
+    <!-- Action Menu (scrollable on mobile) -->
+    <div class="menu-strip">
+      <div class="menu-btn" onclick="window.location.href='admin-scan.html'"><i class="fas fa-qrcode"></i> Scan</div>
+      <div class="menu-btn" onclick="window.location.href='pending-approval.html'"><i class="fas fa-user-check"></i> Approvals</div>
+      <div class="menu-btn" onclick="window.location.href='user-management.html'"><i class="fas fa-users-cog"></i> Users</div>
+      <div class="menu-btn" onclick="window.location.href='masterlist.html'"><i class="fas fa-list"></i> Masterlist</div>
+      <div class="menu-btn" onclick="window.location.href='logs-viewer.html'"><i class="fas fa-clipboard-list"></i> Logs</div>
+      <div class="menu-btn" onclick="window.location.href='issues.html'"><i class="fas fa-exclamation-triangle"></i> Issues</div>
+      <div class="menu-btn" onclick="window.location.href='seed.html'"><i class="fas fa-database"></i> Seed</div>
     </div>
-
-    <!-- Grid Summary Section -->
-    <h2 style="margin-top:30px;">📈 Asset Overview</h2>
 
     <!-- Battery Stats -->
     <h3>🔋 Batteries</h3>
     <div class="grid">
-      <div class="card"><i class="fas fa-battery-full"></i> Total Batteries<br><span class="highlight" id="numBatteries">0</span></div>
-      <div class="card"><i class="fas fa-exclamation-circle"></i> Batteries Not Active<br><span class="highlight" id="batteriesNotActive">0</span></div>
-      <div class="card"><i class="fas fa-box-open"></i> Batteries Free<br><span class="highlight" id="batteriesFree">0</span></div>
-      <div class="card"><i class="fas fa-bolt"></i> Batteries In Use<br><span class="highlight" id="batteriesInUse">0</span></div>
+      <div class="card"><i class="fas fa-battery-full"></i>Total<br><span class="highlight" id="numBatteries">0</span></div>
+      <div class="card"><i class="fas fa-exclamation-circle"></i>Not Active<br><span class="highlight" id="batteriesNotActive">0</span></div>
+      <div class="card" onclick="openDetails('batteriesFree')"><i class="fas fa-box-open"></i>Free<br><span class="highlight" id="batteriesFree">0</span></div>
+      <div class="card" onclick="openDetails('batteriesInUse')"><i class="fas fa-bolt"></i>In Use<br><span class="highlight" id="batteriesInUse">0</span></div>
     </div>
 
     <!-- Scooty Stats -->
     <h3 style="margin-top:20px;">🛵 Scooties</h3>
     <div class="grid">
-      <div class="card"><i class="fas fa-motorcycle"></i> Total Scooties<br><span class="highlight" id="numScooties">0</span></div>
-      <div class="card"><i class="fas fa-exclamation-triangle"></i> Scooties Not Active<br><span class="highlight" id="scootiesNotActive">0</span></div>
-      <div class="card"><i class="fas fa-parking"></i> Scooties Free<br><span class="highlight" id="scootiesFree">0</span></div>
-      <div class="card"><i class="fas fa-route"></i> Scooties In Use<br><span class="highlight" id="scootiesInUse">0</span></div>
+      <div class="card"><i class="fas fa-motorcycle"></i>Total<br><span class="highlight" id="numScooties">0</span></div>
+      <div class="card"><i class="fas fa-exclamation-triangle"></i>Not Active<br><span class="highlight" id="scootiesNotActive">0</span></div>
+      <div class="card" onclick="openDetails('scootiesFree')"><i class="fas fa-parking"></i>Free<br><span class="highlight" id="scootiesFree">0</span></div>
+      <div class="card" onclick="openDetails('scootiesInUse')"><i class="fas fa-route"></i>In Use<br><span class="highlight" id="scootiesInUse">0</span></div>
     </div>
 
-    <!-- Scooty Utilisation -->
+    <!-- Utilisation -->
     <div class="card" style="margin-top:20px;">
       <h3>Utilisation</h3>
       <div style="background:#222; border-radius:10px; overflow:hidden; height:18px;">
@@ -63,24 +57,18 @@
       <p><span id="scootyUtilisation">0%</span></p>
     </div>
 
-    <!-- Rider Stats -->
+    <!-- Riders -->
     <h3 style="margin-top:20px;">👥 Riders</h3>
     <div class="grid">
-      <div class="card"><i class="fas fa-users"></i> Riders with YANA Vendor<br><span class="highlight" id="yanaVendorRiders">0</span></div>
-      <div class="card"><i class="fas fa-motorcycle"></i> Riders with YANA Scooty<br><span class="highlight" id="yanaScootyRiders">0</span></div>
+      <div class="card"><i class="fas fa-users"></i>Vendor: YANA<br><span class="highlight" id="yanaVendorRiders">0</span></div>
+      <div class="card"><i class="fas fa-motorcycle"></i>With Scooty<br><span class="highlight" id="yanaScootyRiders">0</span></div>
     </div>
+  </div>
 
-    <!-- Free IDs -->
-    <h3 style="margin-top:20px;">🆓 Free Assets</h3>
-    <div class="grid">
-      <div class="card">
-        <h3>🛵 Scooty IDs Free</h3>
-        <div id="scootyFreeList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-      </div>
-      <div class="card">
-        <h3>🔋 Battery IDs Free</h3>
-        <div id="batteryFreeList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-      </div>
+  <!-- Overlay for details -->
+  <div id="overlay" class="overlay" style="display:none;" onclick="closeDetails(event)">
+    <div class="detail-card" id="detailCard" onclick="event.stopPropagation()">
+      <!-- Content dynamically inserted -->
     </div>
   </div>
 
@@ -91,13 +79,15 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    let allBatteries = [];
+    let allScooties = [];
+
     // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) {
         window.location.href = "admin-signin.html";
         return;
       }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
@@ -106,7 +96,7 @@
         return;
       }
 
-      // Load summary
+      document.getElementById("adminEmail").innerText = "👤 " + user.email;
       loadSummaryRealtime();
       loadRiderStats();
     });
@@ -115,72 +105,44 @@
 
     // ---- Summary Rendering ----
     function renderSummary(batteries, scooties) {
-      // Battery Stats
       document.getElementById("numBatteries").innerText = batteries.length;
       document.getElementById("batteriesNotActive").innerText = batteries.filter(b => b.state !== "active").length;
       document.getElementById("batteriesFree").innerText = batteries.filter(b => b.status === "returned").length;
       document.getElementById("batteriesInUse").innerText = batteries.filter(b => b.status === "assigned").length;
 
-      // Scooty Stats
       document.getElementById("numScooties").innerText = scooties.length;
       document.getElementById("scootiesNotActive").innerText = scooties.filter(s => s.state !== "active").length;
       document.getElementById("scootiesFree").innerText = scooties.filter(s => s.status === "returned").length;
       document.getElementById("scootiesInUse").innerText = scooties.filter(s => s.status === "assigned").length;
 
-      // Utilisation %
       const utilisation = scooties.length > 0
         ? ((scooties.filter(s => s.status === "assigned").length / scooties.length) * 100).toFixed(1)
         : 0;
       document.getElementById("scootyUtilisation").innerText = utilisation + "%";
       document.getElementById("scootyUtilBar").style.width = utilisation + "%";
-
-      // Free Scooty IDs as chips
-      const scootyList = document.getElementById("scootyFreeList");
-      scootyList.innerHTML = "";
-      scooties.filter(s => s.status === "returned").forEach(s => {
-        const chip = document.createElement("span");
-        chip.className = "status-badge status-returned";
-        chip.innerText = s.id;
-        scootyList.appendChild(chip);
-      });
-
-      // Free Battery IDs as chips
-      const batteryList = document.getElementById("batteryFreeList");
-      batteryList.innerHTML = "";
-      batteries.filter(b => b.status === "returned").forEach(b => {
-        const chip = document.createElement("span");
-        chip.className = "status-badge status-returned";
-        chip.innerText = b.id;
-        batteryList.appendChild(chip);
-      });
     }
 
     // ---- Realtime Listeners ----
     function loadSummaryRealtime() {
-      let batteries = [];
-      let scooties = [];
-
       db.collection("battery_master").onSnapshot(bSnap => {
-        batteries = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderSummary(batteries, scooties);
+        allBatteries = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderSummary(allBatteries, allScooties);
       });
 
       db.collection("scooty_master").onSnapshot(sSnap => {
-        scooties = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderSummary(batteries, scooties);
+        allScooties = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderSummary(allBatteries, allScooties);
       });
     }
 
     // ---- Rider Stats ----
     async function loadRiderStats() {
       try {
-        // Riders with vendor = YANA
         const vendorSnap = await db.collection("users")
           .where("vendor", "==", "YANA")
           .get();
         document.getElementById("yanaVendorRiders").innerText = vendorSnap.size;
 
-        // Riders with a YANA scooty assigned
         const scootySnap = await db.collection("scooty_master")
           .where("status", "==", "assigned")
           .get();
@@ -196,6 +158,40 @@
         console.error("Failed to load rider stats:", err);
       }
     }
+
+    // ---- Card Detail Overlay ----
+    function openDetails(type) {
+      const overlay = document.getElementById("overlay");
+      const card = document.getElementById("detailCard");
+
+      let title = "";
+      let list = [];
+
+      if (type === "batteriesFree") {
+        title = "🔋 Free Battery IDs";
+        list = allBatteries.filter(b => b.status === "returned").map(b => b.id);
+      } else if (type === "scootiesFree") {
+        title = "🛵 Free Scooty IDs";
+        list = allScooties.filter(s => s.status === "returned").map(s => s.id);
+      } else if (type === "batteriesInUse") {
+        title = "⚡ Batteries In Use";
+        list = allBatteries.filter(b => b.status === "assigned").map(b => `${b.id} → ${b.assignedTo || "?"}`);
+      } else if (type === "scootiesInUse") {
+        title = "🛵 Scooties In Use";
+        list = allScooties.filter(s => s.status === "assigned").map(s => `${s.id} → ${s.assignedTo || "?"}`);
+      }
+
+      card.innerHTML = `<h3>${title}</h3>` + (list.length
+        ? `<ul>${list.map(id => `<li>${id}</li>`).join("")}</ul>`
+        : "<p>No data available</p>");
+
+      overlay.style.display = "flex";
+    }
+
+    function closeDetails() {
+      document.getElementById("overlay").style.display = "none";
+    }
   </script>
 </body>
 </html>
+
