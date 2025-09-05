@@ -20,7 +20,7 @@
   <!-- Container -->
   <div class="container" style="padding:20px;">
     <h1>📊 Admin Dashboard</h1>
-    <p class="muted">Overview of scooties, batteries & usage</p>
+    <p class="muted">Overview of scooties, batteries & riders</p>
 
     <!-- Menu -->
     <div class="grid">
@@ -35,28 +35,43 @@
 
     <!-- Grid Summary Section -->
     <h2 style="margin-top:30px;">📈 Asset Overview</h2>
+
+    <!-- Battery Stats -->
+    <h3>🔋 Batteries</h3>
     <div class="grid">
       <div class="card"><i class="fas fa-battery-full"></i> Total Batteries<br><span class="highlight" id="numBatteries">0</span></div>
       <div class="card"><i class="fas fa-exclamation-circle"></i> Batteries Not Active<br><span class="highlight" id="batteriesNotActive">0</span></div>
       <div class="card"><i class="fas fa-box-open"></i> Batteries Free<br><span class="highlight" id="batteriesFree">0</span></div>
       <div class="card"><i class="fas fa-bolt"></i> Batteries In Use<br><span class="highlight" id="batteriesInUse">0</span></div>
+    </div>
 
+    <!-- Scooty Stats -->
+    <h3 style="margin-top:20px;">🛵 Scooties</h3>
+    <div class="grid">
       <div class="card"><i class="fas fa-motorcycle"></i> Total Scooties<br><span class="highlight" id="numScooties">0</span></div>
       <div class="card"><i class="fas fa-exclamation-triangle"></i> Scooties Not Active<br><span class="highlight" id="scootiesNotActive">0</span></div>
       <div class="card"><i class="fas fa-parking"></i> Scooties Free<br><span class="highlight" id="scootiesFree">0</span></div>
       <div class="card"><i class="fas fa-route"></i> Scooties In Use<br><span class="highlight" id="scootiesInUse">0</span></div>
     </div>
 
-    <!-- Utilisation -->
+    <!-- Scooty Utilisation -->
     <div class="card" style="margin-top:20px;">
-      <h3>Scooty Utilisation</h3>
+      <h3>Utilisation</h3>
       <div style="background:#222; border-radius:10px; overflow:hidden; height:18px;">
         <div id="scootyUtilBar" style="height:100%; background:var(--action); width:0%; transition:width 0.4s ease;"></div>
       </div>
       <p><span id="scootyUtilisation">0%</span></p>
     </div>
 
+    <!-- Rider Stats -->
+    <h3 style="margin-top:20px;">👥 Riders</h3>
+    <div class="grid">
+      <div class="card"><i class="fas fa-users"></i> Riders with YANA Vendor<br><span class="highlight" id="yanaVendorRiders">0</span></div>
+      <div class="card"><i class="fas fa-motorcycle"></i> Riders with YANA Scooty<br><span class="highlight" id="yanaScootyRiders">0</span></div>
+    </div>
+
     <!-- Free IDs -->
+    <h3 style="margin-top:20px;">🆓 Free Assets</h3>
     <div class="grid">
       <div class="card">
         <h3>🛵 Scooty IDs Free</h3>
@@ -93,6 +108,7 @@
 
       // Load summary
       loadSummaryRealtime();
+      loadRiderStats();
     });
 
     document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
@@ -153,6 +169,32 @@
         scooties = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderSummary(batteries, scooties);
       });
+    }
+
+    // ---- Rider Stats ----
+    async function loadRiderStats() {
+      try {
+        // Riders with vendor = YANA
+        const vendorSnap = await db.collection("users")
+          .where("vendor", "==", "YANA")
+          .get();
+        document.getElementById("yanaVendorRiders").innerText = vendorSnap.size;
+
+        // Riders with a YANA scooty assigned
+        const scootySnap = await db.collection("scooty_master")
+          .where("status", "==", "assigned")
+          .get();
+
+        const riderEmails = new Set();
+        scootySnap.forEach(doc => {
+          if (doc.data().assignedTo) {
+            riderEmails.add(doc.data().assignedTo);
+          }
+        });
+        document.getElementById("yanaScootyRiders").innerText = riderEmails.size;
+      } catch (err) {
+        console.error("Failed to load rider stats:", err);
+      }
     }
   </script>
 </body>
