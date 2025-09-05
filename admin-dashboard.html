@@ -10,7 +10,7 @@
 <body>
   <!-- Navbar -->
   <div class="navbar">
-    <h2>⚡YANA Admin</h2>
+    <h2>⚡ YANA Admin</h2>
     <div class="profile">
       <div class="profile-pic">A</div>
       <div class="dropdown">
@@ -51,20 +51,10 @@
       <div class="card ripple" onclick="openDetails('batteriesInUse')"><i class="fas fa-bolt"></i>In Use <span id="batteriesInUse">0</span></div>
     </div>
 
-    <!-- Riders -->
-    <h2 onclick="toggleSection(this)">👥 Riders</h2>
-    <div class="grid-4 section">
-      <div class="card ripple"><i class="fas fa-users"></i>Vendor: YANA <span id="yanaVendorRiders">0</span></div>
-      <div class="card ripple"><i class="fas fa-motorcycle"></i>With Scooty <span id="yanaScootyRiders">0</span></div>
-    </div>
-
     <!-- Utilisation -->
-    <h2>📈 Utilisation</h2>
-    <div class="progress-ring">
-      <svg>
-        <circle class="bg" cx="50%" cy="50%" r="45"></circle>
-        <circle class="progress" id="utilRing" cx="50%" cy="50%" r="45"></circle>
-      </svg>
+    <h2>📊 Scooty Utilisation</h2>
+    <div class="util-bar">
+      <div id="utilFill" class="fill"></div>
       <span id="scootyUtilisation">0%</span>
     </div>
   </div>
@@ -93,7 +83,6 @@
         alert("❌ Not an admin."); return location.href="index.html";
       }
       loadSummaryRealtime();
-      loadRiderStats();
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
@@ -125,10 +114,7 @@
         ? Math.round((scooties.filter(s => s.status==="assigned").length / scooties.length) * 100)
         : 0;
       document.getElementById("scootyUtilisation").innerText = utilisation+"%";
-      const circle=document.getElementById("utilRing");
-      const radius=45, circumference=2*Math.PI*radius;
-      circle.style.strokeDasharray=circumference;
-      circle.style.strokeDashoffset=circumference-(utilisation/100)*circumference;
+      document.getElementById("utilFill").style.width = utilisation+"%";
     }
 
     function loadSummaryRealtime() {
@@ -140,16 +126,6 @@
         allScooties = snap.docs.map(d=>({id:d.id,...d.data()}));
         if(allBatteries) renderSummary(allBatteries,allScooties);
       });
-    }
-
-    async function loadRiderStats(){
-      const vendorSnap = await db.collection("users").where("vendor","==","YANA").get();
-      document.getElementById("yanaVendorRiders").innerText = vendorSnap.size;
-
-      const scootySnap = await db.collection("scooty_master").where("status","==","assigned").get();
-      const riderEmails = new Set();
-      scootySnap.forEach(doc=>{ if(doc.data().assignedTo) riderEmails.add(doc.data().assignedTo); });
-      document.getElementById("yanaScootyRiders").innerText = riderEmails.size;
     }
 
     function openDetails(type){
@@ -167,14 +143,6 @@
 
     function toggleSection(header){
       header.nextElementSibling.classList.toggle("collapsed");
-    }
-
-    function showToast(msg){
-      const toast=document.createElement("div");
-      toast.className="toast"; toast.innerText=msg;
-      document.getElementById("toast-container").appendChild(toast);
-      setTimeout(()=>toast.classList.add("show"),100);
-      setTimeout(()=>toast.remove(),4000);
     }
   </script>
 </body>
