@@ -5,105 +5,63 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Scooty & Battery Masterlist</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Tabs */
-    .tabs {
+    .search-container {
+      margin: 12px 0;
       display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .tab {
-      padding: 8px 16px;
-      border-radius: var(--radius);
-      cursor: pointer;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      transition: var(--transition);
-    }
-    .tab.active {
-      background: var(--action);
-      color: #000;
-      border-color: var(--action);
-    }
-
-    /* Card layout */
-    .card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: var(--radius);
-      padding: 12px;
-      margin-bottom: 12px;
-      backdrop-filter: blur(10px);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      transition: var(--transition);
-    }
-    .card:hover {
-      border-color: var(--action);
-      box-shadow: 0 0 10px var(--action);
-    }
-    .card-left {
-      flex: 1;
-      min-width: 150px;
-    }
-    .card-right {
-      display: flex;
-      align-items: center;
+      justify-content: flex-start;
       gap: 8px;
       flex-wrap: wrap;
     }
-    select {
-      padding: 4px;
+    .search-container input {
+      padding: 8px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg2);
       color: var(--text);
+      flex: 1 1 250px;
     }
-    #searchBar {
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-      padding: 8px 12px;
+    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
+    .card {
+      background: rgba(255,255,255,0.1);
+      padding: 12px;
       border-radius: var(--radius);
-      margin-bottom: 12px;
       border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 120px;
+      transition: var(--transition);
     }
+    .card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
+    .card-header { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: var(--action); }
+    .card-row { font-size: 14px; margin: 2px 0; }
+    h2 { margin-top: 24px; }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
   <div class="navbar">
-    <h2>⚡ YANA Admin</h2>
-    <div class="profile">
-      <div class="profile-pic">A</div>
-      <div class="dropdown">
-        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-        <button id="logoutBtn">Logout</button>
-      </div>
-    </div>
+    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
+    <span id="adminEmail"></span>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
   </div>
 
   <div class="container">
-    <h2>Scooty & Battery Masterlist</h2>
-    <p class="muted">View and manage state/status of assets. Changes apply immediately.</p>
+    <h1> Scooty & Battery Masterlist </h1>
+    <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <div class="tab active" data-type="scooty">Scooties</div>
-      <div class="tab" data-type="battery">Batteries</div>
+    <h2> Scooties </h2>
+    <div class="search-container">
+      <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
     </div>
+    <div id="scootyCards" class="card-container"></div>
 
-    <!-- Search bar -->
-    <input type="text" id="searchBar" placeholder="Search by ID or assigned user">
-
-    <!-- Cards container -->
-    <div id="cardsContainer"></div>
+    <h2> Batteries </h2>
+    <div class="search-container">
+      <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
+    </div>
+    <div id="batteryCards" class="card-container"></div>
   </div>
 
   <!-- Firebase -->
@@ -113,97 +71,72 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    const cardsContainer = document.getElementById("cardsContainer");
-    const tabs = document.querySelectorAll(".tab");
-    let allAssets = { scooty: [], battery: [] };
-    let currentTab = "scooty";
-
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
-      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
+      document.getElementById("adminEmail").innerText = "👤 " + user.email;
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
+        alert("❌ Not an admin."); 
         return location.href="index.html";
       }
-
-      loadAssets("scooty_master", "scooty");
-      loadAssets("battery_master", "battery");
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    function loadAssets(collectionName, type) {
-      db.collection(collectionName).onSnapshot(snapshot => {
-        allAssets[type] = [];
-        snapshot.forEach(doc => {
+    const scootyContainer = document.getElementById("scootyCards");
+    const batteryContainer = document.getElementById("batteryCards");
+
+    let scootyData = [];
+    let batteryData = [];
+
+    async function renderCards(collection, container, searchInput) {
+      db.collection(collection).onSnapshot(async snapshot => {
+        const tempData = [];
+        for (const doc of snapshot.docs) {
           const data = doc.data();
-          data.id = doc.id;
-          data.collection = collectionName;
-          allAssets[type].push(data);
-        });
-        if (currentTab === type) renderCards();
-      });
-    }
-
-    function renderCards() {
-      const list = allAssets[currentTab];
-      const term = document.getElementById("searchBar").value.toLowerCase();
-      cardsContainer.innerHTML = "";
-      list.filter(a => a.id.toLowerCase().includes(term) || (a.assignedTo||"").toLowerCase().includes(term))
-          .forEach(a => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <div class="card-left">
-            <b>${a.id}</b><br>
-            Assigned To: ${a.assignedTo||"-"}
-          </div>
-          <div class="card-right">
-            <select data-id="${a.id}" data-col="${a.collection}" data-field="state">
-              <option value="active" ${a.state==="active"?"selected":""}>Active</option>
-              <option value="repair" ${a.state==="repair"?"selected":""}>Repair</option>
-              <option value="maintenance" ${a.state==="maintenance"?"selected":""}>Maintenance</option>
-              <option value="dead" ${a.state==="dead"?"selected":""}>Dead</option>
-            </select>
-            <select data-id="${a.id}" data-col="${a.collection}" data-field="status">
-              <option value="returned" ${a.status==="returned"?"selected":""}>Returned</option>
-              <option value="assigned" ${a.status==="assigned"?"selected":""}>Assigned</option>
-            </select>
-          </div>
-        `;
-        cardsContainer.appendChild(card);
-      });
-    }
-
-    // Tab switching
-    tabs.forEach(tab => {
-      tab.addEventListener("click", () => {
-        tabs.forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-        currentTab = tab.dataset.type;
-        renderCards();
-      });
-    });
-
-    // Search filter
-    document.getElementById("searchBar").addEventListener("input", renderCards);
-
-    // Update on dropdown change
-    document.addEventListener("change", async e => {
-      if (e.target.tagName==="SELECT" && e.target.dataset.id) {
-        const col = e.target.dataset.col;
-        const id = e.target.dataset.id;
-        const field = e.target.dataset.field;
-        const value = e.target.value;
-        try {
-          await db.collection(col).doc(id).update({ [field]: value });
-        } catch(err) {
-          console.error("Update failed", err);
-          alert("❌ Failed to update " + col);
+          let assignedName = "-";
+          if (data.assignedTo) {
+            const userDoc = await db.collection("users").doc(data.assignedTo).get();
+            if (userDoc.exists) assignedName = userDoc.data().name || "-";
+          }
+          tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName });
         }
-      }
+
+        if (collection === "scooty_master") scootyData = tempData;
+        else batteryData = tempData;
+
+        displayCards(tempData, container, searchInput.value);
+      });
+    }
+
+    function displayCards(dataArray, container, filter) {
+      container.innerHTML = "";
+      const filterLower = filter.trim().toLowerCase();
+      dataArray.filter(d => d.id.toLowerCase().includes(filterLower) || d.assignedName.toLowerCase().includes(filterLower))
+        .forEach(d => {
+          const card = document.createElement("div");
+          card.classList.add("card");
+          card.innerHTML = `
+            <div class="card-header">${d.id}</div>
+            <div class="card-row">Assigned To: ${d.assignedName}</div>
+            <div class="card-row">State: ${d.state}</div>
+            <div class="card-row">Status: ${d.status}</div>
+          `;
+          container.appendChild(card);
+        });
+    }
+
+    // Render initially
+    renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
+    renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
+
+    // Add search functionality
+    document.getElementById("scootySearch").addEventListener("input", e => {
+      displayCards(scootyData, scootyContainer, e.target.value);
+    });
+    document.getElementById("batterySearch").addEventListener("input", e => {
+      displayCards(batteryData, batteryContainer, e.target.value);
     });
   </script>
 </body>
