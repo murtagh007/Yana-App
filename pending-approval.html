@@ -5,49 +5,72 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Pending Rider Approval</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    table {
+    /* Table inside panel */
+    .panel table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 10px;
+      color: var(--text);
     }
-    th, td {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+    .panel th, .panel td {
       padding: 8px;
       text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .panel th {
+      font-weight: 600;
+    }
+    /* Scrollable table for small screens */
+    .table-wrapper {
+      overflow-x: auto;
     }
     select {
-      padding: 4px;
-      border-radius: 6px;
+      padding: 4px 6px;
+      border-radius: var(--radius);
+      background: var(--bg2);
+      color: var(--text);
+      border: 1px solid var(--border);
     }
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
   <div class="container">
-    <h1>Pending Rider Approval</h1>
+    <h2>📝 Pending Rider Approvals</h2>
     <p class="muted">Review riders awaiting approval. Choose Approve, Reject, or No Action.</p>
 
-    <table id="ridersTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Email</th>
-          <th>Vendor</th>
-          <th>Business Partners</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="panel table-wrapper">
+      <table id="ridersTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Vendor</th>
+            <th>Business Partners</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-    <button class="btn" id="submitBtn">Submit Changes</button>
+    <div style="margin-top:12px; text-align:right;">
+      <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
+    </div>
   </div>
 
   <!-- Firebase -->
@@ -59,25 +82,21 @@
   <script>
     // Admin auth check
     auth.onAuthStateChanged(async user => {
-      if (!user) {
-        window.location.href = "admin-signin.html";
-        return;
-      }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      if (!user) return location.href="admin-signin.html";
+
+      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
-        window.location.href = "index.html";
-        return;
+        return location.href="index.html";
       }
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
     // Load pending riders
     const tbody = document.querySelector("#ridersTable tbody");
-
     function loadPendingRiders() {
       db.collection("users")
         .where("status", "==", "pending")
@@ -116,10 +135,7 @@
           updates.push(db.collection("users").doc(email).update({ status: action }));
         }
       });
-      if (updates.length === 0) {
-        alert("ℹ No actions selected.");
-        return;
-      }
+      if (updates.length === 0) return alert("ℹ No actions selected.");
       await Promise.all(updates);
       alert("✅ Changes applied!");
     });
