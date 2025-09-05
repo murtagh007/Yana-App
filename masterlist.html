@@ -5,63 +5,42 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Scooty & Battery Masterlist</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    .search-container {
-      margin: 12px 0;
-      display: flex;
-      justify-content: flex-start;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .search-container input {
-      padding: 8px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
-      flex: 1 1 250px;
-    }
-    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
-    .card {
-      background: rgba(255,255,255,0.1);
-      padding: 12px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 120px;
-      transition: var(--transition);
-    }
-    .card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
-    .card-header { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: var(--action); }
-    .card-row { font-size: 14px; margin: 2px 0; }
-    h2 { margin-top: 24px; }
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
+  <!-- Navbar matching dashboard -->
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
   <div class="container">
-    <h1> Scooty & Battery Masterlist </h1>
-    <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
+    <h2>Scooty & Battery Masterlist</h2>
+    <p class="muted">View state/status of assets. Read-only mode.</p>
 
-    <h2> Scooties </h2>
-    <div class="search-container">
-      <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
+    <!-- Tabs -->
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <button class="menu-btn ripple" id="scootyTab">Scooties</button>
+      <button class="menu-btn ripple" id="batteryTab">Batteries</button>
     </div>
-    <div id="scootyCards" class="card-container"></div>
 
-    <h2> Batteries </h2>
-    <div class="search-container">
-      <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
+    <!-- Scooty Cards -->
+    <div id="scootySection" class="tab-section">
+      <input type="text" id="scootySearch" placeholder="Search Scooties..." style="width:100%;padding:8px;border-radius:var(--radius);margin-bottom:12px;background:var(--bg2);color:var(--text);border:1px solid var(--border);">
+      <div id="scootyCards" class="grid-4"></div>
     </div>
-    <div id="batteryCards" class="card-container"></div>
+
+    <!-- Battery Cards -->
+    <div id="batterySection" class="tab-section" style="display:none;">
+      <input type="text" id="batterySearch" placeholder="Search Batteries..." style="width:100%;padding:8px;border-radius:var(--radius);margin-bottom:12px;background:var(--bg2);color:var(--text);border:1px solid var(--border);">
+      <div id="batteryCards" class="grid-4"></div>
+    </div>
   </div>
 
   <!-- Firebase -->
@@ -71,73 +50,66 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    // Auth check and profile pic
     auth.onAuthStateChanged(async user => {
-      if (!user) return location.href="admin-signin.html";
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
-
+      if(!user) location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin."); 
-        return location.href="index.html";
-      }
+      if(!doc.exists || doc.data().role!=="admin") { alert("❌ Not an admin."); location.href="index.html"; }
+      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
     });
-
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    const scootyContainer = document.getElementById("scootyCards");
-    const batteryContainer = document.getElementById("batteryCards");
+    const scootyCards = document.getElementById("scootyCards");
+    const batteryCards = document.getElementById("batteryCards");
 
-    let scootyData = [];
-    let batteryData = [];
-
-    async function renderCards(collection, container, searchInput) {
-      db.collection(collection).onSnapshot(async snapshot => {
-        const tempData = [];
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          let assignedName = "-";
-          if (data.assignedTo) {
-            const userDoc = await db.collection("users").doc(data.assignedTo).get();
-            if (userDoc.exists) assignedName = userDoc.data().name || "-";
-          }
-          tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName });
-        }
-
-        if (collection === "scooty_master") scootyData = tempData;
-        else batteryData = tempData;
-
-        displayCards(tempData, container, searchInput.value);
-      });
-    }
-
-    function displayCards(dataArray, container, filter) {
-      container.innerHTML = "";
-      const filterLower = filter.trim().toLowerCase();
-      dataArray.filter(d => d.id.toLowerCase().includes(filterLower) || d.assignedName.toLowerCase().includes(filterLower))
-        .forEach(d => {
+    // Render cards
+    function renderCards(collection, container) {
+      db.collection(collection).onSnapshot(snapshot => {
+        container.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
           const card = document.createElement("div");
-          card.classList.add("card");
+          card.className = "panel";
           card.innerHTML = `
-            <div class="card-header">${d.id}</div>
-            <div class="card-row">Assigned To: ${d.assignedName}</div>
-            <div class="card-row">State: ${d.state}</div>
-            <div class="card-row">Status: ${d.status}</div>
+            <h3>${doc.id}</h3>
+            <p><strong>State:</strong> ${d.state || "-"}</p>
+            <p><strong>Status:</strong> ${d.status || "-"}</p>
+            <p><strong>Assigned To:</strong> ${d.assignedName || "-"}</p>
           `;
           container.appendChild(card);
         });
+      });
     }
 
-    // Render initially
-    renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
-    renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
+    renderCards("scooty_master", scootyCards);
+    renderCards("battery_master", batteryCards);
 
-    // Add search functionality
+    // Tab switching
+    const scootySection = document.getElementById("scootySection");
+    const batterySection = document.getElementById("batterySection");
+    document.getElementById("scootyTab").onclick = () => {
+      scootySection.style.display = "block";
+      batterySection.style.display = "none";
+    };
+    document.getElementById("batteryTab").onclick = () => {
+      scootySection.style.display = "none";
+      batterySection.style.display = "block";
+    };
+
+    // Search functionality
     document.getElementById("scootySearch").addEventListener("input", e => {
-      displayCards(scootyData, scootyContainer, e.target.value);
+      const q = e.target.value.toLowerCase();
+      scootyCards.querySelectorAll(".panel").forEach(card => {
+        card.style.display = card.querySelector("h3").textContent.toLowerCase().includes(q) ? "block" : "none";
+      });
     });
     document.getElementById("batterySearch").addEventListener("input", e => {
-      displayCards(batteryData, batteryContainer, e.target.value);
+      const q = e.target.value.toLowerCase();
+      batteryCards.querySelectorAll(".panel").forEach(card => {
+        card.style.display = card.querySelector("h3").textContent.toLowerCase().includes(q) ? "block" : "none";
+      });
     });
   </script>
 </body>
 </html>
+
