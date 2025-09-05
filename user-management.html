@@ -1,163 +1,156 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — User Management</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-    .grid-users {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .user-panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-      backdrop-filter: blur(10px);
-      transition: var(--transition);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
-    .user-panel:hover {
-      box-shadow: 0 0 12px var(--action);
-      border-color: var(--action);
-    }
-
-    .user-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .user-header h3 {
-      font-size: 14px;
-      margin: 0;
-    }
-    .user-header span {
-      font-size: 12px;
-      color: var(--action);
-    }
-
-    .user-info {
-      font-size: 13px;
-      line-height: 1.4;
-      margin-bottom: 8px;
-    }
-
-    select {
-      padding: 4px 6px;
-      border-radius: var(--radius);
-      background: var(--bg2);
-      color: var(--text);
-      border: 1px solid var(--border);
-      width: 100%;
-      margin-bottom: 6px;
-    }
-
-    .btn-panel {
-      text-align: right;
-      margin-top: 12px;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — User Management</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .search-bar {
+    margin: 12px 0;
+    display: flex;
+    gap: 8px;
+  }
+  .search-bar input {
+    flex: 1;
+    padding: 8px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+  }
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+    gap: 12px;
+  }
+  .user-card {
+    background: var(--card);
+    padding: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+  }
+  .user-card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
+  .user-card h3 { margin: 0 0 8px; font-size: 16px; color: var(--action); }
+  .user-card p { margin: 2px 0; font-size: 13px; }
+  .user-card label { font-size: 12px; display: block; margin-top: 6px; }
+  .user-card select {
+    width: 100%;
+    padding: 6px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+  }
+  #submitBtn { margin-top: 16px; }
+</style>
 </head>
 <body>
-  <!-- Navbar -->
-  <div class="navbar">
-    <h2>⚡ YANA Admin</h2>
-    <div class="profile">
-      <div class="profile-pic">A</div>
-      <div class="dropdown">
-        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-        <button id="logoutBtn">Logout</button>
-      </div>
+<div class="navbar">
+  <h2>⚡ YANA Admin</h2>
+  <div class="profile">
+    <div class="profile-pic">A</div>
+    <div class="dropdown">
+      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+      <button id="logoutBtn">Logout</button>
     </div>
   </div>
+</div>
 
-  <div class="container">
-    <h2>👥 User Management</h2>
-    <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
+<div class="container">
+  <h2>User Management</h2>
+  <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
 
-    <div class="grid-users" id="usersGrid">
-      <!-- User panels injected here -->
-    </div>
-
-    <div class="btn-panel">
-      <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
-    </div>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by name, email, or vendor...">
   </div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
+  <div class="grid-cards" id="usersGrid"></div>
 
-  <script>
-    // Admin auth check
-    auth.onAuthStateChanged(async user => {
-      if (!user) return location.href="admin-signin.html";
-      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
+  <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
+</div>
 
-      const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
-        return location.href="index.html";
-      }
-    });
-    document.getElementById("logoutBtn").onclick = () => auth.signOut();
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
 
-    const usersGrid = document.getElementById("usersGrid");
-    const userPanels = {};
+<script>
+  let allUsers = [];
+  const usersGrid = document.getElementById("usersGrid");
 
-    function loadUsers() {
-      db.collection("users").onSnapshot(snapshot => {
-        usersGrid.innerHTML = "";
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          const panel = document.createElement("div");
-          panel.className = "user-panel";
-          panel.innerHTML = `
-            <div class="user-header">
-              <h3>${d.name || ""}</h3>
-              <span>${d.email || doc.id}</span>
-            </div>
-            <div class="user-info">
-              <strong>Phone:</strong> ${d.phone || "-"}<br>
-              <strong>Vendor:</strong> ${d.vendor || "-"}<br>
-              <strong>Partners:</strong> ${(d.partners || []).join(", ") || "-"}
-            </div>
-            <select data-id="${doc.id}" data-field="role">
-              <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
-              <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
-              <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
-            </select>
-            <select data-id="${doc.id}" data-field="state">
-              <option value="active" ${d.state==="active"?"selected":""}>Active</option>
-              <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
-              <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
-            </select>
-          `;
-          usersGrid.appendChild(panel);
-          userPanels[doc.id] = panel;
-        });
-      });
+  // Admin auth check
+  auth.onAuthStateChanged(async user => {
+    if (!user) return location.href="admin-signin.html";
+    const doc = await db.collection("users").doc(user.email).get();
+    if (!doc.exists || doc.data().role !== "admin") {
+      alert("❌ Not an admin."); 
+      return location.href="index.html";
     }
-    loadUsers();
+    document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
+  });
 
-    document.getElementById("submitBtn").addEventListener("click", async () => {
-      const updates = [];
-      document.querySelectorAll("select[data-id]").forEach(sel => {
-        updates.push(db.collection("users").doc(sel.dataset.id).update({ [sel.dataset.field]: sel.value }));
-      });
-      if (updates.length === 0) return alert("ℹ No changes to save.");
-      await Promise.all(updates);
-      alert("✅ Changes applied!");
+  document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+  function renderUsers(users) {
+    usersGrid.innerHTML = "";
+    users.forEach(d => {
+      const card = document.createElement("div");
+      card.className = "user-card";
+      card.innerHTML = `
+        <h3>${d.name || ""}</h3>
+        <p><b>Email:</b> ${d.email}</p>
+        <p><b>Phone:</b> ${d.phone || ""}</p>
+        <p><b>Vendor:</b> ${d.vendor || ""}</p>
+        <p><b>Partners:</b> ${(d.partners||[]).join(", ")}</p>
+        <label>Role:</label>
+        <select data-id="${d.email}" data-field="role">
+          <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
+          <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
+          <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
+        </select>
+        <label>State:</label>
+        <select data-id="${d.email}" data-field="state">
+          <option value="active" ${d.state==="active"?"selected":""}>Active</option>
+          <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
+          <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
+        </select>
+      `;
+      usersGrid.appendChild(card);
     });
-  </script>
+  }
+
+  // Load users
+  db.collection("users").onSnapshot(snap => {
+    allUsers = snap.docs.map(d => ({email:d.id,...d.data()}));
+    renderUsers(allUsers);
+  });
+
+  // Search filter
+  document.getElementById("searchInput").addEventListener("input", e => {
+    const term = e.target.value.toLowerCase();
+    renderUsers(allUsers.filter(u =>
+      (u.name||"").toLowerCase().includes(term) ||
+      (u.email||"").toLowerCase().includes(term) ||
+      (u.vendor||"").toLowerCase().includes(term)
+    ));
+  });
+
+  // Submit bulk updates
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const updates = [];
+    document.querySelectorAll("select[data-id]").forEach(sel => {
+      const email = sel.dataset.id;
+      const field = sel.dataset.field;
+      const value = sel.value;
+      updates.push(db.collection("users").doc(email).update({ [field]: value }));
+    });
+    if(updates.length===0){ alert("ℹ No changes to save."); return; }
+    await Promise.all(updates);
+    alert("✅ Changes applied!");
+  });
+</script>
 </body>
 </html>
