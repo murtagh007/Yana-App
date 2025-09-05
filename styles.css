@@ -1,15 +1,71 @@
-/* Grid helpers */
+:root {
+  --bg: #0a0f12;
+  --bg-gradient: linear-gradient(135deg, #0a0f12, #141a1f 60%);
+  --card: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.12);
+  --action: #00eaff;
+  --text: #eaf4f8;
+  --radius: 10px;
+  --transition: 0.25s ease;
+  --shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+  background: var(--bg-gradient);
+  color: var(--text);
+}
+
+h2 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card);
+  padding: 10px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  background: var(--action);
+  color: #000;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn.secondary {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn:hover { opacity: 0.9; }
+
+/* Uniform 4-col grid */
 .grid-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin: 12px 0;
+  margin-bottom: 12px;
 }
 
-/* Action buttons (small tiles) */
+/* Action buttons */
 .menu-btn {
   background: var(--card);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 4px;
   text-align: center;
   font-size: 11px;
@@ -24,16 +80,13 @@
   margin-bottom: 2px;
   color: var(--action);
 }
-.menu-btn:hover {
-  background: rgba(255,255,255,0.1);
-  transform: translateY(-1px);
-}
+.menu-btn:hover { background: rgba(255,255,255,0.1); }
 
-/* Stat cards (same small size) */
+/* Stat cards */
 .card {
   background: var(--card);
-  border-radius: 10px;
-  padding: 12px 6px;
+  border-radius: var(--radius);
+  padding: 12px 4px;
   text-align: center;
   font-size: 11px;
   box-shadow: var(--shadow);
@@ -42,7 +95,6 @@
 }
 .card i {
   font-size: 14px;
-  display: block;
   margin-bottom: 2px;
   color: var(--action);
 }
@@ -54,3 +106,26 @@
   color: #fff;
 }
 .card:hover { transform: translateY(-1px); }
+
+/* Overlay modal */
+.overlay {
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.detail-card {
+  background: var(--card);
+  padding: 16px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  max-width: 320px;
+  width: 90%;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.detail-card h3 { margin-top:0; font-size:14px; }
+.detail-card ul { padding-left:16px; margin:0; font-size:12px; }
