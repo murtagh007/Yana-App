@@ -11,65 +11,52 @@
   <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
-    <div>
-      <button class="btn secondary" id="logoutBtn">Logout</button>
-    </div>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
   </div>
 
-  <div class="container" style="padding:16px;">
-    <h1>📊 Dashboard</h1>
-
-    <!-- Action Menu -->
-    <div class="menu-grid">
-      <div class="menu-btn" onclick="window.location.href='admin-scan.html'"><i class="fas fa-qrcode"></i> Scan</div>
-      <div class="menu-btn" onclick="window.location.href='pending-approval.html'"><i class="fas fa-user-check"></i> Approvals</div>
-      <div class="menu-btn" onclick="window.location.href='user-management.html'"><i class="fas fa-users-cog"></i> Users</div>
-      <div class="menu-btn" onclick="window.location.href='masterlist.html'"><i class="fas fa-list"></i> Masterlist</div>
-      <div class="menu-btn" onclick="window.location.href='logs-viewer.html'"><i class="fas fa-clipboard-list"></i> Logs</div>
-      <div class="menu-btn" onclick="window.location.href='issues.html'"><i class="fas fa-exclamation-triangle"></i> Issues</div>
-      <div class="menu-btn" onclick="window.location.href='seed.html'"><i class="fas fa-database"></i> Seed</div>
+  <div class="container">
+    <!-- Actions -->
+    <h2>⚙️ Actions</h2>
+    <div class="grid-4">
+      <div class="menu-btn" onclick="location.href='admin-scan.html'"><i class="fas fa-qrcode"></i>Scan</div>
+      <div class="menu-btn" onclick="location.href='pending-approval.html'"><i class="fas fa-user-check"></i>Approvals</div>
+      <div class="menu-btn" onclick="location.href='user-management.html'"><i class="fas fa-users-cog"></i>Users</div>
+      <div class="menu-btn" onclick="location.href='masterlist.html'"><i class="fas fa-list"></i>Masterlist</div>
+      <div class="menu-btn" onclick="location.href='logs-viewer.html'"><i class="fas fa-clipboard-list"></i>Logs</div>
+      <div class="menu-btn" onclick="location.href='issues.html'"><i class="fas fa-exclamation-triangle"></i>Issues</div>
+      <div class="menu-btn" onclick="location.href='seed.html'"><i class="fas fa-database"></i>Seed</div>
+      <div class="menu-btn" onclick="location.href='maintainance.html'"><i class="fas fa-tools"></i>Maintenance</div>
     </div>
 
-    <!-- Battery Stats -->
-    <h3>🔋 Batteries</h3>
-    <div class="grid">
-      <div class="card"><i class="fas fa-battery-full"></i>Total<br><span class="highlight" id="numBatteries">0</span></div>
-      <div class="card"><i class="fas fa-exclamation-circle"></i>Not Active<br><span class="highlight" id="batteriesNotActive">0</span></div>
-      <div class="card" onclick="openDetails('batteriesFree')"><i class="fas fa-box-open"></i>Free<br><span class="highlight" id="batteriesFree">0</span></div>
-      <div class="card" onclick="openDetails('batteriesInUse')"><i class="fas fa-bolt"></i>In Use<br><span class="highlight" id="batteriesInUse">0</span></div>
+    <!-- Scooties -->
+    <h2>🛵 Scooties</h2>
+    <div class="grid-4">
+      <div class="card"><i class="fas fa-motorcycle"></i>Total <span id="numScooties">0</span></div>
+      <div class="card"><i class="fas fa-exclamation-triangle"></i>Not Active <span id="scootiesNotActive">0</span></div>
+      <div class="card" onclick="openDetails('scootiesFree')"><i class="fas fa-parking"></i>Free <span id="scootiesFree">0</span></div>
+      <div class="card" onclick="openDetails('scootiesInUse')"><i class="fas fa-route"></i>In Use <span id="scootiesInUse">0</span></div>
     </div>
 
-    <!-- Scooty Stats -->
-    <h3 style="margin-top:20px;">🛵 Scooties</h3>
-    <div class="grid">
-      <div class="card"><i class="fas fa-motorcycle"></i>Total<br><span class="highlight" id="numScooties">0</span></div>
-      <div class="card"><i class="fas fa-exclamation-triangle"></i>Not Active<br><span class="highlight" id="scootiesNotActive">0</span></div>
-      <div class="card" onclick="openDetails('scootiesFree')"><i class="fas fa-parking"></i>Free<br><span class="highlight" id="scootiesFree">0</span></div>
-      <div class="card" onclick="openDetails('scootiesInUse')"><i class="fas fa-route"></i>In Use<br><span class="highlight" id="scootiesInUse">0</span></div>
-    </div>
-
-    <!-- Utilisation -->
-    <div class="card" style="margin-top:20px;">
-      <h3>Utilisation</h3>
-      <div style="background:#222; border-radius:10px; overflow:hidden; height:18px;">
-        <div id="scootyUtilBar" style="height:100%; background:var(--action); width:0%; transition:width 0.4s ease;"></div>
-      </div>
-      <p><span id="scootyUtilisation">0%</span></p>
+    <!-- Batteries -->
+    <h2>🔋 Batteries</h2>
+    <div class="grid-4">
+      <div class="card"><i class="fas fa-battery-full"></i>Total <span id="numBatteries">0</span></div>
+      <div class="card"><i class="fas fa-exclamation-circle"></i>Not Active <span id="batteriesNotActive">0</span></div>
+      <div class="card" onclick="openDetails('batteriesFree')"><i class="fas fa-box-open"></i>Free <span id="batteriesFree">0</span></div>
+      <div class="card" onclick="openDetails('batteriesInUse')"><i class="fas fa-bolt"></i>In Use <span id="batteriesInUse">0</span></div>
     </div>
 
     <!-- Riders -->
-    <h3 style="margin-top:20px;">👥 Riders</h3>
-    <div class="grid">
-      <div class="card"><i class="fas fa-users"></i>Vendor: YANA<br><span class="highlight" id="yanaVendorRiders">0</span></div>
-      <div class="card"><i class="fas fa-motorcycle"></i>With Scooty<br><span class="highlight" id="yanaScootyRiders">0</span></div>
+    <h2>👥 Riders</h2>
+    <div class="grid-4">
+      <div class="card"><i class="fas fa-users"></i>Vendor: YANA <span id="yanaVendorRiders">0</span></div>
+      <div class="card"><i class="fas fa-motorcycle"></i>With Scooty <span id="yanaScootyRiders">0</span></div>
     </div>
   </div>
 
-  <!-- Overlay for details -->
+  <!-- Overlay -->
   <div id="overlay" class="overlay" style="display:none;" onclick="closeDetails(event)">
-    <div class="detail-card" id="detailCard" onclick="event.stopPropagation()">
-      <!-- Content dynamically inserted -->
-    </div>
+    <div class="detail-card" id="detailCard" onclick="event.stopPropagation()"></div>
   </div>
 
   <!-- Firebase -->
@@ -79,118 +66,69 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    let allBatteries = [];
-    let allScooties = [];
+    let allBatteries = null;
+    let allScooties = null;
 
-    // Auth check
     auth.onAuthStateChanged(async user => {
-      if (!user) {
-        window.location.href = "admin-signin.html";
-        return;
-      }
+      if (!user) return location.href="admin-signin.html";
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
-        window.location.href = "index.html";
-        return;
+        return location.href="index.html";
       }
 
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
       loadSummaryRealtime();
       loadRiderStats();
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    // ---- Summary Rendering ----
     function renderSummary(batteries, scooties) {
       document.getElementById("numBatteries").innerText = batteries.length;
-      document.getElementById("batteriesNotActive").innerText = batteries.filter(b => b.state !== "active").length;
-      document.getElementById("batteriesFree").innerText = batteries.filter(b => b.status === "returned").length;
-      document.getElementById("batteriesInUse").innerText = batteries.filter(b => b.status === "assigned").length;
+      document.getElementById("batteriesNotActive").innerText = batteries.filter(b => b.state!=="active").length;
+      document.getElementById("batteriesFree").innerText = batteries.filter(b => b.status==="returned").length;
+      document.getElementById("batteriesInUse").innerText = batteries.filter(b => b.status==="assigned").length;
 
       document.getElementById("numScooties").innerText = scooties.length;
-      document.getElementById("scootiesNotActive").innerText = scooties.filter(s => s.state !== "active").length;
-      document.getElementById("scootiesFree").innerText = scooties.filter(s => s.status === "returned").length;
-      document.getElementById("scootiesInUse").innerText = scooties.filter(s => s.status === "assigned").length;
-
-      const utilisation = scooties.length > 0
-        ? ((scooties.filter(s => s.status === "assigned").length / scooties.length) * 100).toFixed(1)
-        : 0;
-      document.getElementById("scootyUtilisation").innerText = utilisation + "%";
-      document.getElementById("scootyUtilBar").style.width = utilisation + "%";
+      document.getElementById("scootiesNotActive").innerText = scooties.filter(s => s.state!=="active").length;
+      document.getElementById("scootiesFree").innerText = scooties.filter(s => s.status==="returned").length;
+      document.getElementById("scootiesInUse").innerText = scooties.filter(s => s.status==="assigned").length;
     }
 
-    // ---- Realtime Listeners ----
     function loadSummaryRealtime() {
-      db.collection("battery_master").onSnapshot(bSnap => {
-        allBatteries = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderSummary(allBatteries, allScooties);
+      db.collection("battery_master").onSnapshot(snap=>{
+        allBatteries = snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(allScooties) renderSummary(allBatteries,allScooties);
       });
-
-      db.collection("scooty_master").onSnapshot(sSnap => {
-        allScooties = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderSummary(allBatteries, allScooties);
+      db.collection("scooty_master").onSnapshot(snap=>{
+        allScooties = snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(allBatteries) renderSummary(allBatteries,allScooties);
       });
     }
 
-    // ---- Rider Stats ----
-    async function loadRiderStats() {
-      try {
-        const vendorSnap = await db.collection("users")
-          .where("vendor", "==", "YANA")
-          .get();
-        document.getElementById("yanaVendorRiders").innerText = vendorSnap.size;
+    async function loadRiderStats(){
+      const vendorSnap = await db.collection("users").where("vendor","==","YANA").get();
+      document.getElementById("yanaVendorRiders").innerText = vendorSnap.size;
 
-        const scootySnap = await db.collection("scooty_master")
-          .where("status", "==", "assigned")
-          .get();
-
-        const riderEmails = new Set();
-        scootySnap.forEach(doc => {
-          if (doc.data().assignedTo) {
-            riderEmails.add(doc.data().assignedTo);
-          }
-        });
-        document.getElementById("yanaScootyRiders").innerText = riderEmails.size;
-      } catch (err) {
-        console.error("Failed to load rider stats:", err);
-      }
+      const scootySnap = await db.collection("scooty_master").where("status","==","assigned").get();
+      const riderEmails = new Set();
+      scootySnap.forEach(doc=>{ if(doc.data().assignedTo) riderEmails.add(doc.data().assignedTo); });
+      document.getElementById("yanaScootyRiders").innerText = riderEmails.size;
     }
 
-    // ---- Card Detail Overlay ----
-    function openDetails(type) {
-      const overlay = document.getElementById("overlay");
-      const card = document.getElementById("detailCard");
-
-      let title = "";
-      let list = [];
-
-      if (type === "batteriesFree") {
-        title = "🔋 Free Battery IDs";
-        list = allBatteries.filter(b => b.status === "returned").map(b => b.id);
-      } else if (type === "scootiesFree") {
-        title = "🛵 Free Scooty IDs";
-        list = allScooties.filter(s => s.status === "returned").map(s => s.id);
-      } else if (type === "batteriesInUse") {
-        title = "⚡ Batteries In Use";
-        list = allBatteries.filter(b => b.status === "assigned").map(b => `${b.id} → ${b.assignedTo || "?"}`);
-      } else if (type === "scootiesInUse") {
-        title = "🛵 Scooties In Use";
-        list = allScooties.filter(s => s.status === "assigned").map(s => `${s.id} → ${s.assignedTo || "?"}`);
-      }
-
-      card.innerHTML = `<h3>${title}</h3>` + (list.length
-        ? `<ul>${list.map(id => `<li>${id}</li>`).join("")}</ul>`
-        : "<p>No data available</p>");
-
-      overlay.style.display = "flex";
+    function openDetails(type){
+      const overlay=document.getElementById("overlay");
+      const card=document.getElementById("detailCard");
+      let title="", list=[];
+      if(type==="batteriesFree") { title="🔋 Free Batteries"; list=allBatteries.filter(b=>b.status==="returned").map(b=>b.id);}
+      if(type==="batteriesInUse"){ title="⚡ Batteries In Use"; list=allBatteries.filter(b=>b.status==="assigned").map(b=>`${b.id} → ${b.assignedTo||"?"}`);}
+      if(type==="scootiesFree"){ title="🛵 Free Scooties"; list=allScooties.filter(s=>s.status==="returned").map(s=>s.id);}
+      if(type==="scootiesInUse"){ title="🛵 Scooties In Use"; list=allScooties.filter(s=>s.status==="assigned").map(s=>`${s.id} → ${s.assignedTo||"?"}`);}
+      card.innerHTML=`<h3>${title}</h3>`+(list.length?`<ul>${list.map(i=>`<li>${i}</li>`).join("")}</ul>`:"<p>No data</p>");
+      overlay.style.display="flex";
     }
-
-    function closeDetails() {
-      document.getElementById("overlay").style.display = "none";
-    }
+    function closeDetails(){document.getElementById("overlay").style.display="none";}
   </script>
 </body>
 </html>
