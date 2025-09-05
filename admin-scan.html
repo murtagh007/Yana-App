@@ -5,40 +5,64 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Admin Scan</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
   <div class="container">
-    <h1>Admin Scan</h1>
-    <p class="muted">Scan a Scooty or Battery QR to update its state.</p>
+    <!-- Page Header -->
+    <h2 id="adminEmail">Admin Scan</h2>
+    <p class="muted">📷 Scan a Scooty or Battery QR to update its state.</p>
 
-    <!-- QR Scanner -->
-    <video id="video" width="300" height="200" style="border:1px solid #00eaff;" autoplay></video>
-    <canvas id="canvas" width="300" height="200" style="display:none"></canvas>
-    <button id="startCam" class="btn">Start Camera</button>
-    <button id="stopCam" class="btn" style="display:none">Stop Camera</button>
-    <p id="scanResult" class="muted"></p>
+    <!-- Scanner Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <i class="fas fa-qrcode"></i>
+        <span class="panel-title">QR Scanner</span>
+      </div>
+      <div style="text-align:center;">
+        <video id="video" width="300" height="200" style="border:1px solid var(--action);border-radius:var(--radius);" autoplay></video>
+        <canvas id="canvas" width="300" height="200" style="display:none"></canvas>
+        <div style="margin-top:10px;">
+          <button id="startCam" class="menu-btn ripple"><i class="fas fa-play"></i> Start Camera</button>
+          <button id="stopCam" class="menu-btn ripple" style="display:none"><i class="fas fa-stop"></i> Stop Camera</button>
+        </div>
+        <p id="scanResult" class="muted" style="margin-top:8px;"></p>
+      </div>
+    </div>
 
     <!-- State Selector -->
-    <div id="stateSection" style="display:none;">
-      <label for="newState">Change State:</label>
-      <select id="newState">
+    <div id="stateSection" class="panel" style="display:none;">
+      <div class="panel-header">
+        <i class="fas fa-tools"></i>
+        <span class="panel-title">Change State</span>
+      </div>
+      <label for="newState">Select new state:</label>
+      <select id="newState" style="width:100%;padding:8px;border-radius:var(--radius);margin:10px 0;background:var(--bg2);color:var(--text);border:1px solid var(--border);">
         <option value="active">Active</option>
         <option value="dead">Dead</option>
         <option value="repair">Repair</option>
         <option value="maintenance">Maintenance</option>
       </select>
-      <button class="btn" id="submitBtn">Submit</button>
+      <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit</button>
     </div>
 
     <!-- Logs -->
-    <h2>Recent Admin Logs</h2>
-    <ul id="logsList"></ul>
+    <h2>📝 Recent Admin Logs</h2>
+    <div class="panel">
+      <ul id="logsList" style="font-size:13px;line-height:1.4;"></ul>
+    </div>
   </div>
 
   <!-- QR Scanner library -->
@@ -62,21 +86,17 @@
 
     // auth check
     auth.onAuthStateChanged(async user => {
-      if (!user) {
-        window.location.href = "admin-signin.html";
-        return;
-      }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
-
+      if (!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
-        window.location.href = "index.html";
-        return;
+        alert("❌ Not an admin."); 
+        return location.href="index.html";
       }
+      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
     // QR Scan success handler
     function onScanSuccess(decodedText) {
@@ -91,21 +111,14 @@
         alert("❌ Invalid QR ID");
         return;
       }
-
       checkEligibility();
     }
 
     function checkEligibility() {
       db.collection(scannedType).doc(scannedId).get().then(doc => {
-        if (!doc.exists) {
-          alert("❌ ID not found in masterlist.");
-          return;
-        }
+        if (!doc.exists) return alert("❌ ID not found in masterlist.");
         const data = doc.data();
-        if (data.status !== "returned") {
-          alert("❌ Item not eligible (must have status = returned).");
-          return;
-        }
+        if (data.status !== "returned") return alert("❌ Item not eligible (must have status = returned).");
         document.getElementById("stateSection").style.display = "block";
       });
     }
@@ -126,9 +139,7 @@
     });
 
     document.getElementById("stopCam").addEventListener("click", () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      if (stream) stream.getTracks().forEach(track => track.stop());
       scanning = false;
       document.getElementById("startCam").style.display = "inline-block";
       document.getElementById("stopCam").style.display = "none";
@@ -145,7 +156,7 @@
         if (code) {
           onScanSuccess(code.data);
           scanning = false;
-          document.getElementById("stopCam").click(); // auto stop after scan
+          document.getElementById("stopCam").click();
         }
       }
       requestAnimationFrame(scanFrame);
@@ -154,10 +165,7 @@
     // Submit new state
     document.getElementById("submitBtn").addEventListener("click", async () => {
       const newState = document.getElementById("newState").value;
-      if (!scannedId || !scannedType) {
-        alert("❌ No item scanned.");
-        return;
-      }
+      if (!scannedId || !scannedType) return alert("❌ No item scanned.");
 
       await db.collection(scannedType).doc(scannedId).update({
         state: newState,
@@ -195,9 +203,7 @@
           });
         });
     }
-
     loadLogs();
   </script>
 </body>
 </html>
-
