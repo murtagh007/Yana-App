@@ -5,6 +5,35 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Admin Dashboard</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .card {
+      background: rgba(255,255,255,0.05);
+      padding: 16px;
+      border-radius: 10px;
+      margin: 10px;
+      flex: 1;
+      min-width: 220px;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    h2, h3 {
+      margin-top: 0;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      text-align: left;
+    }
+    .highlight {
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
   <div class="navbar">
@@ -17,15 +46,41 @@
     <p class="muted">Choose an action:</p>
 
     <div class="menu">
-     <button class="btn" onclick="window.location.href='admin-scan.html'">Admin Scan</button>
+      <button class="btn" onclick="window.location.href='admin-scan.html'">Admin Scan</button>
       <button class="btn" onclick="window.location.href='pending-approval.html'">Pending Rider Approval</button>
-<button class="btn" onclick="window.location.href='user-management.html'">User Management</button>
-<button class="btn" onclick="window.location.href='masterlist.html'">Scooty/Battery Masterlist</button>
-<button class="btn" onclick="window.location.href='logs-viewer.html'">Logs Viewer</button>
-<button class="btn" onclick="window.location.href='issues.html'">Issues</button>
+      <button class="btn" onclick="window.location.href='user-management.html'">User Management</button>
+      <button class="btn" onclick="window.location.href='masterlist.html'">Scooty/Battery Masterlist</button>
+      <button class="btn" onclick="window.location.href='logs-viewer.html'">Logs Viewer</button>
+      <button class="btn" onclick="window.location.href='issues.html'">Issues</button>
       <button class="btn" onclick="window.location.href='seed.html'">Seed Master Data</button>
+    </div>
 
+    <!-- 🔹 Grid Summary Section -->
+    <h2 style="margin-top:30px;">📊 Asset Overview</h2>
+    <div class="grid">
+      <div class="card">Number of Batteries<br><span class="highlight" id="numBatteries">0</span></div>
+      <div class="card">Batteries Not Active<br><span class="highlight" id="batteriesNotActive">0</span></div>
+      <div class="card">Batteries Free<br><span class="highlight" id="batteriesFree">0</span></div>
+      <div class="card">Batteries In Use<br><span class="highlight" id="batteriesInUse">0</span></div>
 
+      <div class="card">Number of Scooties<br><span class="highlight" id="numScooties">0</span></div>
+      <div class="card">Scooties Not Active<br><span class="highlight" id="scootiesNotActive">0</span></div>
+      <div class="card">Scooties Free<br><span class="highlight" id="scootiesFree">0</span></div>
+      <div class="card">Scooties In Use<br><span class="highlight" id="scootiesInUse">0</span></div>
+
+      <div class="card">Scooty Utilisation %<br><span class="highlight" id="scootyUtilisation">0%</span></div>
+    </div>
+
+    <!-- Free IDs -->
+    <div class="grid">
+      <div class="card">
+        <h3>Scooty IDs Free</h3>
+        <ul id="scootyFreeList"></ul>
+      </div>
+      <div class="card">
+        <h3>Battery IDs Free</h3>
+        <ul id="batteryFreeList"></ul>
+      </div>
     </div>
   </div>
 
@@ -50,12 +105,66 @@
         window.location.href = "index.html";
         return;
       }
+
+      // 🚀 Load live summary once admin verified
+      loadSummaryRealtime();
     });
 
     document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
 
-    function go(page){
-      window.location.href = page;
+    // ---- Summary Rendering ----
+    function renderSummary(batteries, scooties) {
+      // Battery Stats
+      document.getElementById("numBatteries").innerText = batteries.length;
+      document.getElementById("batteriesNotActive").innerText = batteries.filter(b => b.state !== "active").length;
+      document.getElementById("batteriesFree").innerText = batteries.filter(b => b.status === "returned").length;
+      document.getElementById("batteriesInUse").innerText = batteries.filter(b => b.status === "assigned").length;
+
+      // Scooty Stats
+      document.getElementById("numScooties").innerText = scooties.length;
+      document.getElementById("scootiesNotActive").innerText = scooties.filter(s => s.state !== "active").length;
+      document.getElementById("scootiesFree").innerText = scooties.filter(s => s.status === "returned").length;
+      document.getElementById("scootiesInUse").innerText = scooties.filter(s => s.status === "assigned").length;
+
+      // Utilisation %
+      const utilisation = scooties.length > 0
+        ? ((scooties.filter(s => s.status === "assigned").length / scooties.length) * 100).toFixed(1)
+        : 0;
+      document.getElementById("scootyUtilisation").innerText = utilisation + "%";
+
+      // Free Scooty IDs
+      const scootyList = document.getElementById("scootyFreeList");
+      scootyList.innerHTML = "";
+      scooties.filter(s => s.status === "returned").forEach(s => {
+        const li = document.createElement("li");
+        li.innerText = s.id;
+        scootyList.appendChild(li);
+      });
+
+      // Free Battery IDs
+      const batteryList = document.getElementById("batteryFreeList");
+      batteryList.innerHTML = "";
+      batteries.filter(b => b.status === "returned").forEach(b => {
+        const li = document.createElement("li");
+        li.innerText = b.id;
+        batteryList.appendChild(li);
+      });
+    }
+
+    // ---- Realtime Listeners ----
+    function loadSummaryRealtime() {
+      let batteries = [];
+      let scooties = [];
+
+      db.collection("battery_master").onSnapshot(bSnap => {
+        batteries = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderSummary(batteries, scooties);
+      });
+
+      db.collection("scooty_master").onSnapshot(sSnap => {
+        scooties = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderSummary(batteries, scooties);
+      });
     }
   </script>
 </body>
