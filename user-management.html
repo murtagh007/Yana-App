@@ -7,29 +7,61 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    .panel table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      color: var(--text);
+    .grid-users {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
     }
-    .panel th, .panel td {
-      padding: 8px;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+
+    .user-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      backdrop-filter: blur(10px);
+      transition: var(--transition);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
-    .panel th {
-      font-weight: 600;
+    .user-panel:hover {
+      box-shadow: 0 0 12px var(--action);
+      border-color: var(--action);
     }
-    .table-wrapper {
-      overflow-x: auto;
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
     }
+    .user-header h3 {
+      font-size: 14px;
+      margin: 0;
+    }
+    .user-header span {
+      font-size: 12px;
+      color: var(--action);
+    }
+
+    .user-info {
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
     select {
       padding: 4px 6px;
       border-radius: var(--radius);
       background: var(--bg2);
       color: var(--text);
       border: 1px solid var(--border);
+      width: 100%;
+      margin-bottom: 6px;
+    }
+
+    .btn-panel {
+      text-align: right;
+      margin-top: 12px;
     }
   </style>
 </head>
@@ -50,24 +82,11 @@
     <h2>👥 User Management</h2>
     <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
 
-    <div class="panel table-wrapper">
-      <table id="usersTable">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Phone</th>
-            <th>Email</th>
-            <th>Vendor</th>
-            <th>Partners</th>
-            <th>Role</th>
-            <th>State</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="grid-users" id="usersGrid">
+      <!-- User panels injected here -->
     </div>
 
-    <div style="margin-top:12px; text-align:right;">
+    <div class="btn-panel">
       <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
     </div>
   </div>
@@ -83,6 +102,7 @@
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
       document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
+
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
@@ -91,50 +111,48 @@
     });
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    const tbody = document.querySelector("#usersTable tbody");
+    const usersGrid = document.getElementById("usersGrid");
+    const userPanels = {};
 
-    // Load all users
     function loadUsers() {
       db.collection("users").onSnapshot(snapshot => {
-        tbody.innerHTML = "";
+        usersGrid.innerHTML = "";
         snapshot.forEach(doc => {
           const d = doc.data();
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${d.name || ""}</td>
-            <td>${d.phone || ""}</td>
-            <td>${d.email || doc.id}</td>
-            <td>${d.vendor || ""}</td>
-            <td>${(d.partners || []).join(", ")}</td>
-            <td>
-              <select data-id="${doc.id}" data-field="role">
-                <option value="rider" ${d.role === "rider" ? "selected":""}>Rider</option>
-                <option value="captain" ${d.role === "captain" ? "selected":""}>Captain</option>
-                <option value="admin" ${d.role === "admin" ? "selected":""}>Admin</option>
-              </select>
-            </td>
-            <td>
-              <select data-id="${doc.id}" data-field="state">
-                <option value="active" ${d.state === "active" ? "selected":""}>Active</option>
-                <option value="inactive" ${d.state === "inactive" ? "selected":""}>Inactive</option>
-                <option value="blocked" ${d.state === "blocked" ? "selected":""}>Blocked</option>
-              </select>
-            </td>
+          const panel = document.createElement("div");
+          panel.className = "user-panel";
+          panel.innerHTML = `
+            <div class="user-header">
+              <h3>${d.name || ""}</h3>
+              <span>${d.email || doc.id}</span>
+            </div>
+            <div class="user-info">
+              <strong>Phone:</strong> ${d.phone || "-"}<br>
+              <strong>Vendor:</strong> ${d.vendor || "-"}<br>
+              <strong>Partners:</strong> ${(d.partners || []).join(", ") || "-"}
+            </div>
+            <select data-id="${doc.id}" data-field="role">
+              <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
+              <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
+              <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
+            </select>
+            <select data-id="${doc.id}" data-field="state">
+              <option value="active" ${d.state==="active"?"selected":""}>Active</option>
+              <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
+              <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
+            </select>
           `;
-          tbody.appendChild(tr);
+          usersGrid.appendChild(panel);
+          userPanels[doc.id] = panel;
         });
       });
     }
     loadUsers();
 
-    // Submit updates
     document.getElementById("submitBtn").addEventListener("click", async () => {
       const updates = [];
       document.querySelectorAll("select[data-id]").forEach(sel => {
-        const email = sel.dataset.id;
-        const field = sel.dataset.field;
-        const value = sel.value;
-        updates.push(db.collection("users").doc(email).update({ [field]: value }));
+        updates.push(db.collection("users").doc(sel.dataset.id).update({ [sel.dataset.field]: sel.value }));
       });
       if (updates.length === 0) return alert("ℹ No changes to save.");
       await Promise.all(updates);
