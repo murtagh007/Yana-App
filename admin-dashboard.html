@@ -36,27 +36,40 @@
       <div class="menu-btn ripple" onclick="location.href='maintainance.html'"><i class="fas fa-tools"></i>Maintenance</div>
     </div>
 
-    <!-- Scooties -->
-    <h2>🛵 Scooties</h2>
-    <div class="grid-4">
-      <div class="card ripple"><i class="fas fa-motorcycle"></i>Total <span id="numScooties">0</span></div>
-      <div class="card ripple"><i class="fas fa-exclamation-triangle"></i>Not Active <span id="scootiesNotActive">0</span></div>
-      <div class="card ripple" onclick="openDetails('scootiesFree')"><i class="fas fa-parking"></i>Free <span id="scootiesFree">0</span></div>
-      <div class="card ripple" onclick="openDetails('scootiesInUse')"><i class="fas fa-route"></i>In Use <span id="scootiesInUse">0</span></div>
-    </div>
+    <!-- Assets Summary -->
+    <h2>🛵🔋 Assets</h2>
+    <div class="grid-2">
+      <!-- Scooties Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <i class="fas fa-motorcycle"></i>
+          <span class="panel-title">Scooties</span>
+          <span class="panel-total" id="numScooties">0</span>
+        </div>
+        <div class="chips">
+          <span class="chip">Free: <b id="scootiesFree">0</b></span>
+          <span class="chip">In Use: <b id="scootiesInUse">0</b></span>
+          <span class="chip">Not Active: <b id="scootiesNotActive">0</b></span>
+        </div>
+      </div>
 
-    <!-- Batteries -->
-    <h2>🔋 Batteries</h2>
-    <div class="grid-4">
-      <div class="card ripple"><i class="fas fa-battery-full"></i>Total <span id="numBatteries">0</span></div>
-      <div class="card ripple"><i class="fas fa-exclamation-circle"></i>Not Active <span id="batteriesNotActive">0</span></div>
-      <div class="card ripple" onclick="openDetails('batteriesFree')"><i class="fas fa-box-open"></i>Free <span id="batteriesFree">0</span></div>
-      <div class="card ripple" onclick="openDetails('batteriesInUse')"><i class="fas fa-bolt"></i>In Use <span id="batteriesInUse">0</span></div>
+      <!-- Batteries Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <i class="fas fa-battery-full"></i>
+          <span class="panel-title">Batteries</span>
+          <span class="panel-total" id="numBatteries">0</span>
+        </div>
+        <div class="chips">
+          <span class="chip">Free: <b id="batteriesFree">0</b></span>
+          <span class="chip">In Use: <b id="batteriesInUse">0</b></span>
+          <span class="chip">Not Active: <b id="batteriesNotActive">0</b></span>
+        </div>
+      </div>
     </div>
 
     <!-- Utilisation -->
     <h2>📊 Utilisation</h2>
-
     <div class="util-section">
       <p>Scooty Utilisation</p>
       <div class="util-bar">
