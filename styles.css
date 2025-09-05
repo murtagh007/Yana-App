@@ -93,7 +93,12 @@ h2 { margin:16px 0 8px; font-size:16px; }
 .panel-total { font-size:18px; font-weight:bold; color:#fff; }
 
 /* Chips */
-.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;  /* ✅ Center horizontally */
+  gap: 6px;
+}
 .chip {
   background: rgba(255,255,255,0.1);
   padding:4px 8px;
