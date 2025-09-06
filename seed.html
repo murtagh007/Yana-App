@@ -1,109 +1,185 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Seeder</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    #log {
-      background:#000;
-      color:#0f0;
-      padding:10px;
-      margin-top:20px;
-      border-radius:6px;
-      height:200px;
-      overflow:auto;
-      white-space: pre-wrap;
-      font-family: monospace;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — Seeder</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .container { max-width: 900px; margin:auto; padding:20px; }
+  h1,h2 { color: #00eaff; margin-bottom:10px; }
+  input, button, select { padding:8px; border-radius:6px; border:1px solid var(--border); margin-bottom:10px; background: var(--bg2); color: var(--text); }
+  .btn { background:#00eaff; color:#000; cursor:pointer; transition:0.2s; }
+  .btn:hover { background:#00ccff; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th { text-align:left; color:#00eaff; }
+  th, td { border-bottom:1px solid rgba(255,255,255,0.1); padding:8px; font-size:14px; }
+  #log { background:#000; color:#0f0; padding:10px; border-radius:6px; height:200px; overflow:auto; white-space:pre-wrap; font-family:monospace; margin-top:20px; }
+  .remove-btn { color:red; cursor:pointer; }
+</style>
 </head>
 <body>
-  <!-- Navbar -->
-  <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+
+<!-- Navbar -->
+<div class="navbar">
+  <h2>⚡ YANA Admin</h2>
+  <div class="profile">
+    <div class="profile-pic" id="profilePic">A</div>
   </div>
+</div>
 
-  <!-- Seeder UI -->
-  <div class="container">
-    <h1>🚀 YANA Seeder</h1>
-    <p class="muted">Seeds <code>scooty_master</code> and <code>battery_master</code> into Firestore.</p>
-    <button class="btn" id="startBtn">Start Seeding</button>
+<div class="container">
+  <h1>🚀 Seeder</h1>
+  <p class="muted">Manually add or import <code>scooty_master</code> and <code>battery_master</code> assets.</p>
 
-    <div id="log"></div>
-  </div>
+  <!-- Manual Entry -->
+  <h2>Manual Entry</h2>
+  <input type="text" id="manualID" placeholder="Enter Asset ID"/>
+  <select id="manualType">
+    <option value="scooty">Scooty</option>
+    <option value="battery">Battery</option>
+  </select>
+  <button class="btn" id="addManualBtn">Add</button>
 
-  <!-- Firebase v8 SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
+  <!-- Excel Import -->
+  <h2>Import Excel</h2>
+  <input type="file" id="excelFile" accept=".xlsx, .xls"/>
+  <button class="btn" id="importBtn">Import</button>
 
-  <script>
-    const logBox = document.getElementById("log");
-    const log = msg => logBox.textContent += msg + "\n";
+  <!-- Export / Seed -->
+  <button class="btn" id="seedSelectedBtn" style="margin-top:10px;">Seed Selected</button>
 
-    // Auth check (must be admin)
-    auth.onAuthStateChanged(async user => {
-      if (!user) {
-        window.location.href = "admin-signin.html";
-        return;
-      }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+  <!-- Preview Table -->
+  <h2>Preview Imported IDs</h2>
+  <table id="previewTable">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="selectAll"></th>
+        <th>Type</th>
+        <th>ID</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-      const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
-        window.location.href = "index.html";
-        return;
-      }
+  <!-- Log -->
+  <div id="log"></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+const logBox = document.getElementById("log");
+const log = msg => logBox.textContent += msg + "\n";
+
+const previewData = [];
+const tableBody = document.querySelector("#previewTable tbody");
+const selectAllCheckbox = document.getElementById("selectAll");
+
+// Auth check
+auth.onAuthStateChanged(async user => {
+  if(!user) return location.href="admin-signin.html";
+  const doc = await db.collection("users").doc(user.email).get();
+  if(!doc.exists || doc.data().role !== "admin") {
+    alert("❌ Not an admin."); location.href="index.html"; return;
+  }
+  document.getElementById("profilePic").innerText = (doc.data().name[0]||"A").toUpperCase();
+});
+
+// --- Functions ---
+function renderPreview(){
+  tableBody.innerHTML = "";
+  previewData.forEach((item,index)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><input type="checkbox" class="row-checkbox" data-index="${index}" checked></td>
+      <td>${item.type}</td>
+      <td>${item.id}</td>
+      <td><span class="remove-btn" data-index="${index}">✖</span></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  // Remove button
+  tableBody.querySelectorAll(".remove-btn").forEach(btn=>{
+    btn.onclick = e=>{
+      const idx=parseInt(btn.dataset.index);
+      previewData.splice(idx,1);
+      renderPreview();
+    }
+  });
+}
+
+// --- Manual Entry ---
+document.getElementById("addManualBtn").addEventListener("click",()=>{
+  const id=document.getElementById("manualID").value.trim();
+  const type=document.getElementById("manualType").value;
+  if(!id) return alert("Enter a valid ID");
+  previewData.push({id,type});
+  renderPreview();
+  document.getElementById("manualID").value="";
+});
+
+// --- Excel Import ---
+document.getElementById("importBtn").addEventListener("click",()=>{
+  const file=document.getElementById("excelFile").files[0];
+  if(!file) return alert("Select an Excel file");
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const data=new Uint8Array(e.target.result);
+    const workbook=XLSX.read(data,{type:"array"});
+    const sheetName=workbook.SheetNames[0];
+    const sheet=workbook.Sheets[sheetName];
+    const json=XLSX.utils.sheet_to_json(sheet,{header:1});
+    json.forEach(row=>{
+      if(row[0] && row[1]) previewData.push({type:row[0].toString().toLowerCase(),id:row[1].toString()});
     });
+    renderPreview();
+  };
+  reader.readAsArrayBuffer(file);
+});
 
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+// --- Select/Deselect All ---
+selectAllCheckbox.addEventListener("change",e=>{
+  const checkboxes=document.querySelectorAll(".row-checkbox");
+  checkboxes.forEach(cb=>cb.checked=e.target.checked);
+});
 
-    // Seeder function
-    document.getElementById("startBtn").addEventListener("click", async () => {
-      log("🔑 Seeding as admin: " + auth.currentUser.email);
+// --- Seed Selected ---
+document.getElementById("seedSelectedBtn").addEventListener("click",async()=>{
+  const selectedRows=Array.from(document.querySelectorAll(".row-checkbox"))
+    .filter(cb=>cb.checked)
+    .map(cb=>previewData[cb.dataset.index]);
+  if(selectedRows.length===0) return alert("No assets selected!");
 
-      async function seedCollection(filename, collectionName) {
-        log(`\n📂 Seeding ${collectionName} from ${filename}...`);
-        try {
-          const res = await fetch(filename);
-          if(!res.ok) throw new Error(`Failed to fetch ${filename}`);
-          const text = await res.text();
-          const ids = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
-
-          let success = 0, fail = 0;
-          for(const id of ids){
-            try {
-              await db.collection(collectionName).doc(id).set({
-                state: "active",
-                status: "returned",
-                lastAssignedTo: null,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-              }, { merge: true });
-              log(`✅ Added ${collectionName}: ${id}`);
-              success++;
-            } catch(err){
-              log(`❌ Failed ${id}: ${err.message}`);
-              fail++;
-            }
-          }
-          log(`✔️ Completed ${collectionName}. Success: ${success}, Failed: ${fail}`);
-        } catch(err){
-          log(`❌ Seeding ${collectionName} failed: ${err.message}`);
-        }
-      }
-
-      await seedCollection("scootyid.txt", "scooty_master");
-      await seedCollection("batteryid.txt", "battery_master");
-
-      log("\n🎉 Seeding completed.");
-    });
-  </script>
+  for(const item of selectedRows){
+    try{
+      await db.collection(item.type+"_master").doc(item.id).set({
+        state:"active",
+        status:"returned",
+        lastAssignedTo:null,
+        lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      log(`✅ Added ${item.type}: ${item.id}`);
+    } catch(err){
+      log(`❌ Failed ${item.id}: ${err.message}`);
+    }
+  }
+  // Remove seeded from preview
+  for(const item of selectedRows){
+    const idx=previewData.findIndex(d=>d===item);
+    if(idx>-1) previewData.splice(idx,1);
+  }
+  renderPreview();
+  selectAllCheckbox.checked=false;
+  alert("✅ Selected assets seeded!");
+});
+</script>
 </body>
 </html>
-
