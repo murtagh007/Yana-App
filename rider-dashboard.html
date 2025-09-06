@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
   <style>
     :root {
       --bg: #0a0f12;
@@ -26,7 +27,11 @@
       background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
       background-size: 600% 600%;
       animation: gradientShift 20s ease infinite;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
       color: var(--text);
+      align-items: center;
     }
     @keyframes gradientShift {
       0%{background-position:0% 50%}
@@ -39,50 +44,61 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      width: 100%;
+      max-width: 480px;
       background: var(--card);
-      padding: 12px 16px;
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      backdrop-filter: blur(6px);
+      padding: 12px 20px;
       border-bottom: 1px solid var(--border);
+      border-radius: var(--radius) 0 0 0;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
     }
-    .navbar h1 {
-      font-size: 1.5rem;
-      font-weight: bold;
+    .navbar h2 {
       color: var(--action);
+      font-size: 1.2rem;
       margin: 0;
+    }
+    .profile {
+      position: relative;
+    }
+    .profile-pic {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--action);
+      color: #000;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .navbar .btn-logout {
-      background: var(--card);
-      border: 1px solid var(--border);
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      color: var(--text);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 500;
-      transition: 0.3s ease;
-    }
-    .navbar .btn-logout:hover {
-      border-color: var(--action);
-      color: var(--action);
-    }
-
-    /* Centered card */
-    .main-container {
-      display: flex;
       justify-content: center;
-      align-items: flex-start;
-      padding: 20px;
-      min-height: calc(100vh - 64px); /* leave space for navbar */
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 44px;
+      background: var(--card);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .profile:hover .dropdown {
+      display: block;
+    }
+    .dropdown button {
+      background: none;
+      border: none;
+      color: var(--text);
+      padding: 10px 16px;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+    }
+    .dropdown button:hover {
+      background: rgba(0,234,255,0.1);
     }
 
+    /* Card & Buttons (unchanged) */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -94,21 +110,18 @@
       text-align: center;
       backdrop-filter: blur(10px);
     }
-
     h1 {
       font-size: 28px;
       font-weight: 700;
       color: var(--action);
       margin-bottom: 16px;
     }
-
     #riderName {
       font-size: 22px;
       font-weight: 600;
       color: #fff;
       margin-bottom: 20px;
     }
-
     .status {
       display: flex;
       flex-direction: column;
@@ -116,7 +129,6 @@
       gap: 12px;
       margin-bottom: 24px;
     }
-
     .status-box {
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
@@ -129,13 +141,11 @@
       color: var(--text);
       box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
     }
-
     .actions {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
-
     .btn {
       display: flex;
       align-items: center;
@@ -152,18 +162,13 @@
       background: var(--action);
       color: #000;
     }
-
     .btn:hover { background: #00c8e0; }
-
     .btn.secondary {
       background: transparent;
       color: var(--action);
       border: 2px solid var(--action);
     }
-
-    .btn.secondary:hover {
-      background: rgba(0,234,255,0.1);
-    }
+    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
 
     #toast {
       position: fixed;
@@ -183,33 +188,36 @@
       .status-box { width: 100%; font-size: 0.95rem; }
       h1 { font-size: 24px; }
       #riderName { font-size: 20px; }
+      .navbar { padding: 10px 16px; }
     }
   </style>
 </head>
 <body>
-
   <!-- Admin-style Navbar -->
   <div class="navbar">
-    <h1><i class="fas fa-bicycle"></i> Rider Dashboard</h1>
-    <button class="btn-logout" id="logoutBtn"><i class="fas fa-door-open"></i> Logout</button>
+    <h2>⚡ YANA Rider</h2>
+    <div class="profile">
+      <div class="profile-pic" id="profilePic">R</div>
+      <div class="dropdown">
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
-  <div class="main-container">
-    <div class="card">
-      <h1>🚴 Rider Dashboard</h1>
-      <div id="riderName"></div>
+  <!-- Rider Card -->
+  <div class="card">
+    <h1>🚴 Rider Dashboard</h1>
+    <div id="riderName"></div>
 
-      <div class="status">
-        <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-        <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
-      </div>
+    <div class="status">
+      <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
+      <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
+    </div>
 
-      <div class="actions">
-        <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
-        <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
-        <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
-        <button class="btn secondary" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
-      </div>
+    <div class="actions">
+      <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
+      <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
+      <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
     </div>
   </div>
 
@@ -243,6 +251,7 @@
       }
       const data = doc.data();
       document.getElementById("riderName").innerText = data.name || "Rider";
+      document.getElementById("profilePic").innerText = (data.name ? data.name[0].toUpperCase() : "R");
 
       if(data.status !== "approved"){
         toast("⚠️ Your account is not approved.");
@@ -282,9 +291,9 @@
     document.getElementById("issueBtn").addEventListener("click", () => {
       window.location.href = `issue.html?email=${email}`;
     });
-    document.querySelectorAll('#logoutBtn').forEach(btn => btn.addEventListener("click", () => {
+    document.getElementById("logoutBtn").addEventListener("click", () => {
       firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
-    }));
+    });
 
     loadRider();
   </script>
