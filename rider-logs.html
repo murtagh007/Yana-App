@@ -5,116 +5,94 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Logs</title>
   <link rel="stylesheet" href="styles.css">
-
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: #0a0a0a;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* 🔹 Navbar same as Admin block */
+    /* Navbar */
     .navbar {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      background: rgba(0,0,0,0.6);
-      border-bottom: 1px solid rgba(0,234,255,0.3);
-      padding: 12px 16px;
+      padding: 12px 20px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
     }
-
-    .navbar span {
-      color: #00eaff;
-      font-weight: bold;
-    }
-
-    .container {
-      flex: 1;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .card {
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(0,234,255,0.3);
-      border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 800px;
-      box-shadow: 0 0 20px rgba(0,234,255,0.3);
-      backdrop-filter: blur(10px);
-    }
-
-    h1 {
-      color: #00eaff;
-      margin-bottom: 16px;
-    }
-
-    ul#logsList {
-      list-style: none;
-      padding: 0;
+    .navbar h2 {
+      color: var(--action);
       margin: 0;
     }
-
-    ul#logsList li {
-      background: rgba(255,255,255,0.05);
-      margin: 8px 0;
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      border: 1px solid rgba(0,234,255,0.2);
-      transition: background 0.2s;
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-
-    ul#logsList li:hover {
-      background: rgba(0,234,255,0.08);
-    }
-
-    .assigned { color: #4cff88; font-weight: bold; }
-    .returned { color: #4ca6ff; font-weight: bold; }
-
-    .btn {
-      padding: 8px 14px;
-      border-radius: 10px;
-      border: 1px solid #00eaff;
-      background: transparent;
-      color: #00eaff;
+    .profile-pic {
+      background: var(--action);
+      color: #fff;
       font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .btn:hover {
-      background: rgba(0,234,255,0.15);
+    /* Container */
+    .container { padding: 20px; }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: var(--radius);
+      overflow: hidden;
     }
+    th, td {
+      padding: 8px;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    th {
+      background-color: var(--action);
+      color: #fff;
+      text-align: left;
+    }
+    td { color: var(--text); }
   </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <h2>⚡ YANA Rider</h2>
+    <div class="profile">
+      <div class="profile-pic" id="profilePic">R</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>📜 Rider Logs</h1>
+    <p class="muted">View all your assignments and returns.</p>
+
+    <table id="logsTable">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Action</th>
+          <th>Asset Type</th>
+          <th>Asset ID</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
-</head>
-<body>
-  <!-- 🔹 Admin-style navbar -->
-  <div class="navbar">
-    <button class="btn secondary" onclick="history.back()">⬅ Back</button>
-    <span id="riderEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
-  </div>
-
-  <div class="container">
-    <div class="card">
-      <h1>📜 Rider Logs</h1>
-      <ul id="logsList"></ul>
-    </div>
-  </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -125,26 +103,27 @@
       window.location.href = "rider-signin.html";
     }
 
-    document.getElementById("riderEmail").innerText = "👤 " + email;
-
-    // Logout button
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      window.location.href = "rider-signin.html";
-    });
+    document.getElementById("profilePic").innerText = email.charAt(0).toUpperCase();
 
     // Load assignment/return logs
     async function loadLogs() {
-      const list = document.getElementById("logsList");
-      list.innerHTML = "";
+      const tbody = document.querySelector("#logsTable tbody");
+      tbody.innerHTML = "";
 
       function addLog(action, assetType, assetId, status, timestamp) {
-        const li = document.createElement("li");
-        const cls = action === "Assigned" ? "assigned" : "returned";
-        li.innerHTML = `<span class="${cls}">${action}</span> ${assetType} <b>${assetId}</b> — Status: ${status} <br><small>🕒 ${timestamp?.toDate().toLocaleString() || "-"}</small>`;
-        list.appendChild(li);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${timestamp?.toDate().toLocaleString() || "-"}</td>
+          <td>${action}</td>
+          <td>${assetType}</td>
+          <td>${assetId}</td>
+          <td>${status}</td>
+        `;
+        tbody.appendChild(tr);
       }
 
       try {
+        // Current Scooty assignments
         const scootySnap = await db.collection("scooty_master")
           .where("assignedTo", "==", email).get();
         scootySnap.forEach(doc => {
@@ -152,6 +131,7 @@
           addLog("Assigned", "Scooty", d.id, d.status, d.createdAt);
         });
 
+        // Previous Scooty assignments (returned)
         const scootyPrevSnap = await db.collection("scooty_master")
           .where("lastAssignedTo", "==", email).get();
         scootyPrevSnap.forEach(doc => {
@@ -159,6 +139,7 @@
           addLog("Returned", "Scooty", d.id, d.status, d.lastUpdated);
         });
 
+        // Current Battery assignments
         const batterySnap = await db.collection("battery_master")
           .where("assignedTo", "==", email).get();
         batterySnap.forEach(doc => {
@@ -166,6 +147,7 @@
           addLog("Assigned", "Battery", d.id, d.status, d.createdAt);
         });
 
+        // Previous Battery assignments (returned)
         const batteryPrevSnap = await db.collection("battery_master")
           .where("lastAssignedTo", "==", email).get();
         batteryPrevSnap.forEach(doc => {
@@ -175,9 +157,9 @@
 
       } catch (err) {
         console.error("Error loading logs:", err);
-        const li = document.createElement("li");
-        li.textContent = "❌ Failed to load logs.";
-        list.appendChild(li);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="5">❌ Failed to load logs.</td>`;
+        tbody.appendChild(tr);
       }
     }
 
