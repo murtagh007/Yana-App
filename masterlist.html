@@ -6,6 +6,48 @@
   <title>YANA — Scooty & Battery Masterlist</title>
   <link rel="stylesheet" href="styles.css">
   <style>
+    /* Navbar styles */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .navbar h2 { margin: 0; font-size: 18px; color: var(--action); }
+    .profile { display: flex; align-items: center; gap: 8px; }
+    .profile-pic {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--action); color: #000;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 14px;
+    }
+    .dropdown button {
+      margin-left: 4px;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* Tabs */
+    .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .tab-btn {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:8px 12px; cursor:pointer; transition:var(--transition); color:var(--text);
+    }
+    .tab-btn.active { background:var(--action); color:#000; }
+
+    /* Tab content */
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    /* Search bar */
     .search-container {
       margin: 12px 0;
       display: flex;
@@ -21,6 +63,8 @@
       color: var(--text);
       flex: 1 1 250px;
     }
+
+    /* Card container */
     .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
     .card {
       background: rgba(255,255,255,0.1);
@@ -41,27 +85,43 @@
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic" id="profilePic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
   <div class="container">
     <h1> Scooty & Battery Masterlist </h1>
     <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
 
-    <h2> Scooties </h2>
-    <div class="search-container">
-      <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab-btn active" data-tab="scootiesTab">🛵 Scooties</div>
+      <div class="tab-btn" data-tab="batteriesTab">🔋 Batteries</div>
     </div>
-    <div id="scootyCards" class="card-container"></div>
 
-    <h2> Batteries </h2>
-    <div class="search-container">
-      <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
+    <!-- Scooties Tab -->
+    <div class="tab-content active" id="scootiesTab">
+      <div class="search-container">
+        <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
+      </div>
+      <div id="scootyCards" class="card-container"></div>
     </div>
-    <div id="batteryCards" class="card-container"></div>
+
+    <!-- Batteries Tab -->
+    <div class="tab-content" id="batteriesTab">
+      <div class="search-container">
+        <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
+      </div>
+      <div id="batteryCards" class="card-container"></div>
+    </div>
   </div>
 
   <!-- Firebase -->
@@ -71,24 +131,35 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      document.getElementById("profilePic").innerText = (user.email[0] || "A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
+      if (!doc.exists || doc.data().role !== "admin") { 
         alert("❌ Not an admin."); 
-        return location.href="index.html";
+        location.href="index.html"; 
       }
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
+    // Tab switching
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach(b => b.classList.remove("active"));
+        tabContents.forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
     const scootyContainer = document.getElementById("scootyCards");
     const batteryContainer = document.getElementById("batteryCards");
-
-    let scootyData = [];
-    let batteryData = [];
+    let scootyData = [], batteryData = [];
 
     async function renderCards(collection, container, searchInput) {
       db.collection(collection).onSnapshot(async snapshot => {
@@ -102,7 +173,6 @@
           }
           tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName });
         }
-
         if (collection === "scooty_master") scootyData = tempData;
         else batteryData = tempData;
 
@@ -118,7 +188,7 @@
           const card = document.createElement("div");
           card.classList.add("card");
           card.innerHTML = `
-            <div class="card-header">${d.id}</div>
+            <div class="card-header" style="color: var(--action)">${d.id}</div>
             <div class="card-row">Assigned To: ${d.assignedName}</div>
             <div class="card-row">State: ${d.state}</div>
             <div class="card-row">Status: ${d.status}</div>
@@ -127,11 +197,9 @@
         });
     }
 
-    // Render initially
     renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
     renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
 
-    // Add search functionality
     document.getElementById("scootySearch").addEventListener("input", e => {
       displayCards(scootyData, scootyContainer, e.target.value);
     });
