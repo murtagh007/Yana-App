@@ -5,122 +5,168 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Dashboard</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-  <!-- Your Firebase config -->
   <script src="firebase-config.js"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: #0a0a0a;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    :root {
+      --bg: #0a0f12;
+      --card: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.2);
+      --accent: #00eaff;
+      --text: #eaf4f8;
+      --radius: 12px;
+      --transition: 0.3s ease;
     }
 
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Navbar */
     .navbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(0,0,0,0.6);
-      border-bottom: 1px solid rgba(0,234,255,0.3);
       padding: 12px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      backdrop-filter: blur(6px);
     }
-
-    .navbar img {
-      width: 60px;
-    }
-
-    .navbar span {
-      color: #00eaff;
-      font-weight: bold;
-      font-size: 0.95rem;
-    }
-
-    .container {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
-
-    .card {
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(0,234,255,0.3);
-      border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: 0 0 20px rgba(0,234,255,0.3);
-      backdrop-filter: blur(10px);
-      text-align: center;
-    }
-
-    h1 {
-      color: #00eaff;
-      margin-bottom: 10px;
-    }
-
-    .muted {
-      color: #bbb;
-      margin-bottom: 16px;
-      font-size: 0.9rem;
-    }
-
-    .status {
-      margin: 20px 0;
-      text-align: left;
-    }
-
-    .status h2 {
-      color: #00eaff;
+    .navbar h2 {
+      color: var(--accent);
       font-size: 1.2rem;
-      margin-bottom: 10px;
+      margin: 0;
     }
-
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: none;
-      border-radius: 12px;
-      background: #00eaff;
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .profile-pic {
+      background: var(--accent);
       color: #000;
       font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: 0.2s ease;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
     }
-
-    .btn:hover {
-      background: #00c8e0;
-    }
-
-    .btn.secondary {
+    .btn-logout {
       background: transparent;
-      color: #00eaff;
-      border: 2px solid #00eaff;
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-weight: bold;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: var(--transition);
     }
-
-    .btn.secondary:hover {
+    .btn-logout:hover {
       background: rgba(0,234,255,0.1);
     }
 
+    /* Card */
+    .container {
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 4px 12px rgba(0,234,255,0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+    }
+    .card h1 {
+      color: var(--accent);
+      margin: 0;
+    }
+    .muted {
+      color: #bbb;
+      font-size: 0.9rem;
+    }
+
+    /* Assignment Status */
+    .status {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      text-align: center;
+    }
+    .status div {
+      flex: 1;
+      background: rgba(0,234,255,0.05);
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .status div:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+    .status h2 {
+      font-size: 1rem;
+      color: var(--accent);
+      margin: 0 0 6px 0;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .actions .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: #000;
+      transition: var(--transition);
+    }
+    .actions .btn:hover {
+      background: #00c8e0;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    /* Toast */
     #toast {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,234,255,0.9);
+      background: var(--accent);
       color: #000;
       padding: 10px 16px;
       border-radius: 6px;
@@ -128,30 +174,53 @@
       font-weight: bold;
       z-index: 1000;
     }
+
+    /* Responsive */
+    @media(max-width:500px){
+      .status {
+        flex-direction: column;
+      }
+      .status div {
+        width: 100%;
+      }
+      .actions .btn {
+        font-size: 0.95rem;
+        padding: 10px;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
-    <img src="yana-logo.png" alt="YANA Logo">
-    <span id="riderEmail"></span>
-    <button class="btn secondary" id="logoutBtn">🚪 Logout</button>
+    <h2>⚡ YANA Rider</h2>
+    <div class="profile">
+      <div class="profile-pic" id="riderPic">R</div>
+      <button class="btn-logout" id="logoutBtn">Logout</button>
+    </div>
   </div>
 
+  <!-- Main Card -->
   <div class="container">
     <div class="card">
-      <h1>🚴 Rider Dashboard</h1>
+      <h1>Rider Dashboard</h1>
       <div id="riderInfo" class="muted"></div>
 
       <div class="status">
-        <h2>Current Assignment</h2>
-        <p>Scooty: <span id="currentScooty">Loading...</span></p>
-        <p>Battery: <span id="currentBattery">Loading...</span></p>
+        <div>
+          <h2>Scooty</h2>
+          <span id="currentScooty">Loading...</span>
+        </div>
+        <div>
+          <h2>Battery</h2>
+          <span id="currentBattery">Loading...</span>
+        </div>
       </div>
 
       <div class="actions">
-        <button class="btn" id="scanBtn">📷 Scan QR</button>
-        <button class="btn" id="logsBtn">📜 Rider Logs</button>
-        <button class="btn" id="issueBtn">⚠️ Raise Issue</button>
+        <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
+        <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
+        <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
       </div>
     </div>
   </div>
@@ -168,18 +237,17 @@
 
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
-    const riderInfoDiv = document.getElementById("riderInfo");
-
-    let currentScooty = null;
-    let currentBattery = null;
+    let riderName = "R";
 
     if(!email){
       toast("❌ Not signed in!");
       window.location.href="rider-signin.html";
     }
-    document.getElementById("riderEmail").innerText = "👤 " + email;
 
-    // Load rider info
+    const riderInfoDiv = document.getElementById("riderInfo");
+    const riderPicDiv = document.getElementById("riderPic");
+    let currentScooty = null, currentBattery = null;
+
     async function loadRider(){
       const doc = await db.collection("users").doc(email).get();
       if(!doc.exists){
@@ -188,53 +256,34 @@
         return;
       }
       const data = doc.data();
-      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
+      riderName = data.name || "R";
+      riderInfoDiv.innerText = riderName;
+      riderPicDiv.innerText = riderName[0].toUpperCase();
+
       if(data.status !== "approved"){
         toast("⚠️ Your account is not approved.");
         window.location.href="rider-signin.html";
         return;
       }
-      loadMyAssignments();
+      loadAssignments();
     }
 
-    // Load current assignments from master collections
-    async function loadMyAssignments(){
-      currentScooty = null;
-      currentBattery = null;
+    async function loadAssignments(){
+      const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+      s.forEach(d=>currentScooty=d.id);
 
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => currentScooty = d.id);
-
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => currentBattery = d.id);
+      const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+      b.forEach(d=>currentBattery=d.id);
 
       document.getElementById("currentScooty").innerText = currentScooty || "None";
       document.getElementById("currentBattery").innerText = currentBattery || "None";
     }
 
-    // Button actions
-    document.getElementById("scanBtn").addEventListener("click", () => {
-      window.location.href = `scanner.html?email=${email}`;
-    });
-    document.getElementById("logsBtn").addEventListener("click", () => {
-      window.location.href = `rider-logs.html?email=${email}`;
-    });
-    document.getElementById("issueBtn").addEventListener("click", () => {
-      window.location.href = `issue.html?email=${email}`;
-    });
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      firebase.auth().signOut().then(()=>{
-        window.location.href="rider-signin.html";
-      });
-    });
+    document.getElementById("scanBtn").addEventListener("click",()=>{window.location.href=`scanner.html?email=${email}`});
+    document.getElementById("logsBtn").addEventListener("click",()=>{window.location.href=`rider-logs.html?email=${email}`});
+    document.getElementById("issueBtn").addEventListener("click",()=>{window.location.href=`issue.html?email=${email}`});
+    document.getElementById("logoutBtn").addEventListener("click",()=>{firebase.auth().signOut().then(()=>{window.location.href="rider-signin.html";})});
 
-    // Run
     loadRider();
   </script>
 </body>
