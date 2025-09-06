@@ -6,11 +6,135 @@
   <title>YANA — Raise Issue</title>
   <link rel="stylesheet" href="styles.css">
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid rgba(0,234,255,0.3);
+      padding: 12px 16px;
+    }
+
+    .navbar span {
+      color: #00eaff;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+
+    .container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(0,234,255,0.3);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 0 20px rgba(0,234,255,0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .logo {
+      display: block;
+      margin: 0 auto 16px;
+      width: 80px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #00eaff;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-size: 0.9rem;
+      color: #ddd;
+    }
+
+    select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,234,255,0.4);
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+    }
+
+    select:focus, textarea:focus {
+      outline: none;
+      border-color: #00eaff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    textarea {
+      resize: none;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      background: #00eaff;
+      color: #000;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #00c8e0;
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: #00eaff;
+      border: 2px solid #00eaff;
+    }
+
+    .btn.secondary:hover {
+      background: rgba(0,234,255,0.1);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,234,255,0.9);
+      color: #000;
+      padding: 10px 16px;
+      border-radius: 6px;
+      display: none;
+      font-weight: bold;
+      z-index: 1000;
+    }
+  </style>
 </head>
 <body>
   <div class="navbar">
@@ -20,31 +144,49 @@
   </div>
 
   <div class="container">
-    <h1>⚠️ Raise an Issue</h1>
-    <form id="issueForm">
-      <label for="assetSelect">Select Assigned Asset:</label>
-      <select id="assetSelect" required>
-        <option value="">-- Select --</option>
-      </select>
+    <div class="card">
+      <img src="yana-logo.png" alt="YANA Logo" class="logo">
+      <h1>⚠️ Raise an Issue</h1>
+      <form id="issueForm">
+        <label for="assetSelect">Select Assigned Asset:</label>
+        <select id="assetSelect" required>
+          <option value="">-- Select --</option>
+        </select>
 
-      <label for="issueType">Select Issue Type:</label>
-      <select id="issueType" required>
-        <option value="">-- Select Issue --</option>
-      </select>
+        <label for="issueType">Select Issue Type:</label>
+        <select id="issueType" required>
+          <option value="">-- Select Issue --</option>
+        </select>
 
-      <label for="issueText">Additional Details (Optional):</label>
-      <textarea id="issueText" rows="4" placeholder="Add extra details..."></textarea>
+        <label for="issueText">Additional Details (Optional):</label>
+        <textarea id="issueText" rows="4" placeholder="Add extra details..."></textarea>
 
-      <button class="btn" type="submit">Submit Issue</button>
-    </form>
+        <button class="btn" type="submit">Submit Issue</button>
+      </form>
+    </div>
   </div>
 
+  <div id="toast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
+
   <script>
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
+
     // Get email from URL
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
     if (!email) {
-      alert("Not signed in!");
+      toast("❌ Not signed in!");
       window.location.href = "rider-signin.html";
     }
     document.getElementById("riderEmail").innerText = "👤 " + email;
@@ -54,83 +196,51 @@
       window.location.href = "rider-signin.html";
     });
 
-    // Firestore reference
-    
-
-    // Assets & Issue Types
     const assetSelect = document.getElementById("assetSelect");
     const issueTypeSelect = document.getElementById("issueType");
     const issueTypes = {
       scooty: [
-        "Horn Issue",
-        "Brake Issue",
-        "Light Issue",
-        "Tyre Issue",
-        "Lock Issue",
-        "Ignition Issue",
-        "Vehicle Noise Issue"
+        "Horn Issue","Brake Issue","Light Issue","Tyre Issue",
+        "Lock Issue","Ignition Issue","Vehicle Noise Issue"
       ],
-      battery: [
-        "Charging Issue",
-        "Display/On-Off Issue"
-      ]
+      battery: ["Charging Issue","Display/On-Off Issue"]
     };
 
     // Load current assignments
-async function loadAssignments() {
-  let scooty = null, battery = null;
+    async function loadAssignments() {
+      let scooty = null, battery = null;
+      const s = await db.collection("scooty_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      s.forEach(d => scooty = d.data().id);
 
-  console.log("Email from URL:", email);
+      const b = await db.collection("battery_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      b.forEach(d => battery = d.data().id);
 
-  const s = await db.collection("scooty_master")
-    .where("assignedTo", "==", email)
-    .where("status", "==", "assigned")
-    .limit(1).get();
+      if (scooty) {
+        const opt = document.createElement("option");
+        opt.value = scooty;
+        opt.textContent = "Scooty: " + scooty;
+        assetSelect.appendChild(opt);
+      }
 
-  console.log("Scooty query docs:", s.docs.map(d => d.data()));
+      if (battery) {
+        const opt = document.createElement("option");
+        opt.value = battery;
+        opt.textContent = "Battery: " + battery;
+        assetSelect.appendChild(opt);
+      }
+    }
 
-  s.forEach(d => {
-    scooty = d.data().id;
-  });
-
-  const b = await db.collection("battery_master")
-    .where("assignedTo", "==", email)
-    .where("status", "==", "assigned")
-    .limit(1).get();
-
-  console.log("Battery query docs:", b.docs.map(d => d.data()));
-
-  b.forEach(d => {
-    battery = d.data().id;
-  });
-
-  console.log("Final assets:", { scooty, battery });
-
-  if (scooty) {
-    const opt = document.createElement("option");
-    opt.value = scooty;
-    opt.textContent = "Scooty: " + scooty;
-    assetSelect.appendChild(opt);
-  }
-
-  if (battery) {
-    const opt = document.createElement("option");
-    opt.value = battery;
-    opt.textContent = "Battery: " + battery;
-    assetSelect.appendChild(opt);
-  }
-}
-
-
-    // Populate issue type based on asset selection
+    // Populate issue type
     assetSelect.addEventListener("change", () => {
-      const assetId = assetSelect.value;
       issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
-      if (!assetId) return;
-
-      const assetText = assetSelect.options[assetSelect.selectedIndex].text;
-      const type = assetText.startsWith("Scooty") ? "scooty" : "battery";
-
+      if (!assetSelect.value) return;
+      const type = assetSelect.options[assetSelect.selectedIndex].text.startsWith("Scooty") ? "scooty" : "battery";
       issueTypes[type].forEach(issue => {
         const opt = document.createElement("option");
         opt.value = issue;
@@ -139,29 +249,25 @@ async function loadAssignments() {
       });
     });
 
-    // Handle form submission
+    // Submit Issue
     document.getElementById("issueForm").addEventListener("submit", async e => {
       e.preventDefault();
-
       const assetId = assetSelect.value;
       const issue = issueTypeSelect.value;
       const additionalDetails = document.getElementById("issueText").value.trim();
 
       if (!assetId || !issue) {
-        alert("Please select an asset and an issue type.");
+        toast("⚠️ Please select an asset and an issue type.");
         return;
       }
 
       await db.collection("issues").add({
-        email,
-        assetId,
-        issue,
-        additionalDetails,
+        email, assetId, issue, additionalDetails,
         status: "open",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      alert("✅ Issue submitted successfully!");
+      toast("✅ Issue submitted successfully!");
       document.getElementById("issueForm").reset();
       issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
     });
@@ -170,4 +276,3 @@ async function loadAssignments() {
   </script>
 </body>
 </html>
-
