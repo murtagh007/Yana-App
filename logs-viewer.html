@@ -1,93 +1,143 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>YANA — Logs Viewer</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-  /* Navbar same as admin dashboard */
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 20px;
-    background: #0d1f33; /* same as dashboard */
-    color: white;
-  }
-  .navbar h2 { margin:0; color: var(--action); }
-  .profile { display:flex; align-items:center; gap:10px; }
-  .profile-pic {
-    width:32px; height:32px; border-radius:50%; background:#1f3a5a; color:white;
-    display:flex; align-items:center; justify-content:center; font-weight:bold;
-  }
-  .btn { cursor:pointer; padding:6px 12px; border:none; border-radius:6px; background:#1f3a5a; color:white; transition:.2s; }
-  .btn:hover { background:#274b75; }
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Logs Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Navbar */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .navbar h2 {
+      color: var(--action);
+      margin: 0;
+    }
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .profile-pic {
+      background: var(--action);
+      color: #fff;
+      font-weight: bold;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  body { background: #08121f; color: white; font-family: sans-serif; margin:0; }
-  .container { padding: 20px; max-width:1200px; margin:auto; }
+    /* Container */
+    .container { padding: 20px; }
 
-  h1 { color: var(--action); margin-bottom:6px; }
-  .muted { color: rgba(255,255,255,0.5); margin-bottom:12px; }
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td {
+      padding: 8px;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    th {
+      background-color: var(--action);
+      color: #fff;
+      text-align: left;
+    }
+    td { color: var(--text); }
 
-  .filters {
-    display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;
-  }
-  .filters label { font-weight:bold; }
-  .filters input, .filters select { padding:6px 8px; border-radius:6px; border:1px solid #ccc; }
+    /* Filters */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .filters input, .filters select {
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    .filters button {
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--action);
+      color: #fff;
+      cursor: pointer;
+    }
 
-  table { width:100%; border-collapse: collapse; margin-top:12px; }
-  th, td { padding:8px; text-align:left; font-size:14px; }
-  th { background: var(--action); color:#000; }
-  tr:nth-child(even) { background: rgba(255,255,255,0.05); }
-  tr:hover { background: rgba(255,255,255,0.1); }
-
-  .pagination {
-    display:flex; gap:6px; justify-content:center; margin-top:12px;
-  }
-  .pagination button { padding:6px 10px; border:none; border-radius:6px; background:#1f3a5a; color:white; cursor:pointer; }
-  .pagination button:disabled { opacity:0.4; cursor:default; }
-
-  /* CSV export styling */
-  #exportBtn { margin-left:auto; }
-</style>
+    /* Pagination */
+    .pagination {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      align-items: center;
+    }
+    .pagination button {
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pagination button.active {
+      background: var(--action);
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
   <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
     <div class="profile">
-      <div class="profile-pic" id="profilePic">A</div>
-      <button id="logoutBtn" class="btn">Logout</button>
+      <div class="profile-pic">A</div>
     </div>
   </div>
 
   <div class="container">
-    <h1>📜 Logs Viewer</h1>
-    <p class="muted">View all state changes, status changes, and issues. Use filters below.</p>
+    <h1>Logs Viewer</h1>
+  
 
     <div class="filters">
-      <label>Action Type:</label>
+      <label>Filter Action:</label>
       <select id="logFilter">
         <option value="all">All</option>
-        <option value="state-change">State-Change</option>
-        <option value="assigned">Status-Change</option>
-        <option value="returned">Status-Change</option>
-        <option value="issue-created">Issue-Created</option>
-        <option value="issue-resolved">Issue-Resolved</option>
+        <option value="state-change">State Change</option>
+        <option value="status-change">Status Change</option>
+        <option value="issue-created">Issue Created</option>
+        <option value="issue-resolved">Issue Resolved</option>
       </select>
 
-      <label>Search Item ID / User Name:</label>
-      <input type="text" id="searchInput" placeholder="e.g. SCOOTY001 or John Doe">
+      <label>Search by Asset ID:</label>
+      <input type="text" id="searchInput" placeholder="e.g. SCOOTY002">
 
-      <label>Date From:</label>
-      <input type="date" id="dateFrom">
+      <label>Start Date:</label>
+      <input type="date" id="startDate">
+      <label>End Date:</label>
+      <input type="date" id="endDate">
 
-      <label>To:</label>
-      <input type="date" id="dateTo">
-
-      <button id="exportBtn" class="btn"><i class="fas fa-download"></i> Export CSV</button>
+      <button id="exportBtn">⬇ Export CSV</button>
     </div>
 
     <table id="logsTable">
@@ -104,11 +154,7 @@
       <tbody></tbody>
     </table>
 
-    <div class="pagination">
-      <button id="prevPage">&larr; Prev</button>
-      <span id="pageInfo">1</span>
-      <button id="nextPage">Next &rarr;</button>
-    </div>
+    <div class="pagination" id="pagination"></div>
   </div>
 
   <!-- Firebase -->
@@ -118,148 +164,131 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    let allLogs = [];
-    let currentPage = 1;
-    const pageSize = 10;
-
     const tbody = document.querySelector("#logsTable tbody");
+    const paginationEl = document.getElementById("pagination");
+    let allLogs = [];
+    const itemsPerPage = 10;
+    let currentPage = 1;
 
-    // Auth
-    auth.onAuthStateChanged(async user => {
-      if(!user) return location.href="admin-signin.html";
-      const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role !== "admin") { alert("❌ Not an admin."); return location.href="index.html"; }
-      document.getElementById("profilePic").innerText = (doc.data().name[0]||'A').toUpperCase();
-      loadLogs();
-    });
-    document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-    async function loadLogs() {
-      db.collection("logs").orderBy("timestamp","desc").onSnapshot(async snap=>{
-        allLogs = await Promise.all(snap.docs.map(async d=>{
-          const data = d.data();
-          let userName="-";
-          if(data.email) {
-            const userDoc = await db.collection("users").doc(data.email).get();
-            if(userDoc.exists && userDoc.data().name) userName = normalizeName(userDoc.data().name);
-          } else if(data.admin) {
-            const userDoc = await db.collection("users").doc(data.admin).get();
-            if(userDoc.exists && userDoc.data().name) userName = normalizeName(userDoc.data().name);
-          }
-
-          let actionType = "";
-          let details = "";
-          let itemType = "";
-
-          switch(data.action) {
-            case "state-change":
-              actionType="State-Change";
-              details=capitalize(data.newState||"-");
-              itemType = data.type || "-";
-              break;
-            case "assigned":
-            case "returned":
-              actionType="Status-Change";
-              details=capitalize(data.action);
-              itemType=data.itemType || "-";
-              break;
-            case "issue-created":
-              actionType="Issue-Created";
-              details=capitalize(data.issue||"-");
-              itemType="Issue";
-              break;
-            case "issue-resolved":
-              actionType="Issue-Resolved";
-              details=capitalize(data.issue||"-");
-              itemType="Issue";
-              break;
-            default:
-              actionType = capitalize(data.action||"-");
-              itemType = data.type || data.itemType || "-";
-          }
-
-          return {
-            time: data.timestamp?.toDate() || new Date(),
-            user: userName,
-            actionType,
-            itemType,
-            itemId: data.itemId || data.assetId || "-",
-            details
-          };
-        }));
-        currentPage=1;
-        renderPage();
-      });
+    function normalizeName(name) {
+      return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     }
 
-    function normalizeName(str) {
-      return str.split(" ").map(s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()).join(" ");
+    function formatAction(log) {
+      if(log.action === "state-change") return { type: "State-Change", details: log.newState };
+      if(log.action === "assigned" || log.action === "returned") return { type: "Status-Change", details: log.status || log.action };
+      if(log.action === "issue-created") return { type: "Issue-Created", details: log.issue };
+      if(log.action === "issue-resolved") return { type: "Issue-Resolved", details: log.issue };
+      return { type: log.action, details: "" };
     }
-    function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1).toLowerCase(); }
 
-    function getFilteredLogs() {
+    function getItemType(log) {
+      if(log.action.startsWith("issue")) return "Scooty/Battery"; // fallback for issue logs
+      if(log.itemType) return normalizeName(log.itemType);
+      if(log.type) return log.type === "scooty_master" ? "Scooty" : "Battery";
+      return "-";
+    }
+
+    function filterLogs() {
       const filter = document.getElementById("logFilter").value;
-      const search = document.getElementById("searchInput").value.toLowerCase();
-      const fromDate = document.getElementById("dateFrom").value;
-      const toDate = document.getElementById("dateTo").value;
+      const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
+      const start = document.getElementById("startDate").value ? new Date(document.getElementById("startDate").value) : null;
+      const end = document.getElementById("endDate").value ? new Date(document.getElementById("endDate").value) : null;
 
-      return allLogs.filter(l=>{
-        if(filter!=="all" && l.actionType.toLowerCase()!==filter.toLowerCase()) return false;
-        if(search && !(l.itemId.toLowerCase().includes(search) || l.user.toLowerCase().includes(search))) return false;
-        if(fromDate && l.time < new Date(fromDate)) return false;
-        if(toDate && l.time > new Date(toDate+"T23:59:59")) return false;
+      return allLogs.filter(log => {
+        if(filter !== "all") {
+          if(filter === "state-change" && log.action !== "state-change") return false;
+          if(filter === "status-change" && !["assigned","returned"].includes(log.action)) return false;
+          if(filter === "issue-created" && log.action !== "issue-created") return false;
+          if(filter === "issue-resolved" && log.action !== "issue-resolved") return false;
+        }
+        if(searchText && !(log.itemId||"").toLowerCase().includes(searchText)) return false;
+        if(start && log.timestamp?.toDate() < start) return false;
+        if(end && log.timestamp?.toDate() > end) return false;
         return true;
       });
     }
 
-    function renderPage() {
-      const logs = getFilteredLogs();
-      const totalPages = Math.ceil(logs.length/pageSize);
-      currentPage = Math.min(currentPage,totalPages)||1;
-      const start = (currentPage-1)*pageSize;
-      const pageLogs = logs.slice(start,start+pageSize);
+    function renderLogsPage(page=1) {
+      const filtered = filterLogs();
+      currentPage = page;
+      const startIndex = (page-1)*itemsPerPage;
+      const pageItems = filtered.slice(startIndex, startIndex + itemsPerPage);
 
-      tbody.innerHTML="";
-      pageLogs.forEach(l=>{
+      tbody.innerHTML = "";
+      pageItems.forEach(log => {
+        let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
+        userName = normalizeName(userName);
+
+        const act = formatAction(log);
+        const itemType = getItemType(log);
+
         const tr = document.createElement("tr");
-        tr.innerHTML=`
-          <td>${l.time.toLocaleString()}</td>
-          <td>${l.user}</td>
-          <td>${l.actionType}</td>
-          <td>${l.itemType}</td>
-          <td>${l.itemId}</td>
-          <td>${l.details}</td>
+        tr.innerHTML = `
+          <td>${log.timestamp?.toDate().toLocaleString() || "-"}</td>
+          <td>${userName}</td>
+          <td>${act.type}</td>
+          <td>${itemType}</td>
+          <td>${log.itemId || log.assetId || "-"}</td>
+          <td>${act.details}</td>
         `;
         tbody.appendChild(tr);
       });
 
-      document.getElementById("pageInfo").innerText=`${currentPage} / ${totalPages||1}`;
-      document.getElementById("prevPage").disabled = currentPage<=1;
-      document.getElementById("nextPage").disabled = currentPage>=totalPages;
+      renderPagination(filtered.length);
     }
 
-    document.getElementById("prevPage").onclick=()=>{currentPage--; renderPage();}
-    document.getElementById("nextPage").onclick=()=>{currentPage++; renderPage();}
+    function renderPagination(totalItems) {
+      paginationEl.innerHTML = "";
+      const totalPages = Math.ceil(totalItems/itemsPerPage);
+      for(let i=1;i<=totalPages;i++){
+        const btn = document.createElement("button");
+        btn.innerText = i;
+        if(i===currentPage) btn.classList.add("active");
+        btn.onclick = () => renderLogsPage(i);
+        paginationEl.appendChild(btn);
+      }
+    }
 
-    document.getElementById("logFilter").addEventListener("change", ()=>{currentPage=1; renderPage();});
-    document.getElementById("searchInput").addEventListener("input", ()=>{currentPage=1; renderPage();});
-    document.getElementById("dateFrom").addEventListener("change", ()=>{currentPage=1; renderPage();});
-    document.getElementById("dateTo").addEventListener("change", ()=>{currentPage=1; renderPage();});
+    document.getElementById("logFilter").addEventListener("change", () => renderLogsPage(1));
+    document.getElementById("searchInput").addEventListener("input", () => renderLogsPage(1));
+    document.getElementById("startDate").addEventListener("change", () => renderLogsPage(1));
+    document.getElementById("endDate").addEventListener("change", () => renderLogsPage(1));
 
-    document.getElementById("exportBtn").addEventListener("click", ()=>{
-      const logs = getFilteredLogs();
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const logs = filterLogs();
       if(!logs.length){ alert("⚠️ No logs to export."); return; }
-      const headers=["Time","User","Action Type","Item Type","Item ID","Details"];
-      const rows = logs.map(l=>[
-        l.time.toLocaleString(), l.user, l.actionType, l.itemType, l.itemId, l.details
-      ]);
-      let csv = "data:text/csv;charset=utf-8," 
+      const headers = ["Time","User","Action Type","Item Type","Item ID","Details"];
+      const rows = logs.map(log => {
+        let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
+        userName = normalizeName(userName);
+        const act = formatAction(log);
+        const itemType = getItemType(log);
+        return [log.timestamp?.toDate().toLocaleString()||"-", userName, act.type, itemType, log.itemId||log.assetId||"-", act.details];
+      });
+      let csvContent = "data:text/csv;charset=utf-8," 
         + headers.join(",") + "\n"
-        + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+        + rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
       const link = document.createElement("a");
-      link.setAttribute("href",encodeURI(csv));
+      link.setAttribute("href", encodeURI(csvContent));
       link.setAttribute("download","logs_export.csv");
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // Firebase Auth & Load
+    auth.onAuthStateChanged(async user=>{
+      if(!user) { location.href="admin-signin.html"; return; }
+      const doc = await db.collection("users").doc(user.email).get();
+      if(!doc.exists || doc.data().role!=="admin") { alert("❌ Not an admin"); location.href="index.html"; return; }
+
+      document.querySelector(".profile-pic").innerText = (doc.data().name ? doc.data().name[0] : user.email[0]).toUpperCase();
+
+      db.collection("logs").orderBy("timestamp","desc").onSnapshot(snapshot=>{
+        allLogs = snapshot.docs.map(d=>({ id:d.id, ...d.data() }));
+        renderLogsPage(1);
+      });
     });
   </script>
 </body>
