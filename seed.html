@@ -1,88 +1,40 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Seeder</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    #summary {
-      margin-bottom: 12px;
-      display: flex;
-      gap: 12px;
-      font-weight: bold;
-      color: #00eaff;
-    }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — Seeder</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { font-family: sans-serif; margin:0; padding:0; background:#000; color:#fff; }
+  .navbar { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#111; }
+  .profile-pic { background:#00eaff; color:#000; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; }
 
-    #log {
-      background: rgba(0, 234, 255, 0.05);
-      color: #00eaff;
-      padding: 10px;
-      border-radius: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
-      backdrop-filter: blur(10px);
-    }
+  .container { padding:16px; }
+  h1 { color:#00eaff; margin-bottom:8px; }
 
-    .form-section {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 20px;
-      backdrop-filter: blur(10px);
-    }
+  #summary { display:flex; flex-wrap:wrap; gap:12px; font-weight:bold; color:#00eaff; margin-bottom:16px; }
 
-    .form-section h2 {
-      color: #00eaff;
-      margin-bottom: 12px;
-    }
+  .form-section { background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:16px; backdrop-filter:blur(10px); }
+  .form-section h2 { color:#00eaff; margin-bottom:12px; }
 
-    .form-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
+  .form-group { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .form-group input[type="text"], .form-group input[type="file"] { flex:1 1 100%; padding:8px; border-radius:8px; border:1px solid #555; background:#111; color:#fff; }
+  .form-group button { padding:8px; border:none; border-radius:8px; background:#00eaff; color:#000; cursor:pointer; flex:1 1 auto; }
+  .form-group button:hover { background:#00c4d0; }
 
-    .form-group input[type="text"],
-    .form-group input[type="file"] {
-      flex: 1 1 250px;
-      padding: 8px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
-    }
+  #log { background: rgba(0,234,255,0.05); color:#00eaff; padding:10px; border-radius:12px; max-height:200px; overflow-y:auto; font-family:'Courier New', monospace; font-size:14px; backdrop-filter:blur(10px); }
 
-    .form-group button {
-      padding: 8px 16px;
-      border-radius: var(--radius);
-      border: none;
-      background: #00eaff;
-      color: #000;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .form-group button:hover {
-      background: #00c4d0;
-    }
-
-    @media (max-width: 600px) {
-      .form-group { flex-direction: column; }
-    }
-  </style>
+  @media(min-width:600px){
+    .form-group input[type="text"], .form-group input[type="file"] { flex:1 1 auto; }
+    .form-group button { flex:0 0 auto; }
+  }
+</style>
 </head>
 <body>
-  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
-    <div class="profile">
-      <div class="profile-pic" id="adminInitial">A</div>
-    </div>
+    <div class="profile-pic" id="adminInitial">A</div>
   </div>
 
   <div class="container">
@@ -118,7 +70,7 @@
     <div id="log"></div>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase & XLSX -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -128,59 +80,37 @@
   <script>
     const logBox = document.getElementById("log");
     const summaryBox = document.getElementById("summary");
-    const log = msg => { logBox.textContent += msg + "\n"; logBox.scrollTop = logBox.scrollHeight; }
+    const log = msg => { logBox.textContent += msg+"\n"; logBox.scrollTop = logBox.scrollHeight; }
 
     let summary = { success:0, skipped:0, failed:0 };
-    const updateSummary = () => {
-      summaryBox.innerHTML = `✅ Added: ${summary.success} | ⚠ Skipped (exists): ${summary.skipped} | ❌ Failed: ${summary.failed}`;
-    }
+    const updateSummary = ()=>{ summaryBox.innerHTML = `✅ Added: ${summary.success} | ⚠ Skipped: ${summary.skipped} | ❌ Failed: ${summary.failed}`; }
 
-    auth.onAuthStateChanged(async user => {
+    auth.onAuthStateChanged(async user=>{
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role!=="admin") {
-        alert("❌ Not an admin."); return location.href="index.html";
-      }
-      document.getElementById("adminInitial").innerText = (doc.data().name || user.email[0]).charAt(0).toUpperCase();
+      if(!doc.exists || doc.data().role!=="admin"){ alert("❌ Not an admin."); return location.href="index.html"; }
+      document.getElementById("adminInitial").innerText = (doc.data().name||user.email[0]).charAt(0).toUpperCase();
     });
 
-    async function addAsset(id, collectionName) {
+    async function addAsset(id, collection){
       if(!id) return alert("Enter ID");
-      const docRef = db.collection(collectionName).doc(id);
+      const docRef = db.collection(collection).doc(id);
       const docSnap = await docRef.get();
-      if(docSnap.exists) {
-        summary.skipped++; log(`⚠ Already exists: ${id}`); updateSummary(); return;
-      }
-      try {
-        await docRef.set({
-          state:"active",
-          status:"returned",
-          lastAssignedTo:null,
-          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        summary.success++; log(`✅ Added ${collectionName.slice(0,-7)}: ${id}`); updateSummary();
-      } catch(e) { summary.failed++; log(`❌ Failed ${id}: ${e.message}`); updateSummary(); }
+      if(docSnap.exists){ summary.skipped++; log(`⚠ Already exists: ${id}`); updateSummary(); return; }
+      try{ await docRef.set({ state:"active", status:"returned", lastAssignedTo:null, lastUpdated: firebase.firestore.FieldValue.serverTimestamp() });
+        summary.success++; log(`✅ Added ${collection.slice(0,-7)}: ${id}`); updateSummary();
+      }catch(e){ summary.failed++; log(`❌ Failed ${id}: ${e.message}`); updateSummary(); }
     }
 
-    document.getElementById("addScootyBtn").addEventListener("click", () => {
-      const id = document.getElementById("manualScooty").value.trim();
-      addAsset(id,"scooty_master");
-      document.getElementById("manualScooty").value="";
-    });
+    document.getElementById("addScootyBtn").addEventListener("click",()=>{ const id=document.getElementById("manualScooty").value.trim(); addAsset(id,"scooty_master"); document.getElementById("manualScooty").value=""; });
+    document.getElementById("addBatteryBtn").addEventListener("click",()=>{ const id=document.getElementById("manualBattery").value.trim(); addAsset(id,"battery_master"); document.getElementById("manualBattery").value=""; });
 
-    document.getElementById("addBatteryBtn").addEventListener("click", () => {
-      const id = document.getElementById("manualBattery").value.trim();
-      addAsset(id,"battery_master");
-      document.getElementById("manualBattery").value="";
-    });
-
-    // Excel import
-    document.getElementById("importBtn").addEventListener("click", async () => {
-      const fileInput = document.getElementById("excelFile");
-      if(fileInput.files.length===0) return alert("Select an Excel file");
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = async e => {
+    document.getElementById("importBtn").addEventListener("click",()=>{
+      const fileInput=document.getElementById("excelFile");
+      if(fileInput.files.length===0) return alert("Select Excel file");
+      const file=fileInput.files[0];
+      const reader=new FileReader();
+      reader.onload = async e=>{
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data,{type:"array"});
         const sheetName = workbook.SheetNames[0];
