@@ -6,15 +6,6 @@
   <title>YANA — Scooty & Battery Masterlist</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-    .tab-btn {
-      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
-      padding:8px 12px; cursor:pointer; transition:var(--transition); color:var(--text);
-    }
-    .tab-btn.active { background:var(--action); color:#000; }
-    .tab-content { display:none; }
-    .tab-content.active { display:block; }
-
     .search-container {
       margin: 12px 0;
       display: flex;
@@ -60,27 +51,17 @@
     <h1> Scooty & Battery Masterlist </h1>
     <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <div class="tab-btn active" data-tab="scootyTab">🛵 Scooties</div>
-      <div class="tab-btn" data-tab="batteryTab">🔋 Batteries</div>
+    <h2> Scooties </h2>
+    <div class="search-container">
+      <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
     </div>
+    <div id="scootyCards" class="card-container"></div>
 
-    <!-- Scooties Tab -->
-    <div class="tab-content active" id="scootyTab">
-      <div class="search-container">
-        <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
-      </div>
-      <div id="scootyCards" class="card-container"></div>
+    <h2> Batteries </h2>
+    <div class="search-container">
+      <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
     </div>
-
-    <!-- Batteries Tab -->
-    <div class="tab-content" id="batteryTab">
-      <div class="search-container">
-        <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
-      </div>
-      <div id="batteryCards" class="card-container"></div>
-    </div>
+    <div id="batteryCards" class="card-container"></div>
   </div>
 
   <!-- Firebase -->
@@ -102,18 +83,6 @@
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-    // Tab switching
-    const tabButtons = document.querySelectorAll(".tab-btn");
-    const tabContents = document.querySelectorAll(".tab-content");
-    tabButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        tabButtons.forEach(b => b.classList.remove("active"));
-        tabContents.forEach(c => c.classList.remove("active"));
-        btn.classList.add("active");
-        document.getElementById(btn.dataset.tab).classList.add("active");
-      });
-    });
 
     const scootyContainer = document.getElementById("scootyCards");
     const batteryContainer = document.getElementById("batteryCards");
