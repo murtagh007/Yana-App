@@ -1,177 +1,264 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Logs Viewer</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    .container h1 { margin-bottom: 12px; }
-    .log-card { background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius);
-      padding:12px; margin-bottom:12px; backdrop-filter: blur(10px); transition:var(--transition); }
-    .log-row { display:flex; flex-wrap:wrap; gap:12px; font-size:14px; }
-    .log-row div { flex:1 1 120px; }
-    .filters { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
-    input, select { padding:6px; border-radius:6px; border:1px solid #ccc; }
-    .btn.small { padding:6px 12px; font-size:13px; cursor:pointer; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — Logs Viewer</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  /* Navbar same as admin dashboard */
+  .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #0d1f33; /* same as dashboard */
+    color: white;
+  }
+  .navbar h2 { margin:0; color: var(--action); }
+  .profile { display:flex; align-items:center; gap:10px; }
+  .profile-pic {
+    width:32px; height:32px; border-radius:50%; background:#1f3a5a; color:white;
+    display:flex; align-items:center; justify-content:center; font-weight:bold;
+  }
+  .btn { cursor:pointer; padding:6px 12px; border:none; border-radius:6px; background:#1f3a5a; color:white; transition:.2s; }
+  .btn:hover { background:#274b75; }
+
+  body { background: #08121f; color: white; font-family: sans-serif; margin:0; }
+  .container { padding: 20px; max-width:1200px; margin:auto; }
+
+  h1 { color: var(--action); margin-bottom:6px; }
+  .muted { color: rgba(255,255,255,0.5); margin-bottom:12px; }
+
+  .filters {
+    display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;
+  }
+  .filters label { font-weight:bold; }
+  .filters input, .filters select { padding:6px 8px; border-radius:6px; border:1px solid #ccc; }
+
+  table { width:100%; border-collapse: collapse; margin-top:12px; }
+  th, td { padding:8px; text-align:left; font-size:14px; }
+  th { background: var(--action); color:#000; }
+  tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+  tr:hover { background: rgba(255,255,255,0.1); }
+
+  .pagination {
+    display:flex; gap:6px; justify-content:center; margin-top:12px;
+  }
+  .pagination button { padding:6px 10px; border:none; border-radius:6px; background:#1f3a5a; color:white; cursor:pointer; }
+  .pagination button:disabled { opacity:0.4; cursor:default; }
+
+  /* CSV export styling */
+  #exportBtn { margin-left:auto; }
+</style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin</h2>
     <div class="profile">
       <div class="profile-pic" id="profilePic">A</div>
-      <div class="dropdown">
-        <button id="logoutBtn">Logout</button>
-      </div>
+      <button id="logoutBtn" class="btn">Logout</button>
     </div>
   </div>
 
   <div class="container">
     <h1>📜 Logs Viewer</h1>
-    <p class="muted">View all state changes, status changes, and issue resolutions.</p>
+    <p class="muted">View all state changes, status changes, and issues. Use filters below.</p>
 
     <div class="filters">
-      <label>Filter:</label>
+      <label>Action Type:</label>
       <select id="logFilter">
         <option value="all">All</option>
         <option value="state-change">State-Change</option>
-        <option value="status-change">Status-Change</option>
-        <option value="issue-resolved">Issue-Resolution</option>
-        <option value="issue-created">Issue-Creation</option>
+        <option value="assigned">Status-Change</option>
+        <option value="returned">Status-Change</option>
+        <option value="issue-created">Issue-Created</option>
+        <option value="issue-resolved">Issue-Resolved</option>
       </select>
 
-      <label>Search:</label>
-      <input type="text" id="searchInput" placeholder="Search by Item ID or User Name"/>
+      <label>Search Item ID / User Name:</label>
+      <input type="text" id="searchInput" placeholder="e.g. SCOOTY001 or John Doe">
 
-      <button class="btn small" id="exportBtn">⬇ Export CSV</button>
+      <label>Date From:</label>
+      <input type="date" id="dateFrom">
+
+      <label>To:</label>
+      <input type="date" id="dateTo">
+
+      <button id="exportBtn" class="btn"><i class="fas fa-download"></i> Export CSV</button>
     </div>
 
-    <div id="logsContainer"></div>
+    <table id="logsTable">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>User</th>
+          <th>Action Type</th>
+          <th>Item Type</th>
+          <th>Item ID</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="pagination">
+      <button id="prevPage">&larr; Prev</button>
+      <span id="pageInfo">1</span>
+      <button id="nextPage">Next &rarr;</button>
+    </div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const logsContainer = document.getElementById("logsContainer");
     let allLogs = [];
+    let currentPage = 1;
+    const pageSize = 10;
 
-    function normalizeName(name) {
-      if (!name) return "-";
-      return name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-    }
+    const tbody = document.querySelector("#logsTable tbody");
 
-    async function getUserNameByEmail(email) {
-      if (!email) return "-";
-      try {
-        const doc = await db.collection("users").doc(email).get();
-        if (doc.exists) return normalizeName(doc.data().name || email.split("@")[0]);
-        return normalizeName(email.split("@")[0]);
-      } catch {
-        return normalizeName(email.split("@")[0]);
-      }
-    }
-
+    // Auth
     auth.onAuthStateChanged(async user => {
-      if (!user) return location.href="admin-signin.html";
-      document.getElementById("profilePic").innerText = (user.email[0]||"A").toUpperCase();
+      if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") { alert("❌ Not an admin."); return location.href="index.html"; }
+      if(!doc.exists || doc.data().role !== "admin") { alert("❌ Not an admin."); return location.href="index.html"; }
+      document.getElementById("profilePic").innerText = (doc.data().name[0]||'A').toUpperCase();
       loadLogs();
     });
-
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
     async function loadLogs() {
-      db.collection("logs").orderBy("timestamp", "desc").onSnapshot(async snapshot => {
-        const tempLogs = [];
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          let actionType="", details="", itemType="";
-
-          if (data.action==="state-change") {
-            actionType="State-Change";
-            details = normalizeName(data.newState);
-            itemType = normalizeName((data.type||"").replace("_master",""));
-          } else if (data.action==="assigned" || data.action==="returned") {
-            actionType="Status-Change";
-            details = data.action==="assigned"?"Assigned":"Returned";
-            itemType = normalizeName(data.itemType||"");
-          } else if (data.action==="issue-resolved") {
-            actionType="Issue-Resolution";
-            details = normalizeName(data.issue)+" → "+normalizeName(data.status);
-            itemType = normalizeName(data.assetType || data.itemType || "");
-          } else if (data.action==="issue-created") {
-            actionType="Issue-Creation";
-            details = normalizeName(data.issue)+" → "+normalizeName(data.status);
-            itemType = normalizeName(data.assetType || data.itemType || "");
+      db.collection("logs").orderBy("timestamp","desc").onSnapshot(async snap=>{
+        allLogs = await Promise.all(snap.docs.map(async d=>{
+          const data = d.data();
+          let userName="-";
+          if(data.email) {
+            const userDoc = await db.collection("users").doc(data.email).get();
+            if(userDoc.exists && userDoc.data().name) userName = normalizeName(userDoc.data().name);
+          } else if(data.admin) {
+            const userDoc = await db.collection("users").doc(data.admin).get();
+            if(userDoc.exists && userDoc.data().name) userName = normalizeName(userDoc.data().name);
           }
 
-          const userEmail = data.admin || data.email || "-";
-          const userName = await getUserNameByEmail(userEmail);
+          let actionType = "";
+          let details = "";
+          let itemType = "";
 
-          tempLogs.push({
-            timestamp: data.timestamp,
+          switch(data.action) {
+            case "state-change":
+              actionType="State-Change";
+              details=capitalize(data.newState||"-");
+              itemType = data.type || "-";
+              break;
+            case "assigned":
+            case "returned":
+              actionType="Status-Change";
+              details=capitalize(data.action);
+              itemType=data.itemType || "-";
+              break;
+            case "issue-created":
+              actionType="Issue-Created";
+              details=capitalize(data.issue||"-");
+              itemType="Issue";
+              break;
+            case "issue-resolved":
+              actionType="Issue-Resolved";
+              details=capitalize(data.issue||"-");
+              itemType="Issue";
+              break;
+            default:
+              actionType = capitalize(data.action||"-");
+              itemType = data.type || data.itemType || "-";
+          }
+
+          return {
+            time: data.timestamp?.toDate() || new Date(),
             user: userName,
             actionType,
             itemType,
             itemId: data.itemId || data.assetId || "-",
             details
-          });
-        }
-        allLogs = tempLogs;
-        renderLogs();
+          };
+        }));
+        currentPage=1;
+        renderPage();
       });
     }
 
-    function renderLogs() {
-      const filter = document.getElementById("logFilter").value;
-      const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
-      logsContainer.innerHTML = "";
+    function normalizeName(str) {
+      return str.split(" ").map(s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()).join(" ");
+    }
+    function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1).toLowerCase(); }
 
-      allLogs.filter(log => {
-        if (filter!=="all" && log.actionType.replace(/ /g,"-").toLowerCase()!==filter) return false;
-        if (searchText && !(log.itemId.toLowerCase().includes(searchText) || log.user.toLowerCase().includes(searchText))) return false;
+    function getFilteredLogs() {
+      const filter = document.getElementById("logFilter").value;
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const fromDate = document.getElementById("dateFrom").value;
+      const toDate = document.getElementById("dateTo").value;
+
+      return allLogs.filter(l=>{
+        if(filter!=="all" && l.actionType.toLowerCase()!==filter.toLowerCase()) return false;
+        if(search && !(l.itemId.toLowerCase().includes(search) || l.user.toLowerCase().includes(search))) return false;
+        if(fromDate && l.time < new Date(fromDate)) return false;
+        if(toDate && l.time > new Date(toDate+"T23:59:59")) return false;
         return true;
-      }).forEach(log => {
-        const card = document.createElement("div");
-        card.className="log-card";
-        card.innerHTML = `
-          <div class="log-row">
-            <div><b>Time:</b> ${log.timestamp?.toDate().toLocaleString()||"-"}</div>
-            <div><b>User:</b> ${log.user}</div>
-            <div><b>Action Type:</b> ${log.actionType}</div>
-            <div><b>Item Type:</b> ${log.itemType}</div>
-            <div><b>Item ID:</b> ${log.itemId}</div>
-            <div><b>Details:</b> ${log.details}</div>
-          </div>
+      });
+    }
+
+    function renderPage() {
+      const logs = getFilteredLogs();
+      const totalPages = Math.ceil(logs.length/pageSize);
+      currentPage = Math.min(currentPage,totalPages)||1;
+      const start = (currentPage-1)*pageSize;
+      const pageLogs = logs.slice(start,start+pageSize);
+
+      tbody.innerHTML="";
+      pageLogs.forEach(l=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML=`
+          <td>${l.time.toLocaleString()}</td>
+          <td>${l.user}</td>
+          <td>${l.actionType}</td>
+          <td>${l.itemType}</td>
+          <td>${l.itemId}</td>
+          <td>${l.details}</td>
         `;
-        logsContainer.appendChild(card);
+        tbody.appendChild(tr);
       });
+
+      document.getElementById("pageInfo").innerText=`${currentPage} / ${totalPages||1}`;
+      document.getElementById("prevPage").disabled = currentPage<=1;
+      document.getElementById("nextPage").disabled = currentPage>=totalPages;
     }
 
-    document.getElementById("logFilter").addEventListener("change", renderLogs);
-    document.getElementById("searchInput").addEventListener("input", renderLogs);
+    document.getElementById("prevPage").onclick=()=>{currentPage--; renderPage();}
+    document.getElementById("nextPage").onclick=()=>{currentPage++; renderPage();}
 
-    document.getElementById("exportBtn").addEventListener("click", () => {
-      const filter = document.getElementById("logFilter").value;
-      const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
-      const logs = allLogs.filter(log => {
-        if (filter!=="all" && log.actionType.replace(/ /g,"-").toLowerCase()!==filter) return false;
-        if (searchText && !(log.itemId.toLowerCase().includes(searchText) || log.user.toLowerCase().includes(searchText))) return false;
-        return true;
-      });
-      if (!logs.length) { alert("⚠️ No logs to export."); return; }
+    document.getElementById("logFilter").addEventListener("change", ()=>{currentPage=1; renderPage();});
+    document.getElementById("searchInput").addEventListener("input", ()=>{currentPage=1; renderPage();});
+    document.getElementById("dateFrom").addEventListener("change", ()=>{currentPage=1; renderPage();});
+    document.getElementById("dateTo").addEventListener("change", ()=>{currentPage=1; renderPage();});
 
-      const headers = ["Time","User","Action Type","Item Type","Item ID","Details"];
-      const rows = logs.map(log => [log.timestamp?.toDate().toLocaleString()||"-", log.user, log.actionType, log.itemType, log.itemId, log.details]);
-      let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.map(v=>`"${v.replace(/"/g,'""')}"`).join(",")).join("\n");
+    document.getElementById("exportBtn").addEventListener("click", ()=>{
+      const logs = getFilteredLogs();
+      if(!logs.length){ alert("⚠️ No logs to export."); return; }
+      const headers=["Time","User","Action Type","Item Type","Item ID","Details"];
+      const rows = logs.map(l=>[
+        l.time.toLocaleString(), l.user, l.actionType, l.itemType, l.itemId, l.details
+      ]);
+      let csv = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n"
+        + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
       const link = document.createElement("a");
-      link.setAttribute("href", encodeURI(csvContent));
-      link.setAttribute("download", "logs_export.csv");
+      link.setAttribute("href",encodeURI(csv));
+      link.setAttribute("download","logs_export.csv");
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
   </script>
