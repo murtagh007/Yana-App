@@ -2,193 +2,212 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Maintenance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>YANA — Maintenance Due</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    .navbar { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:#000; color:#fff; }
-    .profile-pic { width:36px; height:36px; border-radius:50%; background:#00eaff; color:#000; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:16px; }
-    .container { padding:20px; }
-    h1 { color:#00eaff; margin-bottom:12px; }
-    .search-bar { margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; }
-    .search-bar input, .search-bar button, .search-bar input[type="date"] { padding:8px; border-radius:6px; border:1px solid #ccc; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; }
-    th { background:#00eaff; color:#000; padding:8px; text-align:left; }
-    td { border-bottom:1px solid rgba(255,255,255,0.1); padding:8px; font-size:14px; }
-    tr:hover { background:rgba(0,234,255,0.05); }
-    .pagination { margin-top:12px; display:flex; gap:8px; }
-    .pagination button { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; background:#00eaff; color:#000; font-weight:bold; }
-    .pagination button:disabled { background:rgba(0,234,255,0.3); cursor:default; }
+    /* Reset & basic */
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: 'Segoe UI', sans-serif; background:#0a0a0a; color:#fff; }
+
+    /* Navbar */
+    .navbar {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 16px;
+      background:#0a0a0a;
+    }
+    .navbar h2 { color:#00eaff; font-size:18px; }
+    .profile-pic {
+      width:36px; height:36px; border-radius:50%;
+      background:#00eaff; color:#000;
+      display:flex; justify-content:center; align-items:center;
+      font-weight:bold; font-size:16px;
+    }
+
+    /* Container */
+    .container { padding:16px; }
+    h1 { font-size:20px; color:#00eaff; margin-bottom:12px; }
+
+    /* Search */
+    .search-container { margin-bottom:12px; }
+    .search-container input {
+      width:100%;
+      padding:8px 12px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      color:#fff;
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x:auto;
+      border-radius:8px;
+      margin-top:12px;
+    }
+    table {
+      width:100%;
+      border-collapse: collapse;
+      min-width:600px;
+    }
+    th, td {
+      padding:10px;
+      text-align:left;
+      font-size:14px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+    th { background:#00eaff; color:#000; }
+    tr:hover { background: rgba(0,234,255,0.1); }
+
+    /* Buttons */
+    .btn { 
+      background:#00eaff; color:#000; border:none; 
+      padding:8px 12px; border-radius:6px; cursor:pointer; margin-top:12px;
+    }
+    .btn:disabled { background:rgba(0,234,255,0.3); cursor:not-allowed; }
+
+    /* Pagination */
+    .pagination {
+      display:flex; justify-content:center; gap:8px; margin-top:16px; flex-wrap:wrap;
+    }
+    .pagination button {
+      background:#00eaff; color:#000; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;
+    }
+    .pagination button.disabled { background: rgba(0,234,255,0.3); cursor:not-allowed; }
+
+    /* Mobile first adjustments done; larger screens tweaks */
+    @media(min-width:768px){
+      h1 { font-size:24px; }
+      th, td { font-size:15px; padding:12px; }
+    }
+    @media(min-width:1024px){
+      .container { padding:24px 48px; }
+    }
   </style>
 </head>
 <body>
   <!-- Navbar -->
   <div class="navbar">
     <h2>YANA Admin</h2>
-    <div class="profile-pic" id="profilePic">A</div>
+    <div class="profile-pic">A</div>
   </div>
 
   <div class="container">
     <h1>Maintenance Due Vehicles</h1>
-
-    <!-- Search and Export -->
-    <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="Search by Vehicle ID or Assigned To">
-      <input type="date" id="fromDate">
-      <input type="date" id="toDate">
-      <button id="exportBtn">Export CSV</button>
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search by Vehicle ID or Assigned Name">
     </div>
 
-    <!-- Table -->
-    <table>
-      <thead>
-        <tr>
-          <th>Vehicle ID</th>
-          <th>Assigned To</th>
-          <th>Last Return</th>
-          <th>Days Used</th>
-          <th>Last Maintenance</th>
-          <th>Next Maintenance</th>
-        </tr>
-      </thead>
-      <tbody id="maintTableBody"></tbody>
-    </table>
-
-    <!-- Pagination -->
-    <div class="pagination">
-      <button id="prevBtn">Previous</button>
-      <span id="pageInfo"></span>
-      <button id="nextBtn">Next</button>
+    <div class="table-container">
+      <table id="maintTable">
+        <thead>
+          <tr>
+            <th>Vehicle ID</th>
+            <th>Assigned To</th>
+            <th>Days Used</th>
+            <th>Next Maintenance Day</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
+
+    <div class="pagination" id="pagination"></div>
+    <button id="exportBtn" class="btn">⬇ Export CSV</button>
   </div>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const tableBody = document.getElementById("maintTableBody");
+    const tableBody = document.querySelector("#maintTable tbody");
     const searchInput = document.getElementById("searchInput");
-    const fromDateInput = document.getElementById("fromDate");
-    const toDateInput = document.getElementById("toDate");
+    const paginationDiv = document.getElementById("pagination");
     const exportBtn = document.getElementById("exportBtn");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const pageInfo = document.getElementById("pageInfo");
-
     const pageSize = 10;
-    let currentPage = 1;
     let allVehicles = [];
 
     function normalizeName(name) {
-      if(!name) return "-";
-      return name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+      return name.split(" ").map(n => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ");
     }
 
-    auth.onAuthStateChanged(async user => {
-      if(!user) return location.href="admin-signin.html";
-      const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role !== "admin") return location.href="index.html";
-      document.getElementById("profilePic").innerText = (doc.data().name || user.email[0]).charAt(0).toUpperCase();
-      loadMaintenance();
-    });
-
-    async function loadMaintenance() {
+    // Fetch vehicles and calculate maintenance due
+    async function loadVehicles() {
       const snapshot = await db.collection("scooty_master").get();
-      const temp = [];
-      for(const doc of snapshot.docs) {
+      allVehicles = [];
+
+      snapshot.forEach(doc => {
         const data = doc.data();
-        // Only if Last Return exists
-        if(!data.lastReturn) continue;
+        if(data.firstAssign && data.lastReturn && data.lastMaintenance) {
+          const first = data.firstAssign.toDate();
+          const lastReturn = data.lastReturn.toDate();
+          const lastMaint = data.lastMaintenance.toDate();
+          const daysUsed = Math.floor((lastReturn - first)/(1000*60*60*24));
+          let nextMaint = null;
+          if(daysUsed > 30) {
+            nextMaint = new Date(lastMaint);
+            nextMaint.setDate(nextMaint.getDate() + daysUsed);
+          }
+          if(nextMaint) allVehicles.push({
+            id: doc.id,
+            assignedName: normalizeName(data.assignedName || "-"),
+            daysUsed,
+            nextMaint: nextMaint.toLocaleDateString()
+          });
+        }
+      });
 
-        const daysUsed = Math.floor((data.lastReturn.toDate() - data.firstAssign.toDate()) / (1000*60*60*24));
-        if(daysUsed <= 30) continue;
-
-        const nextMaintenance = new Date(data.lastMaintenance.toDate());
-        nextMaintenance.setDate(nextMaintenance.getDate() + daysUsed);
-
-        const assignedName = data.assignedName ? normalizeName(data.assignedName) : "-";
-
-        temp.push({
-          id: doc.id,
-          assignedTo: assignedName,
-          lastReturn: data.lastReturn.toDate(),
-          daysUsed,
-          lastMaintenance: data.lastMaintenance.toDate(),
-          nextMaintenance
-        });
-      }
-      allVehicles = temp;
-      currentPage = 1;
-      renderTable();
+      renderTable(1);
     }
 
-    function filterData() {
-      let filtered = allVehicles;
-
-      const term = searchInput.value.trim().toLowerCase();
-      if(term) filtered = filtered.filter(v => v.id.toLowerCase().includes(term) || (v.assignedTo||"").toLowerCase().includes(term));
-
-      const fromDate = fromDateInput.value ? new Date(fromDateInput.value) : null;
-      const toDate = toDateInput.value ? new Date(toDateInput.value) : null;
-      if(fromDate) filtered = filtered.filter(v => v.nextMaintenance >= fromDate);
-      if(toDate) filtered = filtered.filter(v => v.nextMaintenance <= toDate);
-
-      return filtered;
-    }
-
-    function renderTable() {
-      const filtered = filterData();
-      const totalPages = Math.ceil(filtered.length / pageSize);
-      currentPage = Math.min(currentPage, totalPages) || 1;
-      const start = (currentPage-1)*pageSize;
-      const pageData = filtered.slice(start, start+pageSize);
-
+    function renderTable(page) {
+      const filtered = allVehicles.filter(v => v.id.toLowerCase().includes(searchInput.value.toLowerCase())
+        || v.assignedName.toLowerCase().includes(searchInput.value.toLowerCase()));
+      const totalPages = Math.ceil(filtered.length/pageSize);
       tableBody.innerHTML = "";
-      for(const v of pageData) {
+      const start = (page-1)*pageSize;
+      const end = start+pageSize;
+      filtered.slice(start,end).forEach(v=>{
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${v.id}</td>
-          <td>${v.assignedTo}</td>
-          <td>${v.lastReturn.toLocaleDateString()}</td>
+          <td>${v.assignedName}</td>
           <td>${v.daysUsed}</td>
-          <td>${v.lastMaintenance.toLocaleDateString()}</td>
-          <td>${v.nextMaintenance.toLocaleDateString()}</td>
+          <td>${v.nextMaint}</td>
         `;
         tableBody.appendChild(tr);
-      }
+      });
 
-      pageInfo.innerText = `Page ${currentPage} of ${totalPages || 1}`;
-      prevBtn.disabled = currentPage <= 1;
-      nextBtn.disabled = currentPage >= totalPages;
+      // Pagination
+      paginationDiv.innerHTML = "";
+      for(let i=1;i<=totalPages;i++){
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if(i===page) btn.classList.add("disabled");
+        btn.addEventListener("click",()=>renderTable(i));
+        paginationDiv.appendChild(btn);
+      }
     }
 
-    searchInput.addEventListener("input", () => { currentPage=1; renderTable(); });
-    fromDateInput.addEventListener("change", () => { currentPage=1; renderTable(); });
-    toDateInput.addEventListener("change", () => { currentPage=1; renderTable(); });
-    prevBtn.addEventListener("click", () => { if(currentPage>1){ currentPage--; renderTable(); } });
-    nextBtn.addEventListener("click", () => { currentPage++; renderTable(); });
+    searchInput.addEventListener("input",()=>renderTable(1));
 
-    exportBtn.addEventListener("click", () => {
-      const filtered = filterData();
-      if(!filtered.length){ alert("No data to export."); return; }
-      const headers = ["Vehicle ID","Assigned To","Last Return","Days Used","Last Maintenance","Next Maintenance"];
-      const rows = filtered.map(v=>[
-        v.id,
-        v.assignedTo,
-        v.lastReturn.toLocaleDateString(),
-        v.daysUsed,
-        v.lastMaintenance.toLocaleDateString(),
-        v.nextMaintenance.toLocaleDateString()
-      ]);
-      let csv = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+    exportBtn.addEventListener("click",()=>{
+      const rows = [["Vehicle ID","Assigned To","Days Used","Next Maintenance"]];
+      allVehicles.forEach(v=>{
+        rows.push([v.id,v.assignedName,v.daysUsed,v.nextMaint]);
+      });
+      let csvContent = "data:text/csv;charset=utf-8," + rows.map(r=>r.join(",")).join("\n");
       const link = document.createElement("a");
-      link.href = encodeURI(csv);
-      link.download = "maintenance.csv";
+      link.href = encodeURI(csvContent);
+      link.download = "maintenance_due.csv";
       link.click();
     });
+
+    loadVehicles();
   </script>
 </body>
 </html>
