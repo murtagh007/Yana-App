@@ -1,185 +1,201 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>YANA — Seeder</title>
-<link rel="stylesheet" href="styles.css">
-<style>
-  .container { max-width: 900px; margin:auto; padding:20px; }
-  h1,h2 { color: #00eaff; margin-bottom:10px; }
-  input, button, select { padding:8px; border-radius:6px; border:1px solid var(--border); margin-bottom:10px; background: var(--bg2); color: var(--text); }
-  .btn { background:#00eaff; color:#000; cursor:pointer; transition:0.2s; }
-  .btn:hover { background:#00ccff; }
-  table { width:100%; border-collapse:collapse; margin-top:10px; }
-  th { text-align:left; color:#00eaff; }
-  th, td { border-bottom:1px solid rgba(255,255,255,0.1); padding:8px; font-size:14px; }
-  #log { background:#000; color:#0f0; padding:10px; border-radius:6px; height:200px; overflow:auto; white-space:pre-wrap; font-family:monospace; margin-top:20px; }
-  .remove-btn { color:red; cursor:pointer; }
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Seeder</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    #summary {
+      margin-bottom: 12px;
+      display: flex;
+      gap: 12px;
+      font-weight: bold;
+      color: #00eaff;
+    }
+
+    #log {
+      background: rgba(0, 234, 255, 0.05);
+      color: #00eaff;
+      padding: 10px;
+      border-radius: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .form-section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .form-section h2 {
+      color: #00eaff;
+      margin-bottom: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="file"] {
+      flex: 1 1 250px;
+      padding: 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+
+    .form-group button {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: none;
+      background: #00eaff;
+      color: #000;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .form-group button:hover {
+      background: #00c4d0;
+    }
+
+    @media (max-width: 600px) {
+      .form-group { flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
-
-<!-- Navbar -->
-<div class="navbar">
-  <h2>⚡ YANA Admin</h2>
-  <div class="profile">
-    <div class="profile-pic" id="profilePic">A</div>
+  <!-- Navbar -->
+  <div class="navbar">
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic" id="adminInitial">A</div>
+    </div>
   </div>
-</div>
 
-<div class="container">
-  <h1>🚀 Seeder</h1>
-  <p class="muted">Manually add or import <code>scooty_master</code> and <code>battery_master</code> assets.</p>
+  <div class="container">
+    <h1>🚀 Seeder</h1>
+    <p class="muted">Add Scooties & Batteries manually or via Excel import.</p>
 
-  <!-- Manual Entry -->
-  <h2>Manual Entry</h2>
-  <input type="text" id="manualID" placeholder="Enter Asset ID"/>
-  <select id="manualType">
-    <option value="scooty">Scooty</option>
-    <option value="battery">Battery</option>
-  </select>
-  <button class="btn" id="addManualBtn">Add</button>
+    <div id="summary"></div>
 
-  <!-- Excel Import -->
-  <h2>Import Excel</h2>
-  <input type="file" id="excelFile" accept=".xlsx, .xls"/>
-  <button class="btn" id="importBtn">Import</button>
+    <!-- Manual Entry Section -->
+    <div class="form-section">
+      <h2>Manual Entry</h2>
+      <div class="form-group">
+        <input type="text" id="manualScooty" placeholder="Scooty ID">
+        <button id="addScootyBtn">Add Scooty</button>
+      </div>
+      <div class="form-group">
+        <input type="text" id="manualBattery" placeholder="Battery ID">
+        <button id="addBatteryBtn">Add Battery</button>
+      </div>
+    </div>
 
-  <!-- Export / Seed -->
-  <button class="btn" id="seedSelectedBtn" style="margin-top:10px;">Seed Selected</button>
+    <!-- Excel Import Section -->
+    <div class="form-section">
+      <h2>Import from Excel</h2>
+      <div class="form-group">
+        <input type="file" id="excelFile" accept=".xlsx,.xls">
+        <button id="importBtn">Import</button>
+      </div>
+      <p class="muted">Excel format: <b>First row = headers</b>. Required headers: <code>ID</code>. Optional: <code>Type</code> ("Scooty" or "Battery")</p>
+    </div>
 
-  <!-- Preview Table -->
-  <h2>Preview Imported IDs</h2>
-  <table id="previewTable">
-    <thead>
-      <tr>
-        <th><input type="checkbox" id="selectAll"></th>
-        <th>Type</th>
-        <th>ID</th>
-        <th>Remove</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <!-- Log -->
+    <div id="log"></div>
+  </div>
 
-  <!-- Log -->
-  <div id="log"></div>
-</div>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="firebase-config.js"></script>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="firebase-config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    const logBox = document.getElementById("log");
+    const summaryBox = document.getElementById("summary");
+    const log = msg => { logBox.textContent += msg + "\n"; logBox.scrollTop = logBox.scrollHeight; }
 
-<script>
-const logBox = document.getElementById("log");
-const log = msg => logBox.textContent += msg + "\n";
-
-const previewData = [];
-const tableBody = document.querySelector("#previewTable tbody");
-const selectAllCheckbox = document.getElementById("selectAll");
-
-// Auth check
-auth.onAuthStateChanged(async user => {
-  if(!user) return location.href="admin-signin.html";
-  const doc = await db.collection("users").doc(user.email).get();
-  if(!doc.exists || doc.data().role !== "admin") {
-    alert("❌ Not an admin."); location.href="index.html"; return;
-  }
-  document.getElementById("profilePic").innerText = (doc.data().name[0]||"A").toUpperCase();
-});
-
-// --- Functions ---
-function renderPreview(){
-  tableBody.innerHTML = "";
-  previewData.forEach((item,index)=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`
-      <td><input type="checkbox" class="row-checkbox" data-index="${index}" checked></td>
-      <td>${item.type}</td>
-      <td>${item.id}</td>
-      <td><span class="remove-btn" data-index="${index}">✖</span></td>
-    `;
-    tableBody.appendChild(tr);
-  });
-
-  // Remove button
-  tableBody.querySelectorAll(".remove-btn").forEach(btn=>{
-    btn.onclick = e=>{
-      const idx=parseInt(btn.dataset.index);
-      previewData.splice(idx,1);
-      renderPreview();
+    let summary = { success:0, skipped:0, failed:0 };
+    const updateSummary = () => {
+      summaryBox.innerHTML = `✅ Added: ${summary.success} | ⚠ Skipped (exists): ${summary.skipped} | ❌ Failed: ${summary.failed}`;
     }
-  });
-}
 
-// --- Manual Entry ---
-document.getElementById("addManualBtn").addEventListener("click",()=>{
-  const id=document.getElementById("manualID").value.trim();
-  const type=document.getElementById("manualType").value;
-  if(!id) return alert("Enter a valid ID");
-  previewData.push({id,type});
-  renderPreview();
-  document.getElementById("manualID").value="";
-});
-
-// --- Excel Import ---
-document.getElementById("importBtn").addEventListener("click",()=>{
-  const file=document.getElementById("excelFile").files[0];
-  if(!file) return alert("Select an Excel file");
-  const reader=new FileReader();
-  reader.onload=(e)=>{
-    const data=new Uint8Array(e.target.result);
-    const workbook=XLSX.read(data,{type:"array"});
-    const sheetName=workbook.SheetNames[0];
-    const sheet=workbook.Sheets[sheetName];
-    const json=XLSX.utils.sheet_to_json(sheet,{header:1});
-    json.forEach(row=>{
-      if(row[0] && row[1]) previewData.push({type:row[0].toString().toLowerCase(),id:row[1].toString()});
+    auth.onAuthStateChanged(async user => {
+      if(!user) return location.href="admin-signin.html";
+      const doc = await db.collection("users").doc(user.email).get();
+      if(!doc.exists || doc.data().role!=="admin") {
+        alert("❌ Not an admin."); return location.href="index.html";
+      }
+      document.getElementById("adminInitial").innerText = (doc.data().name || user.email[0]).charAt(0).toUpperCase();
     });
-    renderPreview();
-  };
-  reader.readAsArrayBuffer(file);
-});
 
-// --- Select/Deselect All ---
-selectAllCheckbox.addEventListener("change",e=>{
-  const checkboxes=document.querySelectorAll(".row-checkbox");
-  checkboxes.forEach(cb=>cb.checked=e.target.checked);
-});
-
-// --- Seed Selected ---
-document.getElementById("seedSelectedBtn").addEventListener("click",async()=>{
-  const selectedRows=Array.from(document.querySelectorAll(".row-checkbox"))
-    .filter(cb=>cb.checked)
-    .map(cb=>previewData[cb.dataset.index]);
-  if(selectedRows.length===0) return alert("No assets selected!");
-
-  for(const item of selectedRows){
-    try{
-      await db.collection(item.type+"_master").doc(item.id).set({
-        state:"active",
-        status:"returned",
-        lastAssignedTo:null,
-        lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-      log(`✅ Added ${item.type}: ${item.id}`);
-    } catch(err){
-      log(`❌ Failed ${item.id}: ${err.message}`);
+    async function addAsset(id, collectionName) {
+      if(!id) return alert("Enter ID");
+      const docRef = db.collection(collectionName).doc(id);
+      const docSnap = await docRef.get();
+      if(docSnap.exists) {
+        summary.skipped++; log(`⚠ Already exists: ${id}`); updateSummary(); return;
+      }
+      try {
+        await docRef.set({
+          state:"active",
+          status:"returned",
+          lastAssignedTo:null,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        summary.success++; log(`✅ Added ${collectionName.slice(0,-7)}: ${id}`); updateSummary();
+      } catch(e) { summary.failed++; log(`❌ Failed ${id}: ${e.message}`); updateSummary(); }
     }
-  }
-  // Remove seeded from preview
-  for(const item of selectedRows){
-    const idx=previewData.findIndex(d=>d===item);
-    if(idx>-1) previewData.splice(idx,1);
-  }
-  renderPreview();
-  selectAllCheckbox.checked=false;
-  alert("✅ Selected assets seeded!");
-});
-</script>
+
+    document.getElementById("addScootyBtn").addEventListener("click", () => {
+      const id = document.getElementById("manualScooty").value.trim();
+      addAsset(id,"scooty_master");
+      document.getElementById("manualScooty").value="";
+    });
+
+    document.getElementById("addBatteryBtn").addEventListener("click", () => {
+      const id = document.getElementById("manualBattery").value.trim();
+      addAsset(id,"battery_master");
+      document.getElementById("manualBattery").value="";
+    });
+
+    // Excel import
+    document.getElementById("importBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("excelFile");
+      if(fileInput.files.length===0) return alert("Select an Excel file");
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = async e => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data,{type:"array"});
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet);
+        for(const row of rows){
+          if(!row.ID) continue;
+          const type = row.Type?.toLowerCase();
+          if(type==="scooty") await addAsset(row.ID,"scooty_master");
+          else if(type==="battery") await addAsset(row.ID,"battery_master");
+          else log(`⚠ Unknown Type for ID ${row.ID}, skipped`);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
 </body>
 </html>
