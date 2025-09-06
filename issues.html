@@ -3,8 +3,34 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA Admin — Issues</title>
+  <title>YANA — Issues</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    th {
+      background-color: #3498db;
+      color: #fff;
+    }
+    tr:hover {
+      box-shadow: 0 0 10px var(--action);
+    }
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
+  </style>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -15,6 +41,7 @@
 <body>
   <div class="navbar">
     <button class="btn secondary" onclick="history.back()">⬅ Back</button>
+    <span class="profile-pic">A</span>
     <h2>All Raised Issues</h2>
   </div>
 
@@ -22,7 +49,7 @@
     <table id="issuesTable">
       <thead>
         <tr>
-          <th>Rider Email</th>
+          <th>Rider Name</th>
           <th>Asset ID</th>
           <th>Issue Type</th>
           <th>Additional Details</th>
@@ -31,9 +58,7 @@
           <th>Select</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- Issues will populate here -->
-      </tbody>
+      <tbody></tbody>
     </table>
 
     <button id="resolveBtn" class="btn" style="margin-top:10px;">Mark Selected as Resolved</button>
@@ -42,42 +67,51 @@
   <script>
     const tableBody = document.querySelector("#issuesTable tbody");
     const resolveBtn = document.getElementById("resolveBtn");
-    let issuesSnapshot = null; // store latest snapshot
+    let issuesSnapshot = null;
 
-    // Real-time listener for issues
+    function normalize(str){
+      return str ? str.split(" ").map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(" ") : "-";
+    }
+
     db.collection("issues")
       .orderBy("createdAt", "desc")
-      .onSnapshot(snapshot => {
-        issuesSnapshot = snapshot; // store snapshot for resolve button
-        tableBody.innerHTML = ""; // clear table
+      .onSnapshot(async snapshot => {
+        issuesSnapshot = snapshot;
+        tableBody.innerHTML = "";
 
-        snapshot.forEach(doc => {
+        for(const doc of snapshot.docs){
           const data = doc.data();
-          const tr = document.createElement("tr");
+          let riderName = "-";
 
+          if(data.email){
+            const userDoc = await db.collection("users").doc(data.email).get();
+            if(userDoc.exists){
+              riderName = normalize(userDoc.data().name);
+            } else {
+              riderName = normalize(data.email.split("@")[0].replace(/[._]/g," "));
+            }
+          }
+
+          const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${data.email || "-"}</td>
+            <td>${riderName}</td>
             <td>${data.assetId || "-"}</td>
-            <td>${data.issue || "-"}</td>
-            <td>${data.additionalDetails || "-"}</td>
-            <td>${data.status || "-"}</td>
+            <td>${normalize(data.issue)}</td>
+            <td>${normalize(data.additionalDetails)}</td>
+            <td>${normalize(data.status)}</td>
             <td>${data.createdAt ? data.createdAt.toDate().toLocaleString() : "-"}</td>
             <td></td>
           `;
 
-          // Add checkbox to select issues to resolve
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
-          checkbox.disabled = data.status === "resolved"; // can't select resolved
+          checkbox.disabled = data.status === "resolved";
           tr.children[6].appendChild(checkbox);
 
           tableBody.appendChild(tr);
-        });
-      }, err => {
-        console.error("Error fetching issues:", err);
+        }
       });
 
-    // Handle “Mark Selected as Resolved” button
     resolveBtn.addEventListener("click", async () => {
       if (!issuesSnapshot) return;
 
@@ -86,7 +120,7 @@
 
       rows.forEach((tr, index) => {
         const checkbox = tr.children[6].querySelector("input");
-        const statusCell = tr.children[4].textContent;
+        const statusCell = tr.children[4].textContent.toLowerCase();
         if (checkbox.checked && statusCell !== "resolved") {
           const docId = issuesSnapshot.docs[index].id;
           updates.push(db.collection("issues").doc(docId).update({
@@ -96,7 +130,7 @@
       });
 
       if (updates.length === 0) {
-        alert("No issues selected or selected issues are already resolved.");
+        alert("No issues selected or already resolved.");
         return;
       }
 
@@ -104,12 +138,10 @@
         await Promise.all(updates);
         alert("✅ Selected issues marked as resolved!");
       } catch (err) {
-        console.error("Error updating issues:", err);
+        console.error(err);
         alert("❌ Failed to update issues.");
       }
     });
   </script>
 </body>
 </html>
-
-
