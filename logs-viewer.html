@@ -5,96 +5,46 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Logs Viewer</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Navbar */
-    .navbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-    }
-    .navbar h2 {
-      color: var(--action);
-      margin: 0;
-    }
-    .profile {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .profile-pic {
-      background: var(--action);
-      color: #fff;
-      font-weight: bold;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Container */
-    .container { padding: 20px; }
-
-    /* Table */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 12px;
-      background: rgba(255,255,255,0.05);
-      border-radius: var(--radius);
-      overflow: hidden;
+      margin-top: 20px;
     }
     th, td {
-      padding: 8px;
-      font-size: 14px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 8px;
+      text-align: left;
+      font-size: 14px;
     }
     th {
-      background-color: var(--action);
-      color: #fff;
-      text-align: left;
+      background-color: #3498db; /* Dashboard blue */
+      color: #fff; /* White text */
     }
-    td { color: var(--text); }
-
-    /* Filters */
     .filters {
+      margin: 15px 0;
       display: flex;
-      flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
-    .filters input, .filters select {
-      padding: 6px 10px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
+    input[type="text"], input[type="date"] {
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
-    .filters button {
+    .btn.small {
       padding: 6px 12px;
-      border-radius: var(--radius);
-      border: none;
-      background: var(--action);
-      color: #fff;
-      cursor: pointer;
+      font-size: 13px;
     }
-
-    /* Pagination */
     .pagination {
-      display: flex;
-      gap: 6px;
       margin-top: 12px;
-      align-items: center;
+      display: flex;
+      gap: 8px;
     }
     .pagination button {
-      padding: 4px 10px;
-      border-radius: var(--radius);
+      padding: 4px 8px;
+      border-radius: 4px;
       border: 1px solid var(--border);
       background: var(--bg2);
       color: var(--text);
@@ -102,42 +52,39 @@
     }
     .pagination button.active {
       background: var(--action);
-      color: #fff;
+      color: #000;
     }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
   <div class="navbar">
-    <h2>⚡ YANA Admin</h2>
-    <div class="profile">
-      <div class="profile-pic">A</div>
-    </div>
+    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
+    <span class="profile-pic">A</span>
   </div>
 
   <div class="container">
-    <h1>Logs Viewer</h1>
-  
+    <h1>📜 Logs Viewer</h1>
+    <p class="muted">View all state changes, status changes, and issue resolutions.</p>
 
     <div class="filters">
-      <label>Filter Action:</label>
+      <label>Filter: </label>
       <select id="logFilter">
         <option value="all">All</option>
-        <option value="state-change">State Change</option>
-        <option value="status-change">Status Change</option>
-        <option value="issue-created">Issue Created</option>
-        <option value="issue-resolved">Issue Resolved</option>
+        <option value="state-change">State-Change</option>
+        <option value="status-change">Status-Change</option>
+        <option value="issue-resolved">Issue-Resolution</option>
       </select>
 
-      <label>Search by Asset ID:</label>
-      <input type="text" id="searchInput" placeholder="e.g. SCOOTY002">
-
-      <label>Start Date:</label>
+      <label>Start Date: </label>
       <input type="date" id="startDate">
-      <label>End Date:</label>
+
+      <label>End Date: </label>
       <input type="date" id="endDate">
 
-      <button id="exportBtn">⬇ Export CSV</button>
+      <label>Search by Asset ID: </label>
+      <input type="text" id="searchInput" placeholder="e.g. SCOOTY002"/>
+
+      <button class="btn small" id="exportBtn">⬇ Export CSV</button>
     </div>
 
     <table id="logsTable">
@@ -165,130 +112,140 @@
 
   <script>
     const tbody = document.querySelector("#logsTable tbody");
-    const paginationEl = document.getElementById("pagination");
+    const pagination = document.getElementById("pagination");
     let allLogs = [];
-    const itemsPerPage = 10;
     let currentPage = 1;
+    const pageSize = 10;
 
-    function normalizeName(name) {
-      return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    // Normalize function: first letters uppercase
+    function normalize(str) {
+      return str ? str.split(" ").map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(" ") : "-";
     }
 
-    function formatAction(log) {
-      if(log.action === "state-change") return { type: "State-Change", details: log.newState };
-      if(log.action === "assigned" || log.action === "returned") return { type: "Status-Change", details: log.status || log.action };
-      if(log.action === "issue-created") return { type: "Issue-Created", details: log.issue };
-      if(log.action === "issue-resolved") return { type: "Issue-Resolved", details: log.issue };
-      return { type: log.action, details: "" };
+    // Auth check
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href = "admin-signin.html";
+
+      const doc = await db.collection("users").doc(user.email).get();
+      if (!doc.exists || doc.data().role !== "admin") {
+        alert("❌ Not an admin.");
+        return location.href = "index.html";
+      }
+
+      loadLogs();
+    });
+
+    function loadLogs() {
+      db.collection("logs").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+        allLogs = snapshot.docs.map(d => {
+          const data = d.data();
+          let userName = "-";
+          if(data.admin || data.email){
+            let emailOrAdmin = data.admin || data.email;
+            userName = normalize(emailOrAdmin.split("@")[0].replace(/[._]/g," "));
+          }
+
+          let actionType = "";
+          let details = "";
+          if(data.action === "state-change") {
+            actionType = "State-Change";
+            details = normalize(data.newState || data.state);
+          } else if(data.action === "assigned" || data.action==="returned") {
+            actionType = "Status-Change";
+            details = normalize(data.action === "assigned" ? "Assigned" : "Returned");
+          } else if(data.action==="issue-resolved" || data.action==="issue-created") {
+            actionType = "Issue-Resolution";
+            details = normalize(data.issue || data.status || "");
+          }
+
+          return {
+            time: data.timestamp?.toDate().toLocaleString() || "-",
+            user: userName,
+            actionType: actionType,
+            itemType: data.itemType || (data.type==="scooty_master"?"Scooty":"Battery"),
+            itemId: data.itemId || data.assetId,
+            details: details
+          };
+        });
+
+        currentPage = 1;
+        renderPage();
+      });
     }
 
-    function getItemType(log) {
-      if(log.action.startsWith("issue")) return "Scooty/Battery"; // fallback for issue logs
-      if(log.itemType) return normalizeName(log.itemType);
-      if(log.type) return log.type === "scooty_master" ? "Scooty" : "Battery";
-      return "-";
-    }
-
-    function filterLogs() {
+    function getFilteredLogs() {
       const filter = document.getElementById("logFilter").value;
       const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
-      const start = document.getElementById("startDate").value ? new Date(document.getElementById("startDate").value) : null;
-      const end = document.getElementById("endDate").value ? new Date(document.getElementById("endDate").value) : null;
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
 
       return allLogs.filter(log => {
-        if(filter !== "all") {
-          if(filter === "state-change" && log.action !== "state-change") return false;
-          if(filter === "status-change" && !["assigned","returned"].includes(log.action)) return false;
-          if(filter === "issue-created" && log.action !== "issue-created") return false;
-          if(filter === "issue-resolved" && log.action !== "issue-resolved") return false;
-        }
-        if(searchText && !(log.itemId||"").toLowerCase().includes(searchText)) return false;
-        if(start && log.timestamp?.toDate() < start) return false;
-        if(end && log.timestamp?.toDate() > end) return false;
+        if(filter!=="all" && log.actionType.toLowerCase() !== filter) return false;
+        if(searchText && !log.itemId.toLowerCase().includes(searchText)) return false;
+        if(startDate && new Date(log.time) < new Date(startDate)) return false;
+        if(endDate && new Date(log.time) > new Date(endDate)) return false;
         return true;
       });
     }
 
-    function renderLogsPage(page=1) {
-      const filtered = filterLogs();
-      currentPage = page;
-      const startIndex = (page-1)*itemsPerPage;
-      const pageItems = filtered.slice(startIndex, startIndex + itemsPerPage);
+    function renderPage() {
+      const logs = getFilteredLogs();
+      const totalPages = Math.ceil(logs.length/pageSize);
+      const start = (currentPage-1)*pageSize;
+      const end = start+pageSize;
 
       tbody.innerHTML = "";
-      pageItems.forEach(log => {
-        let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
-        userName = normalizeName(userName);
-
-        const act = formatAction(log);
-        const itemType = getItemType(log);
-
+      logs.slice(start,end).forEach(log => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${log.timestamp?.toDate().toLocaleString() || "-"}</td>
-          <td>${userName}</td>
-          <td>${act.type}</td>
-          <td>${itemType}</td>
-          <td>${log.itemId || log.assetId || "-"}</td>
-          <td>${act.details}</td>
+          <td>${log.time}</td>
+          <td>${log.user}</td>
+          <td>${log.actionType}</td>
+          <td>${log.itemType}</td>
+          <td>${log.itemId}</td>
+          <td>${log.details}</td>
         `;
         tbody.appendChild(tr);
       });
 
-      renderPagination(filtered.length);
+      renderPagination(totalPages);
     }
 
-    function renderPagination(totalItems) {
-      paginationEl.innerHTML = "";
-      const totalPages = Math.ceil(totalItems/itemsPerPage);
+    function renderPagination(totalPages){
+      pagination.innerHTML = "";
       for(let i=1;i<=totalPages;i++){
         const btn = document.createElement("button");
         btn.innerText = i;
         if(i===currentPage) btn.classList.add("active");
-        btn.onclick = () => renderLogsPage(i);
-        paginationEl.appendChild(btn);
+        btn.addEventListener("click",()=>{ currentPage=i; renderPage(); });
+        pagination.appendChild(btn);
       }
     }
 
-    document.getElementById("logFilter").addEventListener("change", () => renderLogsPage(1));
-    document.getElementById("searchInput").addEventListener("input", () => renderLogsPage(1));
-    document.getElementById("startDate").addEventListener("change", () => renderLogsPage(1));
-    document.getElementById("endDate").addEventListener("change", () => renderLogsPage(1));
+    // Filter events
+    document.getElementById("logFilter").addEventListener("change",()=>{ currentPage=1; renderPage(); });
+    document.getElementById("searchInput").addEventListener("input",()=>{ currentPage=1; renderPage(); });
+    document.getElementById("startDate").addEventListener("change",()=>{ currentPage=1; renderPage(); });
+    document.getElementById("endDate").addEventListener("change",()=>{ currentPage=1; renderPage(); });
 
-    document.getElementById("exportBtn").addEventListener("click", () => {
-      const logs = filterLogs();
+    // Export CSV
+    document.getElementById("exportBtn").addEventListener("click",()=>{
+      const logs = getFilteredLogs();
       if(!logs.length){ alert("⚠️ No logs to export."); return; }
+
       const headers = ["Time","User","Action Type","Item Type","Item ID","Details"];
-      const rows = logs.map(log => {
-        let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
-        userName = normalizeName(userName);
-        const act = formatAction(log);
-        const itemType = getItemType(log);
-        return [log.timestamp?.toDate().toLocaleString()||"-", userName, act.type, itemType, log.itemId||log.assetId||"-", act.details];
-      });
+      const rows = logs.map(log => [log.time, log.user, log.actionType, log.itemType, log.itemId, log.details]);
+
       let csvContent = "data:text/csv;charset=utf-8," 
         + headers.join(",") + "\n"
-        + rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
-      const link = document.createElement("a");
-      link.setAttribute("href", encodeURI(csvContent));
+        + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+
+      const link=document.createElement("a");
+      link.setAttribute("href",encodeURI(csvContent));
       link.setAttribute("download","logs_export.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    });
-
-    // Firebase Auth & Load
-    auth.onAuthStateChanged(async user=>{
-      if(!user) { location.href="admin-signin.html"; return; }
-      const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role!=="admin") { alert("❌ Not an admin"); location.href="index.html"; return; }
-
-      document.querySelector(".profile-pic").innerText = (doc.data().name ? doc.data().name[0] : user.email[0]).toUpperCase();
-
-      db.collection("logs").orderBy("timestamp","desc").onSnapshot(snapshot=>{
-        allLogs = snapshot.docs.map(d=>({ id:d.id, ...d.data() }));
-        renderLogsPage(1);
-      });
     });
   </script>
 </body>
