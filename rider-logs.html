@@ -2,71 +2,115 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>YANA — Rider Logs</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Navbar */
-    .navbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-    }
-    .navbar h2 {
-      color: var(--action);
-      margin: 0;
-    }
-    .profile {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .profile-pic {
-      background: var(--action);
-      color: #fff;
-      font-weight: bold;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    :root {
+      --bg: #0a0f12;
+      --card: rgba(255,255,255,0.1);
+      --border: rgba(255,255,255,0.2);
+      --action: #00eaff;
+      --text: #eaf4f8;
+      --radius: 12px;
     }
 
-    /* Container */
-    .container { padding: 20px; }
+    body {
+      margin:0;
+      font-family:'Inter',sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* Navbar */
+    .navbar {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 16px;
+      background: var(--card);
+      border-bottom:1px solid var(--border);
+      position: sticky;
+      top:0;
+      z-index: 100;
+    }
+    .navbar h2 { color: var(--action); font-size: 18px; margin:0; }
+    .profile { display:flex; align-items:center; gap:10px; }
+    .profile-pic {
+      background: var(--action);
+      color:#000;
+      font-weight:bold;
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+    }
+    .logout-btn {
+      background:none;
+      border:1px solid var(--action);
+      color: var(--action);
+      border-radius: var(--radius);
+      padding:6px 10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+
+    .container { padding:16px; }
 
     /* Table */
     table {
-      width: 100%;
+      width:100%;
       border-collapse: collapse;
-      margin-top: 12px;
+      margin-top:12px;
       background: rgba(255,255,255,0.05);
       border-radius: var(--radius);
-      overflow: hidden;
+      overflow:hidden;
     }
     th, td {
-      padding: 8px;
-      font-size: 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding:8px;
+      font-size:14px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      text-align:left;
     }
-    th {
-      background-color: var(--action);
-      color: #fff;
-      text-align: left;
+    th { background-color: var(--action); color:#fff; }
+
+    /* Responsive: stacked rows on mobile */
+    @media(max-width:700px){
+      table, thead, tbody, th, td, tr { display:block; }
+      thead { display:none; }
+      tr {
+        margin-bottom: 12px;
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 8px;
+      }
+      td {
+        border:none;
+        display:flex;
+        justify-content: space-between;
+        padding:6px 8px;
+      }
+      td::before {
+        content: attr(data-label);
+        font-weight:bold;
+        color: var(--action);
+      }
     }
-    td { color: var(--text); }
+
+    .muted { color: rgba(234,244,248,0.6); font-size:14px; margin-top:4px; }
   </style>
 </head>
 <body>
+
   <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Rider</h2>
     <div class="profile">
       <div class="profile-pic" id="profilePic">R</div>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
     </div>
   </div>
 
@@ -78,8 +122,6 @@
       <thead>
         <tr>
           <th>Time</th>
-          <th>Action</th>
-          <th>Asset Type</th>
           <th>Asset ID</th>
           <th>Status</th>
         </tr>
@@ -98,72 +140,65 @@
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
 
-    if (!email) {
+    if(!email){
       alert("Not signed in!");
-      window.location.href = "rider-signin.html";
+      window.location.href="rider-signin.html";
     }
 
     document.getElementById("profilePic").innerText = email.charAt(0).toUpperCase();
 
-    // Load assignment/return logs
-    async function loadLogs() {
-      const tbody = document.querySelector("#logsTable tbody");
-      tbody.innerHTML = "";
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+    });
 
-      function addLog(action, assetType, assetId, status, timestamp) {
+    async function loadLogs(){
+      const tbody = document.querySelector("#logsTable tbody");
+      tbody.innerHTML="";
+
+      function addLog(assetId, status, timestamp){
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${timestamp?.toDate().toLocaleString() || "-"}</td>
-          <td>${action}</td>
-          <td>${assetType}</td>
-          <td>${assetId}</td>
-          <td>${status}</td>
+          <td data-label="Time">${timestamp?.toDate().toLocaleString()||"-"}</td>
+          <td data-label="Asset ID">${assetId}</td>
+          <td data-label="Status">${status}</td>
         `;
         tbody.appendChild(tr);
       }
 
       try {
-        // Current Scooty assignments
-        const scootySnap = await db.collection("scooty_master")
-          .where("assignedTo", "==", email).get();
-        scootySnap.forEach(doc => {
-          const d = doc.data();
-          addLog("Assigned", "Scooty", d.id, d.status, d.createdAt);
+        const scootySnap = await db.collection("scooty_master").where("assignedTo","==",email).get();
+        scootySnap.forEach(doc=>{
+          const d=doc.data();
+          addLog(d.id,d.status,d.createdAt);
         });
 
-        // Previous Scooty assignments (returned)
-        const scootyPrevSnap = await db.collection("scooty_master")
-          .where("lastAssignedTo", "==", email).get();
-        scootyPrevSnap.forEach(doc => {
-          const d = doc.data();
-          addLog("Returned", "Scooty", d.id, d.status, d.lastUpdated);
+        const scootyPrev = await db.collection("scooty_master").where("lastAssignedTo","==",email).get();
+        scootyPrev.forEach(doc=>{
+          const d=doc.data();
+          addLog(d.id,d.status,d.lastUpdated);
         });
 
-        // Current Battery assignments
-        const batterySnap = await db.collection("battery_master")
-          .where("assignedTo", "==", email).get();
-        batterySnap.forEach(doc => {
-          const d = doc.data();
-          addLog("Assigned", "Battery", d.id, d.status, d.createdAt);
+        const batterySnap = await db.collection("battery_master").where("assignedTo","==",email).get();
+        batterySnap.forEach(doc=>{
+          const d=doc.data();
+          addLog(d.id,d.status,d.createdAt);
         });
 
-        // Previous Battery assignments (returned)
-        const batteryPrevSnap = await db.collection("battery_master")
-          .where("lastAssignedTo", "==", email).get();
-        batteryPrevSnap.forEach(doc => {
-          const d = doc.data();
-          addLog("Returned", "Battery", d.id, d.status, d.lastUpdated);
+        const batteryPrev = await db.collection("battery_master").where("lastAssignedTo","==",email).get();
+        batteryPrev.forEach(doc=>{
+          const d=doc.data();
+          addLog(d.id,d.status,d.lastUpdated);
         });
-
-      } catch (err) {
-        console.error("Error loading logs:", err);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="5">❌ Failed to load logs.</td>`;
+      } catch(err){
+        console.error(err);
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td colspan="3">❌ Failed to load logs.</td>`;
         tbody.appendChild(tr);
       }
     }
 
     loadLogs();
   </script>
+
 </body>
 </html>
