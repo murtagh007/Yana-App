@@ -6,170 +6,188 @@
   <title>YANA — Maintenance</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Futura-inspired sleek UI */
-    body { background: #121212; color: #E0E0E0; font-family: "Segoe UI", sans-serif; }
-    .navbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #1F1F1F; }
-    .navbar h2 { color: #4FC3F7; margin: 0; }
-    .profile-pic { background: #4FC3F7; color: #000; width: 36px; height: 36px; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:16px; }
-    .container { padding: 20px; }
-    h1 { margin-bottom: 12px; color: #4FC3F7; }
-    input[type="text"] { padding: 8px 12px; border-radius: var(--radius); border: 1px solid #333; background: #1F1F1F; color: #E0E0E0; margin-bottom: 12px; width: 100%; max-width: 400px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th { background: #4FC3F7; color: #000; padding: 10px; text-align: left; }
-    td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    tr.overdue { background: rgba(255,0,0,0.1); }
-    .pagination { margin-top: 12px; display: flex; gap: 6px; }
-    .pagination button { padding: 6px 10px; border: none; border-radius: 4px; background: #333; color: #E0E0E0; cursor: pointer; transition: 0.2s; }
-    .pagination button.active { background: #4FC3F7; color: #000; }
-    .btn { background: #4FC3F7; color: #000; padding: 8px 12px; border:none; border-radius:4px; cursor:pointer; margin-top:10px; }
-    .btn:hover { background: #29B6F6; }
+    .navbar { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:#000; color:#fff; }
+    .profile-pic { width:36px; height:36px; border-radius:50%; background:#00eaff; color:#000; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:16px; }
+    .container { padding:20px; }
+    h1 { color:#00eaff; margin-bottom:12px; }
+    .search-bar { margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .search-bar input, .search-bar button, .search-bar input[type="date"] { padding:8px; border-radius:6px; border:1px solid #ccc; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th { background:#00eaff; color:#000; padding:8px; text-align:left; }
+    td { border-bottom:1px solid rgba(255,255,255,0.1); padding:8px; font-size:14px; }
+    tr:hover { background:rgba(0,234,255,0.05); }
+    .pagination { margin-top:12px; display:flex; gap:8px; }
+    .pagination button { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; background:#00eaff; color:#000; font-weight:bold; }
+    .pagination button:disabled { background:rgba(0,234,255,0.3); cursor:default; }
   </style>
 </head>
 <body>
-
+  <!-- Navbar -->
   <div class="navbar">
-    <h2>⚡ YANA Admin</h2>
-    <div class="profile-pic" id="adminInitial">A</div>
+    <h2>YANA Admin</h2>
+    <div class="profile-pic" id="profilePic">A</div>
   </div>
 
   <div class="container">
-    <h1>Vehicle Maintenance</h1>
-    <input type="text" id="searchInput" placeholder="Search by Asset ID or Type">
-    <table id="maintTable">
+    <h1>Maintenance Due Vehicles</h1>
+
+    <!-- Search and Export -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by Vehicle ID or Assigned To">
+      <input type="date" id="fromDate">
+      <input type="date" id="toDate">
+      <button id="exportBtn">Export CSV</button>
+    </div>
+
+    <!-- Table -->
+    <table>
       <thead>
         <tr>
-          <th>Asset ID</th>
-          <th>Type</th>
-          <th>Last Assigned</th>
-          <th>Last Returned</th>
+          <th>Vehicle ID</th>
+          <th>Assigned To</th>
+          <th>Last Return</th>
           <th>Days Used</th>
           <th>Last Maintenance</th>
           <th>Next Maintenance</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="maintTableBody"></tbody>
     </table>
 
-    <div class="pagination" id="pagination"></div>
-    <button class="btn" id="exportCSV">Export CSV</button>
+    <!-- Pagination -->
+    <div class="pagination">
+      <button id="prevBtn">Previous</button>
+      <span id="pageInfo"></span>
+      <button id="nextBtn">Next</button>
+    </div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-    const tableBody = document.querySelector("#maintTable tbody");
+    const tableBody = document.getElementById("maintTableBody");
     const searchInput = document.getElementById("searchInput");
-    const paginationDiv = document.getElementById("pagination");
-    const exportBtn = document.getElementById("exportCSV");
-    const rowsPerPage = 10;
-    let allAssets = [];
+    const fromDateInput = document.getElementById("fromDate");
+    const toDateInput = document.getElementById("toDate");
+    const exportBtn = document.getElementById("exportBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageInfo = document.getElementById("pageInfo");
 
-    // Capitalize helper
-    function normalize(str) { 
-      if(!str) return "-";
-      return str.split(" ").map(w => w[0].toUpperCase()+w.slice(1).toLowerCase()).join(" "); 
+    const pageSize = 10;
+    let currentPage = 1;
+    let allVehicles = [];
+
+    function normalizeName(name) {
+      if(!name) return "-";
+      return name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
     }
-
-    // Date formatting
-    function formatDate(ts) { return ts ? new Date(ts).toLocaleDateString() : "-"; }
 
     auth.onAuthStateChanged(async user => {
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role!=="admin") return location.href="index.html";
-      document.getElementById("adminInitial").innerText = (doc.data().name[0]||"A").toUpperCase();
-
-      loadData();
+      if(!doc.exists || doc.data().role !== "admin") return location.href="index.html";
+      document.getElementById("profilePic").innerText = (doc.data().name || user.email[0]).charAt(0).toUpperCase();
+      loadMaintenance();
     });
 
-    async function loadData() {
+    async function loadMaintenance() {
       const snapshot = await db.collection("scooty_master").get();
-      const batterySnap = await db.collection("battery_master").get();
+      const temp = [];
+      for(const doc of snapshot.docs) {
+        const data = doc.data();
+        // Only if Last Return exists
+        if(!data.lastReturn) continue;
 
-      allAssets = [];
-      snapshot.docs.forEach(d => allAssets.push({assetId:d.id,type:"Scooty",...d.data()}));
-      batterySnap.docs.forEach(d => allAssets.push({assetId:d.id,type:"Battery",...d.data()}));
+        const daysUsed = Math.floor((data.lastReturn.toDate() - data.firstAssign.toDate()) / (1000*60*60*24));
+        if(daysUsed <= 30) continue;
 
-      renderTable(1);
+        const nextMaintenance = new Date(data.lastMaintenance.toDate());
+        nextMaintenance.setDate(nextMaintenance.getDate() + daysUsed);
+
+        const assignedName = data.assignedName ? normalizeName(data.assignedName) : "-";
+
+        temp.push({
+          id: doc.id,
+          assignedTo: assignedName,
+          lastReturn: data.lastReturn.toDate(),
+          daysUsed,
+          lastMaintenance: data.lastMaintenance.toDate(),
+          nextMaintenance
+        });
+      }
+      allVehicles = temp;
+      currentPage = 1;
+      renderTable();
     }
 
-    function computeDaysUsed(asset){
-      if(!asset.firstAssign || !asset.lastReturn) return 0;
-      const diff = new Date(asset.lastReturn) - new Date(asset.firstAssign);
-      return Math.floor(diff/(1000*60*60*24));
+    function filterData() {
+      let filtered = allVehicles;
+
+      const term = searchInput.value.trim().toLowerCase();
+      if(term) filtered = filtered.filter(v => v.id.toLowerCase().includes(term) || (v.assignedTo||"").toLowerCase().includes(term));
+
+      const fromDate = fromDateInput.value ? new Date(fromDateInput.value) : null;
+      const toDate = toDateInput.value ? new Date(toDateInput.value) : null;
+      if(fromDate) filtered = filtered.filter(v => v.nextMaintenance >= fromDate);
+      if(toDate) filtered = filtered.filter(v => v.nextMaintenance <= toDate);
+
+      return filtered;
     }
 
-    function computeNextMaintenance(asset){
-      const daysUsed = computeDaysUsed(asset);
-      if(daysUsed<=30) return asset.lastMaintenance || null;
-      return asset.lastMaintenance ? new Date(new Date(asset.lastMaintenance).getTime() + daysUsed*24*60*60*1000) : null;
-    }
-
-    function renderTable(page){
-      const filter = searchInput.value.toLowerCase();
-      const filtered = allAssets.filter(a => 
-        (a.assetId.toLowerCase().includes(filter) || (a.type||"").toLowerCase().includes(filter))
-      );
-
-      filtered.forEach(a=>{
-        a.daysUsed = computeDaysUsed(a);
-        a.nextMaintenance = computeNextMaintenance(a);
-      });
-
-      const dueAssets = filtered.filter(a => a.nextMaintenance && new Date() >= a.nextMaintenance);
-
-      const totalPages = Math.ceil(dueAssets.length/rowsPerPage);
-      const start = (page-1)*rowsPerPage;
-      const end = start+rowsPerPage;
-      const pageItems = dueAssets.slice(start,end);
+    function renderTable() {
+      const filtered = filterData();
+      const totalPages = Math.ceil(filtered.length / pageSize);
+      currentPage = Math.min(currentPage, totalPages) || 1;
+      const start = (currentPage-1)*pageSize;
+      const pageData = filtered.slice(start, start+pageSize);
 
       tableBody.innerHTML = "";
-      pageItems.forEach(a=>{
+      for(const v of pageData) {
         const tr = document.createElement("tr");
-        if(a.nextMaintenance && new Date() >= a.nextMaintenance) tr.classList.add("overdue");
         tr.innerHTML = `
-          <td>${a.assetId}</td>
-          <td>${normalize(a.type)}</td>
-          <td>${formatDate(a.lastAssigned)}</td>
-          <td>${formatDate(a.lastReturn)}</td>
-          <td>${a.daysUsed}</td>
-          <td>${formatDate(a.lastMaintenance)}</td>
-          <td>${formatDate(a.nextMaintenance)}</td>
+          <td>${v.id}</td>
+          <td>${v.assignedTo}</td>
+          <td>${v.lastReturn.toLocaleDateString()}</td>
+          <td>${v.daysUsed}</td>
+          <td>${v.lastMaintenance.toLocaleDateString()}</td>
+          <td>${v.nextMaintenance.toLocaleDateString()}</td>
         `;
         tableBody.appendChild(tr);
-      });
-
-      // Pagination buttons
-      paginationDiv.innerHTML = "";
-      for(let i=1;i<=totalPages;i++){
-        const btn = document.createElement("button");
-        btn.innerText = i;
-        if(i===page) btn.classList.add("active");
-        btn.addEventListener("click",()=>renderTable(i));
-        paginationDiv.appendChild(btn);
       }
+
+      pageInfo.innerText = `Page ${currentPage} of ${totalPages || 1}`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
     }
 
-    searchInput.addEventListener("input",()=>renderTable(1));
+    searchInput.addEventListener("input", () => { currentPage=1; renderTable(); });
+    fromDateInput.addEventListener("change", () => { currentPage=1; renderTable(); });
+    toDateInput.addEventListener("change", () => { currentPage=1; renderTable(); });
+    prevBtn.addEventListener("click", () => { if(currentPage>1){ currentPage--; renderTable(); } });
+    nextBtn.addEventListener("click", () => { currentPage++; renderTable(); });
 
-    // Export CSV
-    exportBtn.addEventListener("click",()=>{
-      const headers = ["Asset ID","Type","Last Assigned","Last Returned","Days Used","Last Maintenance","Next Maintenance"];
-      const rows = Array.from(tableBody.querySelectorAll("tr")).map(tr=>{
-        return Array.from(tr.children).map(td=>td.innerText);
-      });
-      let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
-      csvContent += rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
-
+    exportBtn.addEventListener("click", () => {
+      const filtered = filterData();
+      if(!filtered.length){ alert("No data to export."); return; }
+      const headers = ["Vehicle ID","Assigned To","Last Return","Days Used","Last Maintenance","Next Maintenance"];
+      const rows = filtered.map(v=>[
+        v.id,
+        v.assignedTo,
+        v.lastReturn.toLocaleDateString(),
+        v.daysUsed,
+        v.lastMaintenance.toLocaleDateString(),
+        v.nextMaintenance.toLocaleDateString()
+      ]);
+      let csv = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
       const link = document.createElement("a");
-      link.setAttribute("href",encodeURI(csvContent));
-      link.setAttribute("download","maintenance_due.csv");
-      document.body.appendChild(link);
+      link.href = encodeURI(csv);
+      link.download = "maintenance.csv";
       link.click();
-      document.body.removeChild(link);
     });
   </script>
 </body>
