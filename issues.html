@@ -3,83 +3,93 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Issues</title>
+  <title>YANA Admin — Issues</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Navbar matches dashboard */
     .navbar {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       padding: 12px 16px;
-      background: var(--card);
+      background: var(--bg);
       border-bottom: 1px solid var(--border);
     }
-    .navbar h2 {
-      margin: 0;
-      color: var(--action);
-    }
-    .profile-pic {
-      width: 36px;
-      height: 36px;
+    .profile-circle {
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: var(--action);
       color: #000;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       font-weight: bold;
-      font-size: 16px;
     }
-
-    /* Table styling */
+    h1 {
+      margin-top: 16px;
+      color: var(--action);
+    }
+    #searchBar {
+      width: 100%;
+      max-width: 400px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin: 12px 0;
+      background: var(--bg2);
+      color: var(--text);
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(10px);
-    }
-    th, td {
-      padding: 8px;
-      text-align: left;
-      font-size: 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-top: 12px;
     }
     th {
-      background-color: #3498db;
-      color: #fff;
+      text-align: left;
+      padding: 8px;
+      background: var(--action);
+      color: #000;
     }
-    tr:hover {
-      box-shadow: 0 0 10px var(--action);
+    td {
+      padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
+    .pagination {
+      margin-top: 12px;
+      display: flex;
+      gap: 6px;
+    }
+    .pagination button {
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pagination button.active {
+      background: var(--action);
+      color: #000;
     }
   </style>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
 </head>
 <body>
   <div class="navbar">
-    <button class="btn secondary" onclick="history.back()">⬅ Back</button>
-    <h2>All Raised Issues</h2>
-    <div class="profile-pic">A</div>
+    <h2>YANA Admin</h2>
+    <div class="profile-circle" id="profileInitial">A</div>
   </div>
 
   <div class="container">
+    <h1>Issues</h1>
+    <input type="text" id="searchBar" placeholder="Search by Rider Name, Asset ID, Issue, Status">
+
     <table id="issuesTable">
       <thead>
         <tr>
           <th>Rider Name</th>
           <th>Asset ID</th>
           <th>Issue Type</th>
-          <th>Additional Details</th>
+          <th>Details</th>
           <th>Status</th>
           <th>Created At</th>
           <th>Select</th>
@@ -88,88 +98,127 @@
       <tbody></tbody>
     </table>
 
+    <div class="pagination" id="pagination"></div>
+
     <button id="resolveBtn" class="btn" style="margin-top:10px;">Mark Selected as Resolved</button>
   </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
 
   <script>
     const tableBody = document.querySelector("#issuesTable tbody");
     const resolveBtn = document.getElementById("resolveBtn");
-    let issuesSnapshot = null;
+    const searchBar = document.getElementById("searchBar");
+    const paginationContainer = document.getElementById("pagination");
+    const ITEMS_PER_PAGE = 10;
 
-    function normalize(str){
-      return str ? str.split(" ").map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(" ") : "-";
+    let issuesData = [];
+    let currentPage = 1;
+
+    function normalizeText(str) {
+      if (!str) return "-";
+      return str.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
     }
 
-    db.collection("issues")
-      .orderBy("createdAt", "desc")
-      .onSnapshot(async snapshot => {
-        issuesSnapshot = snapshot;
-        tableBody.innerHTML = "";
-
-        for(const doc of snapshot.docs){
-          const data = doc.data();
-          let riderName = "-";
-
-          if(data.email){
-            const userDoc = await db.collection("users").doc(data.email).get();
-            if(userDoc.exists){
-              riderName = normalize(userDoc.data().name);
-            } else {
-              riderName = normalize(data.email.split("@")[0].replace(/[._]/g," "));
-            }
-          }
-
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${riderName}</td>
-            <td>${data.assetId || "-"}</td>
-            <td>${normalize(data.issue)}</td>
-            <td>${normalize(data.additionalDetails)}</td>
-            <td>${normalize(data.status)}</td>
-            <td>${data.createdAt ? data.createdAt.toDate().toLocaleString() : "-"}</td>
-            <td></td>
-          `;
-
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.disabled = data.status === "resolved";
-          tr.children[6].appendChild(checkbox);
-
-          tableBody.appendChild(tr);
-        }
+    function renderTable() {
+      const filtered = issuesData.filter(i => {
+        const term = searchBar.value.trim().toLowerCase();
+        return (
+          normalizeText(i.riderName).toLowerCase().includes(term) ||
+          i.assetId.toLowerCase().includes(term) ||
+          normalizeText(i.issue).toLowerCase().includes(term) ||
+          normalizeText(i.details).toLowerCase().includes(term) ||
+          normalizeText(i.status).toLowerCase().includes(term)
+        );
       });
 
-    resolveBtn.addEventListener("click", async () => {
-      if (!issuesSnapshot) return;
+      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+      if(currentPage > totalPages) currentPage = totalPages || 1;
 
+      const start = (currentPage -1) * ITEMS_PER_PAGE;
+      const pageData = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+      tableBody.innerHTML = "";
+      pageData.forEach(i => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${normalizeText(i.riderName)}</td>
+          <td>${i.assetId}</td>
+          <td>${normalizeText(i.issue)}</td>
+          <td>${normalizeText(i.details)}</td>
+          <td>${normalizeText(i.status)}</td>
+          <td>${i.createdAt ? i.createdAt.toLocaleString() : "-"}</td>
+          <td></td>
+        `;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.disabled = i.status.toLowerCase() === "resolved";
+        tr.children[6].appendChild(checkbox);
+        tableBody.appendChild(tr);
+      });
+
+      // render pagination
+      paginationContainer.innerHTML = "";
+      for(let p=1;p<=totalPages;p++){
+        const btn = document.createElement("button");
+        btn.textContent = p;
+        if(p===currentPage) btn.classList.add("active");
+        btn.onclick = ()=>{ currentPage=p; renderTable(); };
+        paginationContainer.appendChild(btn);
+      }
+    }
+
+    function loadIssues() {
+      db.collection("issues").orderBy("createdAt","desc").onSnapshot(snapshot => {
+        issuesData = [];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          issuesData.push({
+            riderName: d.email, // Will replace with actual name later if available
+            assetId: d.assetId,
+            issue: d.issue,
+            details: d.additionalDetails || "-",
+            status: d.status,
+            createdAt: d.createdAt ? d.createdAt.toDate() : null
+          });
+        });
+        renderTable();
+      });
+    }
+
+    searchBar.addEventListener("input", ()=>{ currentPage=1; renderTable(); });
+
+    resolveBtn.addEventListener("click", async ()=>{
       const rows = Array.from(tableBody.children);
       const updates = [];
-
-      rows.forEach((tr, index) => {
+      rows.forEach((tr,i)=>{
         const checkbox = tr.children[6].querySelector("input");
-        const statusCell = tr.children[4].textContent.toLowerCase();
-        if (checkbox.checked && statusCell !== "resolved") {
-          const docId = issuesSnapshot.docs[index].id;
-          updates.push(db.collection("issues").doc(docId).update({
-            status: "resolved"
-          }));
+        if(checkbox.checked && issuesData[i].status.toLowerCase()!=="resolved"){
+          updates.push(db.collection("issues").doc(snapshot.docs[i].id).update({status:"resolved"}));
         }
       });
-
-      if (updates.length === 0) {
-        alert("No issues selected or already resolved.");
-        return;
-      }
-
-      try {
+      if(updates.length){
         await Promise.all(updates);
-        alert("✅ Selected issues marked as resolved!");
-      } catch (err) {
-        console.error(err);
-        alert("❌ Failed to update issues.");
+        alert("Selected issues marked as resolved!");
+      } else {
+        alert("No issues selected.");
       }
+    });
+
+    // Auth check
+    auth.onAuthStateChanged(async user=>{
+      if(!user) return location.href="admin-signin.html";
+      const doc = await db.collection("users").doc(user.email).get();
+      if(doc.exists) {
+        const name = doc.data().name || user.email.split("@")[0];
+        document.getElementById("profileInitial").innerText = name.charAt(0).toUpperCase();
+      }
+      loadIssues();
     });
   </script>
 </body>
 </html>
-
