@@ -10,7 +10,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
   <style>
     :root {
       --bg: #0a0f12;
@@ -27,39 +26,41 @@
       background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
       background-size: 600% 600%;
       animation: gradientShift 20s ease infinite;
+      color: var(--text);
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      color: var(--text);
-      align-items: center;
     }
+
     @keyframes gradientShift {
       0%{background-position:0% 50%}
       50%{background-position:100% 50%}
       100%{background-position:0% 50%}
     }
 
-    /* Admin-style Navbar */
+    /* Navbar */
     .navbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      width: 100%;
-      max-width: 480px;
-      background: var(--card);
       padding: 12px 20px;
+      background: var(--card);
       border-bottom: 1px solid var(--border);
-      border-radius: var(--radius) 0 0 0;
-      backdrop-filter: blur(10px);
-      margin-bottom: 20px;
+      backdrop-filter: blur(6px);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
     }
     .navbar h2 {
+      margin: 0;
       color: var(--action);
       font-size: 1.2rem;
-      margin: 0;
     }
     .profile {
       position: relative;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
     }
     .profile-pic {
       width: 36px;
@@ -67,61 +68,66 @@
       border-radius: 50%;
       background: var(--action);
       color: #000;
+      font-weight: bold;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
-      cursor: pointer;
     }
     .dropdown {
       display: none;
       position: absolute;
-      right: 0;
       top: 44px;
+      right: 0;
       background: var(--card);
       border-radius: var(--radius);
-      overflow: hidden;
-    }
-    .profile:hover .dropdown {
-      display: block;
+      padding: 4px 0;
+      min-width: 100px;
     }
     .dropdown button {
+      width: 100%;
       background: none;
       border: none;
       color: var(--text);
-      padding: 10px 16px;
-      width: 100%;
-      text-align: left;
+      padding: 8px 12px;
       cursor: pointer;
+      text-align: left;
     }
-    .dropdown button:hover {
-      background: rgba(0,234,255,0.1);
-    }
+    .profile:hover .dropdown { display: block; }
 
-    /* Card & Buttons (unchanged) */
+    /* Card */
+    .container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 30px 24px;
       width: 100%;
-      max-width: 360px;
+      max-width: 400px; /* Card won't touch edges */
       box-shadow: 0 4px 20px rgba(0,234,255,0.3);
       text-align: center;
       backdrop-filter: blur(10px);
     }
+
     h1 {
       font-size: 28px;
       font-weight: 700;
       color: var(--action);
       margin-bottom: 16px;
     }
+
     #riderName {
       font-size: 22px;
       font-weight: 600;
       color: #fff;
       margin-bottom: 20px;
     }
+
     .status {
       display: flex;
       flex-direction: column;
@@ -141,11 +147,13 @@
       color: var(--text);
       box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
     }
+
     .actions {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
+
     .btn {
       display: flex;
       align-items: center;
@@ -188,36 +196,40 @@
       .status-box { width: 100%; font-size: 0.95rem; }
       h1 { font-size: 24px; }
       #riderName { font-size: 20px; }
-      .navbar { padding: 10px 16px; }
+      .navbar h2 { font-size: 1rem; }
     }
   </style>
 </head>
 <body>
-  <!-- Admin-style Navbar -->
+
+  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Rider</h2>
     <div class="profile">
-      <div class="profile-pic" id="profilePic">R</div>
+      <div class="profile-pic">R</div>
       <div class="dropdown">
         <button id="logoutBtn">Logout</button>
       </div>
     </div>
   </div>
 
-  <!-- Rider Card -->
-  <div class="card">
-    <h1>🚴 Rider Dashboard</h1>
-    <div id="riderName"></div>
+  <!-- Card -->
+  <div class="container">
+    <div class="card">
+      <h1>🚴 Rider Dashboard</h1>
+      <div id="riderName"></div>
 
-    <div class="status">
-      <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-      <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
-    </div>
+      <div class="status">
+        <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
+        <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
+      </div>
 
-    <div class="actions">
-      <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
-      <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
-      <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
+      <div class="actions">
+        <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
+        <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
+        <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
+        <button class="btn secondary" id="logoutBtn2"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+      </div>
     </div>
   </div>
 
@@ -251,7 +263,6 @@
       }
       const data = doc.data();
       document.getElementById("riderName").innerText = data.name || "Rider";
-      document.getElementById("profilePic").innerText = (data.name ? data.name[0].toUpperCase() : "R");
 
       if(data.status !== "approved"){
         toast("⚠️ Your account is not approved.");
@@ -294,8 +305,12 @@
     document.getElementById("logoutBtn").addEventListener("click", () => {
       firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
     });
+    document.getElementById("logoutBtn2").addEventListener("click", () => {
+      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+    });
 
     loadRider();
   </script>
+
 </body>
 </html>
