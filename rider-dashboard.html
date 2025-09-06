@@ -5,168 +5,127 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Dashboard</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- Firebase v8 SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
-
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     :root {
       --bg: #0a0f12;
-      --card: rgba(255,255,255,0.05);
+      --card: rgba(255,255,255,0.1);
       --border: rgba(255,255,255,0.2);
-      --accent: #00eaff;
+      --action: #00eaff;
       --text: #eaf4f8;
-      --radius: 12px;
-      --transition: 0.3s ease;
+      --radius: 16px;
     }
 
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: var(--bg);
+      background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
+      background-size: 600% 600%;
+      animation: gradientShift 20s ease infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
       color: var(--text);
     }
-
-    /* Navbar */
-    .navbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      backdrop-filter: blur(6px);
-    }
-    .navbar h2 {
-      color: var(--accent);
-      font-size: 1.2rem;
-      margin: 0;
-    }
-    .profile {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .profile-pic {
-      background: var(--accent);
-      color: #000;
-      font-weight: bold;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-    }
-    .btn-logout {
-      background: transparent;
-      border: 2px solid var(--accent);
-      border-radius: var(--radius);
-      color: var(--accent);
-      font-weight: bold;
-      padding: 6px 12px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .btn-logout:hover {
-      background: rgba(0,234,255,0.1);
+    @keyframes gradientShift {
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
     }
 
-    /* Card */
-    .container {
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-    }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
+      padding: 30px 24px;
       width: 100%;
-      max-width: 500px;
-      box-shadow: 0 4px 12px rgba(0,234,255,0.3);
-      backdrop-filter: blur(10px);
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      max-width: 420px;
+      box-shadow: 0 4px 20px rgba(0,234,255,0.3);
       text-align: center;
-    }
-    .card h1 {
-      color: var(--accent);
-      margin: 0;
-    }
-    .muted {
-      color: #bbb;
-      font-size: 0.9rem;
+      backdrop-filter: blur(10px);
     }
 
-    /* Assignment Status */
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--action);
+      margin-bottom: 16px;
+    }
+
+    #riderName {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
     .status {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
+      align-items: center;
       gap: 12px;
-      text-align: center;
-    }
-    .status div {
-      flex: 1;
-      background: rgba(0,234,255,0.05);
-      padding: 12px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      transition: var(--transition);
-    }
-    .status div:hover {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px var(--accent);
-    }
-    .status h2 {
-      font-size: 1rem;
-      color: var(--accent);
-      margin: 0 0 6px 0;
+      margin-bottom: 24px;
     }
 
-    /* Actions */
+    .status-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      width: 80%;
+      display: flex;
+      justify-content: center;
+      font-weight: 500;
+      color: var(--text);
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
+    }
+
     .actions {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
-    .actions .btn {
+
+    .btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 12px;
-      font-size: 1rem;
-      font-weight: bold;
-      border-radius: var(--radius);
+      width: 100%;
+      padding: 14px;
       border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
       cursor: pointer;
-      background: var(--accent);
+      transition: 0.2s;
+      background: var(--action);
       color: #000;
-      transition: var(--transition);
-    }
-    .actions .btn:hover {
-      background: #00c8e0;
-      box-shadow: 0 0 10px var(--accent);
     }
 
-    /* Toast */
+    .btn:hover { background: #00c8e0; }
+
+    .btn.secondary {
+      background: transparent;
+      color: var(--action);
+      border: 2px solid var(--action);
+    }
+
+    .btn.secondary:hover {
+      background: rgba(0,234,255,0.1);
+    }
+
     #toast {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: var(--accent);
+      background: rgba(0,234,255,0.9);
       color: #000;
       padding: 10px 16px;
       border-radius: 6px;
@@ -175,53 +134,28 @@
       z-index: 1000;
     }
 
-    /* Responsive */
-    @media(max-width:500px){
-      .status {
-        flex-direction: column;
-      }
-      .status div {
-        width: 100%;
-      }
-      .actions .btn {
-        font-size: 0.95rem;
-        padding: 10px;
-      }
+    @media(max-width:480px){
+      .status-box { width: 100%; font-size: 0.95rem; }
+      h1 { font-size: 24px; }
+      #riderName { font-size: 20px; }
     }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <div class="navbar">
-    <h2>⚡ YANA Rider</h2>
-    <div class="profile">
-      <div class="profile-pic" id="riderPic">R</div>
-      <button class="btn-logout" id="logoutBtn">Logout</button>
+  <div class="card">
+    <h1>🚴 Rider Dashboard</h1>
+    <div id="riderName"></div>
+
+    <div class="status">
+      <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
+      <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
     </div>
-  </div>
 
-  <!-- Main Card -->
-  <div class="container">
-    <div class="card">
-      <h1>Rider Dashboard</h1>
-      <div id="riderInfo" class="muted"></div>
-
-      <div class="status">
-        <div>
-          <h2>Scooty</h2>
-          <span id="currentScooty">Loading...</span>
-        </div>
-        <div>
-          <h2>Battery</h2>
-          <span id="currentBattery">Loading...</span>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
-        <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
-        <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
-      </div>
+    <div class="actions">
+      <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
+      <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
+      <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
+      <button class="btn secondary" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
     </div>
   </div>
 
@@ -237,16 +171,14 @@
 
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
-    let riderName = "R";
+
+    let currentScooty = null;
+    let currentBattery = null;
 
     if(!email){
       toast("❌ Not signed in!");
       window.location.href="rider-signin.html";
     }
-
-    const riderInfoDiv = document.getElementById("riderInfo");
-    const riderPicDiv = document.getElementById("riderPic");
-    let currentScooty = null, currentBattery = null;
 
     async function loadRider(){
       const doc = await db.collection("users").doc(email).get();
@@ -256,33 +188,49 @@
         return;
       }
       const data = doc.data();
-      riderName = data.name || "R";
-      riderInfoDiv.innerText = riderName;
-      riderPicDiv.innerText = riderName[0].toUpperCase();
+      document.getElementById("riderName").innerText = data.name || "Rider";
 
       if(data.status !== "approved"){
         toast("⚠️ Your account is not approved.");
         window.location.href="rider-signin.html";
         return;
       }
-      loadAssignments();
+
+      loadMyAssignments();
     }
 
-    async function loadAssignments(){
-      const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      s.forEach(d=>currentScooty=d.id);
+    async function loadMyAssignments(){
+      currentScooty = null;
+      currentBattery = null;
 
-      const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      b.forEach(d=>currentBattery=d.id);
+      const s = await db.collection("scooty_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      s.forEach(d => currentScooty = d.id);
+
+      const b = await db.collection("battery_master")
+        .where("assignedTo", "==", email)
+        .where("status", "==", "assigned")
+        .limit(1).get();
+      b.forEach(d => currentBattery = d.id);
 
       document.getElementById("currentScooty").innerText = currentScooty || "None";
       document.getElementById("currentBattery").innerText = currentBattery || "None";
     }
 
-    document.getElementById("scanBtn").addEventListener("click",()=>{window.location.href=`scanner.html?email=${email}`});
-    document.getElementById("logsBtn").addEventListener("click",()=>{window.location.href=`rider-logs.html?email=${email}`});
-    document.getElementById("issueBtn").addEventListener("click",()=>{window.location.href=`issue.html?email=${email}`});
-    document.getElementById("logoutBtn").addEventListener("click",()=>{firebase.auth().signOut().then(()=>{window.location.href="rider-signin.html";})});
+    document.getElementById("scanBtn").addEventListener("click", () => {
+      window.location.href = `scanner.html?email=${email}`;
+    });
+    document.getElementById("logsBtn").addEventListener("click", () => {
+      window.location.href = `rider-logs.html?email=${email}`;
+    });
+    document.getElementById("issueBtn").addEventListener("click", () => {
+      window.location.href = `issue.html?email=${email}`;
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+    });
 
     loadRider();
   </script>
