@@ -6,17 +6,31 @@
   <title>YANA — Logs Viewer</title>
   <link rel="stylesheet" href="styles.css">
   <style>
+    /* Table styling */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 15px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      overflow: hidden;
     }
     th, td {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 8px;
+      padding: 10px;
       text-align: left;
       font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
     }
+    th {
+      background: rgba(255,255,255,0.05);
+      font-weight: 600;
+    }
+    tr:hover td {
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* Filters */
     .filters {
       margin: 15px 0;
       display: flex;
@@ -24,30 +38,38 @@
       align-items: center;
       flex-wrap: wrap;
     }
-    input[type="text"] {
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+    select, input[type="text"] {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
     }
-    .btn.small {
-      padding: 6px 12px;
-      font-size: 13px;
+    #exportBtn {
+      margin-left: auto;
     }
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </div>
 
+  <!-- Content -->
   <div class="container">
     <h1>📜 Logs Viewer</h1>
     <p class="muted">View all state changes, status changes, and issue resolutions.</p>
 
     <div class="filters">
-      <label>Filter: </label>
+      <label>Filter:</label>
       <select id="logFilter">
         <option value="all">All</option>
         <option value="state_change">State Changes</option>
@@ -55,10 +77,10 @@
         <option value="issue_resolved">Issue Resolutions</option>
       </select>
 
-      <label>Search by Asset ID: </label>
+      <label>Asset ID:</label>
       <input type="text" id="searchInput" placeholder="e.g. SCOOTY002"/>
 
-      <button class="btn small" id="exportBtn">⬇ Export CSV</button>
+      <button class="menu-btn ripple" id="exportBtn">⬇ Export CSV</button>
     </div>
 
     <table id="logsTable">
@@ -88,17 +110,13 @@
 
     // Auth check
     auth.onAuthStateChanged(async user => {
-      if (!user) {
-        window.location.href = "admin-signin.html";
-        return;
-      }
-      document.getElementById("adminEmail").innerText = "👤 " + user.email;
+      if (!user) return location.href = "admin-signin.html";
+      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
         alert("❌ Not an admin.");
-        window.location.href = "index.html";
-        return;
+        return location.href = "index.html";
       }
 
       loadLogs();
@@ -148,10 +166,7 @@
     // Export logs to CSV
     document.getElementById("exportBtn").addEventListener("click", () => {
       const logs = getFilteredLogs();
-      if (!logs.length) {
-        alert("⚠️ No logs to export.");
-        return;
-      }
+      if (!logs.length) return alert("⚠️ No logs to export.");
 
       const headers = ["Time", "User", "Action", "Item Type", "Item ID", "Details"];
       const rows = logs.map(log => [
@@ -163,7 +178,7 @@
         log.extra || "-"
       ]);
 
-      let csvContent = "data:text/csv;charset=utf-8," 
+      let csvContent = "data:text/csv;charset=utf-8,"
         + headers.join(",") + "\n"
         + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
 
