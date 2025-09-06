@@ -6,49 +6,149 @@
   <title>YANA — Admin Logs Viewer</title>
   <link rel="stylesheet" href="styles.css">
   <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid rgba(0,234,255,0.3);
+      padding: 12px 16px;
+    }
+
+    .navbar img {
+      width: 60px;
+    }
+
+    .navbar span {
+      color: #00eaff;
+      font-weight: bold;
+    }
+
+    .container {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(0,234,255,0.3);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 1000px;
+      box-shadow: 0 0 20px rgba(0,234,255,0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      color: #00eaff;
+      margin-bottom: 8px;
+    }
+
+    .muted {
+      color: #bbb;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 16px;
     }
+
     th, td {
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 8px;
+      border-bottom: 1px solid rgba(0,234,255,0.2);
+      padding: 10px;
       text-align: left;
       font-size: 14px;
     }
-    .filter {
-      margin: 15px 0;
+
+    th {
+      color: #00eaff;
+      text-transform: uppercase;
+      font-size: 0.85rem;
     }
-    .issue { color: #4CAF50; }       /* Green for issue resolution */
-    .state { color: #2196F3; }       /* Blue for asset state changes */
+
+    tr:hover {
+      background: rgba(0,234,255,0.05);
+    }
+
+    .issue { color: #4cff88; }   /* Neon green */
+    .state { color: #4ca6ff; }   /* Neon blue */
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid #00eaff;
+      background: transparent;
+      color: #00eaff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      background: rgba(0,234,255,0.15);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,234,255,0.9);
+      color: #000;
+      padding: 10px 16px;
+      border-radius: 6px;
+      display: none;
+      font-weight: bold;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <button class="btn secondary" onclick="window.location.href='admin-dashboard.html'">⬅ Dashboard</button>
+    <img src="yana-logo.png" alt="YANA Logo">
     <span id="adminEmail"></span>
-    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <button class="btn" id="logoutBtn">Logout</button>
   </div>
 
   <div class="container">
-    <h1>Admin Logs Viewer</h1>
-    <p class="muted">Shows issue resolutions and asset state changes only.</p>
+    <div class="card">
+      <h1>Admin Logs Viewer</h1>
+      <p class="muted">Shows issue resolutions and asset state changes only.</p>
 
-    <table id="logsTable">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>Admin</th>
-          <th>Action Type</th>
-          <th>Action</th>
-          <th>Item ID</th>
-          <th>Extra Info</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+      <table id="logsTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Admin</th>
+            <th>Action Type</th>
+            <th>Action</th>
+            <th>Item ID</th>
+            <th>Extra Info</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
+
+  <div id="toast"></div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -59,6 +159,13 @@
   <script>
     const tbody = document.querySelector("#logsTable tbody");
 
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
+
     auth.onAuthStateChanged(async user => {
       if (!user) {
         window.location.href = "admin-signin.html";
@@ -68,7 +175,7 @@
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
+        toast("❌ Not an admin.");
         window.location.href = "index.html";
         return;
       }
@@ -92,7 +199,6 @@
       tbody.innerHTML = "";
 
       logs.forEach(log => {
-        // Determine if it's issue resolution or asset state change
         const actionType = log.action.toLowerCase().includes("issue resolved") ? "Issue Resolution" : "Asset State Change";
         const rowClass = actionType === "Issue Resolution" ? "issue" : "state";
 
