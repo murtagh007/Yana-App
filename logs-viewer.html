@@ -5,53 +5,112 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Logs Viewer</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     .navbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.05);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
+      background: var(--card);
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
     }
-    .navbar button { color: var(--text); background: var(--bg2); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius); cursor: pointer; }
-    .container { padding: 16px; }
-    h1 { margin-bottom: 8px; }
-    .muted { color: rgba(255,255,255,0.5); margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 8px; text-align: left; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    th { background: rgba(255,255,255,0.05); color: var(--action); }
-    input, select, button { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); }
-    .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
-    .btn-small { padding: 6px 12px; font-size: 13px; }
+    .navbar h2 {
+      margin: 0;
+      color: var(--action);
+    }
+    .navbar button {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .container {
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 6px;
+      color: var(--action);
+    }
+    .muted {
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .filters select,
+    .filters input {
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    .filters .btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      background: var(--action);
+      border: none;
+      border-radius: var(--radius);
+      color: #000;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: var(--card);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+    }
+    th {
+      background: rgba(255,255,255,0.05);
+      font-weight: bold;
+    }
+    tr:hover {
+      background: rgba(255,255,255,0.1);
+    }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-    <span id="adminEmail"></span>
-    <button id="logoutBtn">Logout</button>
+    <h2>⚡ YANA Admin</h2>
+    <div class="profile">
+      <span id="adminEmail"></span>
+      <button id="logoutBtn">Logout</button>
+    </div>
   </div>
 
   <div class="container">
     <h1>📜 Logs Viewer</h1>
-    <p class="muted">View all state changes, status changes, and issue logs.</p>
+    <p class="muted">View all state changes, status changes, and issue resolutions.</p>
 
     <div class="filters">
-      <label>Filter:</label>
       <select id="logFilter">
         <option value="all">All</option>
-        <option value="state-change">State-Change</option>
-        <option value="status-change">Status-Change</option>
-        <option value="issue-creation">Issue-Creation</option>
-        <option value="issue-resolution">Issue-Resolution</option>
+        <option value="state-change">State Changes</option>
+        <option value="status-change">Status Changes</option>
+        <option value="issue-created">Issue Created</option>
+        <option value="issue-resolved">Issue Resolved</option>
       </select>
 
-      <label>Search by Asset ID:</label>
-      <input type="text" id="searchInput" placeholder="e.g. SCOOTY002"/>
+      <input type="text" id="searchInput" placeholder="Search by Asset ID">
 
-      <button class="btn-small" id="exportBtn">⬇ Export CSV</button>
+      <button class="btn" id="exportBtn">⬇ Export CSV</button>
     </div>
 
     <table id="logsTable">
@@ -80,13 +139,12 @@
     let allLogs = [];
 
     auth.onAuthStateChanged(async user => {
-      if (!user) return location.href="admin-signin.html";
+      if (!user) return location.href = "admin-signin.html";
       document.getElementById("adminEmail").innerText = "👤 " + user.email;
 
       const doc = await db.collection("users").doc(user.email).get();
       if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin."); 
-        return location.href="index.html";
+        alert("❌ Not an admin."); return location.href = "index.html";
       }
 
       loadLogs();
@@ -95,79 +153,109 @@
     document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
 
     async function loadLogs() {
-      db.collection("logs").orderBy("timestamp","desc").onSnapshot(async snapshot => {
-        const rawLogs = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
-        const emails = Array.from(new Set(rawLogs.map(l=>l.email||l.user||l.admin).filter(Boolean)));
-        
-        const userMap = {};
-        if (emails.length > 0) {
-          const usersSnap = await db.collection("users").where(firebase.firestore.FieldPath.documentId(), "in", emails).get();
-          usersSnap.forEach(u => userMap[u.id] = u.data().name || u.id);
-        }
+      db.collection("logs").orderBy("timestamp", "desc").onSnapshot(async snapshot => {
+        allLogs = [];
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          let userName = "-";
 
-        allLogs = rawLogs.map(log => {
-          const emailKey = log.email || log.user || log.admin || null;
-          const userName = emailKey ? (userMap[emailKey] || emailKey) : "-";
-
-          let actionLabel = "-";
-          let details = "-";
-
-          if (log.action === "state-change") {
-            actionLabel = "State-Change";
-            details = `State → ${log.newState || "-"}`;
-          } else if (["status-change","assigned","returned"].includes(log.action)) {
-            actionLabel = "Status-Change";
-            details = `Status → ${log.status || log.action || "-"}`;
-          } else if (log.action === "issue-creation") {
-            actionLabel = "Issue-Creation";
-            details = `Issue: ${log.issue || "-"}`;
-          } else if (log.action === "issue-resolution" || log.status === "resolved") {
-            actionLabel = "Issue-Resolution";
-            details = `Resolved: ${log.issue || "-"}`;
+          // Determine user name
+          const email = data.email || data.admin;
+          if (email) {
+            const userDoc = await db.collection("users").doc(email).get();
+            if (userDoc.exists) userName = userDoc.data().name || email;
           }
 
-          const itemType = log.itemType || log.type || "-";
-          const itemId = log.itemId || log.assetId || "-";
+          // Item type
+          let itemType = "-";
+          if (data.itemType) itemType = capitalize(data.itemType);
+          else if (data.type) {
+            if (data.type === "scooty_master") itemType = "Scooty";
+            else if (data.type === "battery_master") itemType = "Battery";
+            else if (data.type === "issues") itemType = "Issue";
+            else itemType = data.type;
+          }
 
-          return { timestamp: log.timestamp, userName, actionLabel, itemType, itemId, details };
-        });
+          // Action & details
+          let actionType = "";
+          let details = "";
+          switch (data.action) {
+            case "state-change":
+              actionType = "State-Change"; details = data.newState || "-"; break;
+            case "assigned":
+            case "returned":
+              actionType = "Status-Change"; details = data.action === "assigned" ? "Assigned" : "Returned"; break;
+            case "issue-created":
+              actionType = "Issue-Created"; details = data.issue || "-"; break;
+            case "issue-resolved":
+              actionType = "Issue-Resolved"; details = data.issue || "-"; break;
+            default:
+              actionType = data.action; details = data.extra || "-";
+          }
 
+          allLogs.push({
+            timestamp: data.timestamp,
+            userName,
+            actionType,
+            itemType,
+            itemId: data.itemId || data.assetId || "-",
+            details
+          });
+        }
         renderLogs();
       });
     }
 
-    function renderLogs() {
+    function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
+
+    function getFilteredLogs() {
       const filter = document.getElementById("logFilter").value;
       const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
 
+      return allLogs.filter(log => {
+        if (filter !== "all" && log.actionType.toLowerCase() !== filter.replace("-", "").toLowerCase()) return false;
+        if (searchText && !(log.itemId || "").toLowerCase().includes(searchText)) return false;
+        return true;
+      });
+    }
+
+    function renderLogs() {
+      const logs = getFilteredLogs();
       tbody.innerHTML = "";
-      allLogs
-        .filter(l => (filter==="all" || l.actionLabel.toLowerCase() === filter.toLowerCase()))
-        .filter(l => !searchText || l.itemId.toLowerCase().includes(searchText))
-        .forEach(l => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${l.timestamp?.toDate().toLocaleString() || "-"}</td>
-            <td>${l.userName}</td>
-            <td>${l.actionLabel}</td>
-            <td>${l.itemType}</td>
-            <td>${l.itemId}</td>
-            <td>${l.details}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+      logs.forEach(log => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${log.timestamp?.toDate().toLocaleString() || "-"}</td>
+          <td>${log.userName}</td>
+          <td>${log.actionType}</td>
+          <td>${log.itemType}</td>
+          <td>${log.itemId}</td>
+          <td>${log.details}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     document.getElementById("logFilter").addEventListener("change", renderLogs);
     document.getElementById("searchInput").addEventListener("input", renderLogs);
 
     document.getElementById("exportBtn").addEventListener("click", () => {
-      const logs = Array.from(tbody.querySelectorAll("tr")).map(tr => Array.from(tr.children).map(td => td.innerText));
-      if (logs.length===0){ alert("⚠️ No logs to export."); return; }
+      const logs = getFilteredLogs();
+      if (!logs.length) { alert("⚠️ No logs to export."); return; }
 
-      const csvContent = "data:text/csv;charset=utf-8," 
-        + ["Time","User","Action","Item Type","Item ID","Details"].join(",") + "\n"
-        + logs.map(r => r.map(v=>`"${v.replace(/"/g,'""')}"`).join(",")).join("\n");
+      const headers = ["Time", "User", "Action", "Item Type", "Item ID", "Details"];
+      const rows = logs.map(log => [
+        log.timestamp?.toDate().toLocaleString() || "-",
+        log.userName,
+        log.actionType,
+        log.itemType,
+        log.itemId,
+        log.details
+      ]);
+
+      let csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n"
+        + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
 
       const link = document.createElement("a");
       link.setAttribute("href", encodeURI(csvContent));
