@@ -2,101 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>YANA — Maintenance Due</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>YANA — Vehicle Maintenance</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Reset & basic */
-    * { box-sizing: border-box; margin:0; padding:0; }
     body { font-family: 'Segoe UI', sans-serif; background:#0a0a0a; color:#fff; }
+    .navbar { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#111; }
+    .navbar h2 { color:#00eaff; margin:0; }
+    .profile-pic { width:32px; height:32px; border-radius:50%; background:#00eaff; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#000; }
 
-    /* Navbar */
-    .navbar {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:12px 16px;
-      background:#0a0a0a;
-    }
-    .navbar h2 { color:#00eaff; font-size:18px; }
-    .profile-pic {
-      width:36px; height:36px; border-radius:50%;
-      background:#00eaff; color:#000;
-      display:flex; justify-content:center; align-items:center;
-      font-weight:bold; font-size:16px;
-    }
+    .container { padding:16px; max-width:1200px; margin:auto; }
+    h1 { margin-bottom:12px; color:#00eaff; }
 
-    /* Container */
-    .container { padding:16px; }
-    h1 { font-size:20px; color:#00eaff; margin-bottom:12px; }
+    .top-controls { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .top-controls input { flex:1; min-width:200px; padding:8px; border-radius:6px; border:1px solid rgba(0,234,255,0.5); background:#111; color:#fff; }
+    .btn { background:#00eaff; color:#000; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; transition:0.2s; }
+    .btn:hover { background:#00c7e0; }
 
-    /* Search */
-    .search-container { margin-bottom:12px; }
-    .search-container input {
-      width:100%;
-      padding:8px 12px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.2);
-      background: rgba(255,255,255,0.05);
-      color:#fff;
-    }
-
-    /* Table */
-    .table-container {
-      overflow-x:auto;
-      border-radius:8px;
-      margin-top:12px;
-    }
-    table {
-      width:100%;
-      border-collapse: collapse;
-      min-width:600px;
-    }
-    th, td {
-      padding:10px;
-      text-align:left;
-      font-size:14px;
-      border-bottom:1px solid rgba(255,255,255,0.1);
-    }
+    .table-container { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    th, td { padding:8px; font-size:14px; border-bottom:1px solid rgba(0,234,255,0.2); word-break:break-word; }
     th { background:#00eaff; color:#000; }
-    tr:hover { background: rgba(0,234,255,0.1); }
+    tbody tr:hover { background: rgba(0,234,255,0.1); }
 
-    /* Buttons */
-    .btn { 
-      background:#00eaff; color:#000; border:none; 
-      padding:8px 12px; border-radius:6px; cursor:pointer; margin-top:12px;
-    }
-    .btn:disabled { background:rgba(0,234,255,0.3); cursor:not-allowed; }
-
-    /* Pagination */
-    .pagination {
-      display:flex; justify-content:center; gap:8px; margin-top:16px; flex-wrap:wrap;
-    }
-    .pagination button {
-      background:#00eaff; color:#000; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;
-    }
-    .pagination button.disabled { background: rgba(0,234,255,0.3); cursor:not-allowed; }
-
-    /* Mobile first adjustments done; larger screens tweaks */
-    @media(min-width:768px){
-      h1 { font-size:24px; }
-      th, td { font-size:15px; padding:12px; }
-    }
-    @media(min-width:1024px){
-      .container { padding:24px 48px; }
-    }
+    .pagination { display:flex; justify-content:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+    .page-btn { padding:6px 10px; border-radius:4px; border:none; background:#00eaff; color:#000; cursor:pointer; transition:0.2s; }
+    .page-btn.active { background:#00c7e0; font-weight:bold; }
+    .page-btn:hover:not(.active) { background:#00c7e0; }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
   <div class="navbar">
     <h2>YANA Admin</h2>
     <div class="profile-pic">A</div>
   </div>
 
   <div class="container">
-    <h1>Maintenance Due Vehicles</h1>
-    <div class="search-container">
+    <h1>Vehicle Maintenance Due</h1>
+
+    <div class="top-controls">
+      <button id="exportBtn" class="btn">⬇ Export CSV</button>
       <input type="text" id="searchInput" placeholder="Search by Vehicle ID or Assigned Name">
     </div>
 
@@ -115,9 +60,9 @@
     </div>
 
     <div class="pagination" id="pagination"></div>
-    <button id="exportBtn" class="btn">⬇ Export CSV</button>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -128,86 +73,123 @@
     const searchInput = document.getElementById("searchInput");
     const paginationDiv = document.getElementById("pagination");
     const exportBtn = document.getElementById("exportBtn");
-    const pageSize = 10;
-    let allVehicles = [];
 
+    let allVehicles = []; // vehicles due for maintenance
+    let filteredVehicles = [];
+    const rowsPerPage = 10;
+    let currentPage = 1;
+
+    // Utility to normalize names
     function normalizeName(name) {
       return name.split(" ").map(n => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ");
     }
 
-    // Fetch vehicles and calculate maintenance due
-    async function loadVehicles() {
-      const snapshot = await db.collection("scooty_master").get();
-      allVehicles = [];
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if(data.firstAssign && data.lastReturn && data.lastMaintenance) {
-          const first = data.firstAssign.toDate();
-          const lastReturn = data.lastReturn.toDate();
-          const lastMaint = data.lastMaintenance.toDate();
-          const daysUsed = Math.floor((lastReturn - first)/(1000*60*60*24));
-          let nextMaint = null;
-          if(daysUsed > 30) {
-            nextMaint = new Date(lastMaint);
-            nextMaint.setDate(nextMaint.getDate() + daysUsed);
-          }
-          if(nextMaint) allVehicles.push({
-            id: doc.id,
-            assignedName: normalizeName(data.assignedName || "-"),
-            daysUsed,
-            nextMaint: nextMaint.toLocaleDateString()
-          });
-        }
-      });
-
-      renderTable(1);
-    }
-
-    function renderTable(page) {
-      const filtered = allVehicles.filter(v => v.id.toLowerCase().includes(searchInput.value.toLowerCase())
-        || v.assignedName.toLowerCase().includes(searchInput.value.toLowerCase()));
-      const totalPages = Math.ceil(filtered.length/pageSize);
+    function renderTable() {
       tableBody.innerHTML = "";
-      const start = (page-1)*pageSize;
-      const end = start+pageSize;
-      filtered.slice(start,end).forEach(v=>{
+      const start = (currentPage-1)*rowsPerPage;
+      const pageItems = filteredVehicles.slice(start,start+rowsPerPage);
+      pageItems.forEach(v=>{
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${v.id}</td>
-          <td>${v.assignedName}</td>
+          <td>${normalizeName(v.assignedName||"-")}</td>
           <td>${v.daysUsed}</td>
-          <td>${v.nextMaint}</td>
+          <td>${v.nextMaintenance.toLocaleDateString()}</td>
         `;
         tableBody.appendChild(tr);
       });
+      renderPagination();
+    }
 
-      // Pagination
+    function renderPagination() {
       paginationDiv.innerHTML = "";
+      const totalPages = Math.ceil(filteredVehicles.length/rowsPerPage);
       for(let i=1;i<=totalPages;i++){
         const btn = document.createElement("button");
-        btn.textContent = i;
-        if(i===page) btn.classList.add("disabled");
-        btn.addEventListener("click",()=>renderTable(i));
+        btn.className="page-btn"+(i===currentPage?" active":"");
+        btn.innerText=i;
+        btn.addEventListener("click",()=>{ currentPage=i; renderTable(); });
         paginationDiv.appendChild(btn);
       }
     }
 
-    searchInput.addEventListener("input",()=>renderTable(1));
+    function filterAndRender() {
+      const term = searchInput.value.toLowerCase();
+      filteredVehicles = allVehicles.filter(v=> v.id.toLowerCase().includes(term) || (v.assignedName||"").toLowerCase().includes(term));
+      currentPage = 1;
+      renderTable();
+    }
 
+    searchInput.addEventListener("input", filterAndRender);
+
+    // CSV export
     exportBtn.addEventListener("click",()=>{
-      const rows = [["Vehicle ID","Assigned To","Days Used","Next Maintenance"]];
-      allVehicles.forEach(v=>{
-        rows.push([v.id,v.assignedName,v.daysUsed,v.nextMaint]);
-      });
-      let csvContent = "data:text/csv;charset=utf-8," + rows.map(r=>r.join(",")).join("\n");
+      if(!filteredVehicles.length){ alert("No data to export"); return; }
+      const headers = ["Vehicle ID","Assigned To","Days Used","Next Maintenance Day"];
+      const rows = filteredVehicles.map(v=>[v.id,normalizeName(v.assignedName||"-"),v.daysUsed,v.nextMaintenance.toLocaleDateString()]);
+      let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
       const link = document.createElement("a");
       link.href = encodeURI(csvContent);
       link.download = "maintenance_due.csv";
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     });
 
-    loadVehicles();
+    // Firebase fetch
+    auth.onAuthStateChanged(async user=>{
+      if(!user) return location.href="admin-signin.html";
+      const doc = await db.collection("users").doc(user.email).get();
+      if(!doc.exists || doc.data().role!=="admin"){ alert("Not admin"); return location.href="index.html"; }
+
+      // Fetch vehicles
+      const scootySnap = await db.collection("scooty_master").get();
+      const batterySnap = await db.collection("battery_master").get();
+
+      allVehicles = [];
+
+      function calculateNextMaintenance(firstAssign,lastReturn,lastMaintenance){
+        const daysUsed = Math.floor((lastReturn - firstAssign)/(1000*60*60*24));
+        const nextMaintenance = daysUsed>30 ? new Date(lastMaintenance.getTime() + daysUsed*24*60*60*1000) : null;
+        return {daysUsed,nextMaintenance};
+      }
+
+      // Process Scooties
+      for(const doc of scootySnap.docs){
+        const data = doc.data();
+        if(!data.firstAssign || !data.lastReturn) continue;
+        const lastMaintenance = data.lastMaintenance ? data.lastMaintenance.toDate() : new Date(data.firstAssign.toDate());
+        const {daysUsed,nextMaintenance} = calculateNextMaintenance(data.firstAssign.toDate(),data.lastReturn.toDate(),lastMaintenance);
+        if(nextMaintenance){
+          allVehicles.push({
+            id: doc.id,
+            assignedName: data.assignedName||"-",
+            daysUsed,
+            nextMaintenance
+          });
+        }
+      }
+
+      // Process Batteries
+      for(const doc of batterySnap.docs){
+        const data = doc.data();
+        if(!data.firstAssign || !data.lastReturn) continue;
+        const lastMaintenance = data.lastMaintenance ? data.lastMaintenance.toDate() : new Date(data.firstAssign.toDate());
+        const {daysUsed,nextMaintenance} = calculateNextMaintenance(data.firstAssign.toDate(),data.lastReturn.toDate(),lastMaintenance);
+        if(nextMaintenance){
+          allVehicles.push({
+            id: doc.id,
+            assignedName: data.assignedName||"-",
+            daysUsed,
+            nextMaintenance
+          });
+        }
+      }
+
+      filteredVehicles = [...allVehicles];
+      renderTable();
+    });
   </script>
 </body>
 </html>
+
