@@ -121,17 +121,29 @@
 
   <script>
     const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({
+      client_id: "746812065904-6kpkui3j4riae6up98md5d6627reroc2.apps.googleusercontent.com" // ✅ Web Client ID
+    });
 
     document.getElementById("googleAdminSignin").addEventListener("click", async () => {
       try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
+        await firebase.auth().signInWithRedirect(provider);
+      } catch (err) {
+        console.error("Admin sign in failed:", err);
+        alert("Sign in failed: " + err.message);
+      }
+    });
 
+    // Handle redirect result
+    firebase.auth().getRedirectResult().then(async (result) => {
+      if (result.user) {
+        const user = result.user;
         const docRef = db.collection("users").doc(user.email);
         const snap = await docRef.get();
 
         if (!snap.exists) {
           alert("No user record found. Contact system admin.");
+          await firebase.auth().signOut();
           return;
         }
 
@@ -140,13 +152,12 @@
           window.location.href = "admin-dashboard.html";
         } else {
           alert("❌ Access denied. You are not an admin.");
-          await auth.signOut();
+          await firebase.auth().signOut();
         }
-
-      } catch (err) {
-        console.error("Admin sign in failed:", err);
-        alert("Sign in failed: " + err.message);
       }
+    }).catch(err => {
+      console.error("Redirect error:", err);
+      alert("Sign in failed: " + err.message);
     });
   </script>
 </body>
