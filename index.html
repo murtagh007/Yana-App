@@ -4,6 +4,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Welcome</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00eaff">
   <link rel="stylesheet" href="styles.css">
   <style>
     body {
@@ -31,7 +33,7 @@
     }
 
     .logo {
-      width: 120px;   /* adjust size here */
+      width: 120px;
       margin-bottom: 20px;
     }
 
@@ -97,5 +99,14 @@
     <button class="btn secondary" onclick="window.location.href='rider-signin.html'">Rider Sign In</button>
     <button class="btn secondary" onclick="window.location.href='admin-signin.html'">Admin Sign In</button>
   </div>
+
+  <!-- Register Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("✅ Service Worker registered"))
+        .catch(err => console.error("❌ SW registration failed:", err));
+    }
+  </script>
 </body>
 </html>
