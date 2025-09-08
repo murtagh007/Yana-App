@@ -17,17 +17,21 @@
       margin: 0;
       padding: 0 12px;
     }
+
     .card {
       background: rgba(0,0,0,0.6);
       border: 1px solid rgba(0,234,255,0.3);
       border-radius: 16px;
-      padding: 32px 24px;
+      padding: 24px;
+      padding: 32px 24px; /* increased top-bottom padding */
       width: 100%;
       max-width: 400px;
       text-align: center;
       box-shadow: 0 0 20px rgba(0,234,255,0.3);
       backdrop-filter: blur(10px);
     }
+
+    /* Ensure fields don't touch edges */
     form#signupForm label,
     form#signupForm input,
     form#signupForm select,
@@ -36,50 +40,92 @@
       box-sizing: border-box;
       margin: 6px 0;
     }
-    .logo { width: 100px; margin-bottom: 16px; }
-    h1 { color: #00eaff; margin-bottom: 12px; }
-    .muted { color: #aaa; margin-bottom: 20px; font-size: 0.9rem; }
-    label {
-      display: block; text-align: left;
-      margin: 8px 0 4px; font-size: 0.9rem; color: #ddd;
+
+    .logo {
+      width: 100px;
+      margin-bottom: 16px;
     }
+
+    h1 {
+      color: #00eaff;
+      margin-bottom: 12px;
+    }
+
+    .muted {
+      color: #aaa;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      margin: 8px 0 4px;
+      font-size: 0.9rem;
+      color: #ddd;
+    }
+
     input, select {
-      width: 100%; padding: 10px;
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
       border: 1px solid rgba(0,234,255,0.4);
       border-radius: 10px;
       background: rgba(255,255,255,0.05);
-      color: #fff; font-size: 0.95rem;
+      color: #fff;
+      font-size: 0.95rem;
     }
+
     input:focus, select:focus {
       outline: none;
       border-color: #00eaff;
       background: rgba(255,255,255,0.08);
     }
+
     .btn {
-      display: block; width: 100%;
-      padding: 12px; margin: 10px 0;
-      border: none; border-radius: 12px;
-      background: #00eaff; color: #000;
-      font-weight: bold; font-size: 1rem;
-      cursor: pointer; transition: 0.2s ease;
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      background: #00eaff;
+      color: #000;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.2s ease;
     }
-    .btn:hover { background: #00c8e0; }
+
+    .btn:hover {
+      background: #00c8e0;
+    }
+
     .btn.secondary {
       background: transparent;
       color: #00eaff;
       border: 2px solid #00eaff;
     }
-    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
+
+    .btn.secondary:hover {
+      background: rgba(0,234,255,0.1);
+    }
+
     #toast {
       position: fixed;
-      bottom: 20px; left: 50%;
+      bottom: 20px;
+      left: 50%;
       transform: translateX(-50%);
       background: rgba(0,234,255,0.9);
-      color: #000; padding: 10px 16px;
-      border-radius: 6px; display: none;
+      color: #000;
+      padding: 10px 16px;
+      border-radius: 6px;
+      display: none;
       font-weight: bold;
     }
+
     @media(max-width: 500px){
+      .card { padding: 20px; }
       .card { padding: 28px 20px; }
       .logo { width: 80px; margin-bottom: 12px; }
       h1 { font-size: 1.5rem; }
@@ -140,10 +186,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
-  <!-- Capacitor Google Sign-In -->
-  <script type="module">
-    import { GoogleAuth } from '@capacitor/google-signin';
-
+  <script>
     const toast = msg => {
       const t = document.getElementById("toast");
       t.innerText = msg;
@@ -151,45 +194,26 @@
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    let signupMode = null;
+    let signupMode = null; // "google" or "manual"
 
-    // Google Sign Up (Hybrid: Web + APK)
-    async function googleSignIn() {
+    // Google Sign Up
+    document.getElementById('googleSignupBtn').addEventListener('click', async () => {
       try {
-        if (window.Capacitor?.isNativePlatform()) {
-          // ✅ Native Google Sign-In for APK
-          await GoogleAuth.initialize({
-            clientId: "746812065904-6kpkui3j4riae6up98md5d6627reroc2.apps.googleusercontent.com
-"
-          });
-          const result = await GoogleAuth.signIn();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await firebase.auth().signInWithPopup(provider);
+        const user = result.user;
 
-          signupMode = "google";
-          document.getElementById('signupForm').style.display = "block";
-          regName.value = result.displayName || "";
-          regEmail.value = result.email || "";
-          regName.readOnly = true;
-          regEmail.readOnly = true;
-        } else {
-          // ✅ Web sign-in (popup)
-          const provider = new firebase.auth.GoogleAuthProvider();
-          const result = await firebase.auth().signInWithPopup(provider);
-          const user = result.user;
-
-          signupMode = "google";
-          document.getElementById('signupForm').style.display = "block";
-          regName.value = user.displayName || "";
-          regEmail.value = user.email || "";
-          regName.readOnly = true;
-          regEmail.readOnly = true;
-        }
+        signupMode = "google";
+        document.getElementById('signupForm').style.display = "block";
+        regName.value = user.displayName || "";
+        regEmail.value = user.email || "";
+        regName.readOnly = true;
+        regEmail.readOnly = true;
       } catch (err) {
         console.error(err);
         toast("❌ Google Sign-In Error: " + err.message);
       }
-    }
-
-    document.getElementById('googleSignupBtn').addEventListener('click', googleSignIn);
+    });
 
     // Manual Sign Up
     document.getElementById('manualSignupBtn').addEventListener('click', () => {
