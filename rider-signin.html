@@ -125,6 +125,9 @@
     <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
 
+    <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
+    
+
     <h1>Rider Sign In</h1>
     <div class="muted">Sign in with Google or use your registered email</div>
 
@@ -140,7 +143,8 @@
 
     <!-- Sign Up -->
     <button class="btn secondary" onclick="window.location.href='rider-signup.html'">New user? Sign Up</button>
-    <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
+
+      <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
   </div>
 
   <div id="toast"></div>
@@ -159,24 +163,11 @@
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    // ✅ Google Sign-In with Redirect
+    // 🚪 Google Sign-In
     document.getElementById('googleSigninBtn').addEventListener('click', async () => {
       try {
         const provider = new firebase.auth.GoogleAuthProvider();
-        provider.setCustomParameters({
-          client_id: "746812065904-6kpkui3j4riae6up98md5d6627reroc2.apps.googleusercontent.com" // ✅ Web Client ID
-        });
-
-        await firebase.auth().signInWithRedirect(provider);
-      } catch (err) {
-        console.error(err);
-        toast("❌ Google Sign-In Error: " + err.message);
-      }
-    });
-
-    // ✅ Handle redirect result after returning from Google
-    firebase.auth().getRedirectResult().then(async (result) => {
-      if (result.user) {
+        const result = await firebase.auth().signInWithPopup(provider);
         const user = result.user;
         const email = user.email;
 
@@ -199,10 +190,11 @@
         } else {
           toast("⚠️ Unknown status. Please contact support.");
         }
+
+      } catch (err) {
+        console.error(err);
+        toast("❌ Google Sign-In Error: " + err.message);
       }
-    }).catch(err => {
-      console.error(err);
-      toast("❌ Redirect Sign-In Error: " + err.message);
     });
 
     // 📝 Manual Sign-In
@@ -233,6 +225,7 @@
         } else {
           toast("⚠️ Unknown status. Please contact support.");
         }
+
       } catch (err) {
         console.error(err);
         toast("❌ Sign-in error: " + err.message);
