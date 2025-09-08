@@ -103,6 +103,8 @@
 </head>
 <body>
   <div class="card">
+    <h1>Admin Sign In</h1>
+    <div class="muted">Only admins can sign in here.</div>
     <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
 
@@ -110,6 +112,7 @@
     <div class="muted">Only admins can sign in here</div>
 
     <button class="btn" id="googleAdminSignin">Sign in with Google</button>
+    <button class="btn secondary" onclick="window.location.href='index.html'">Back</button>
     <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
   </div>
 
@@ -121,43 +124,33 @@
 
   <script>
     const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({
-      client_id: "746812065904-6kpkui3j4riae6up98md5d6627reroc2.apps.googleusercontent.com" // ✅ Web Client ID
-    });
 
     document.getElementById("googleAdminSignin").addEventListener("click", async () => {
       try {
-        await firebase.auth().signInWithRedirect(provider);
-      } catch (err) {
-        console.error("Admin sign in failed:", err);
-        alert("Sign in failed: " + err.message);
-      }
-    });
-
-    // Handle redirect result
-    firebase.auth().getRedirectResult().then(async (result) => {
-      if (result.user) {
+        const result = await auth.signInWithPopup(provider);
         const user = result.user;
+
         const docRef = db.collection("users").doc(user.email);
         const snap = await docRef.get();
 
         if (!snap.exists) {
           alert("No user record found. Contact system admin.");
-          await firebase.auth().signOut();
           return;
         }
 
         const data = snap.data();
         if (data.role === "admin") {
+          window.location.href = "admin-dashboard.html?email=" + encodeURIComponent(user.email);
           window.location.href = "admin-dashboard.html";
         } else {
           alert("❌ Access denied. You are not an admin.");
-          await firebase.auth().signOut();
+          await auth.signOut();
         }
+
+      } catch (err) {
+        console.error("Admin sign in failed:", err);
+        alert("Sign in failed: " + err.message);
       }
-    }).catch(err => {
-      console.error("Redirect error:", err);
-      alert("Sign in failed: " + err.message);
     });
   </script>
 </body>
