@@ -39,30 +39,10 @@
       margin: 6px 0;
     }
 
-    .logo {
-      width: 100px;
-      margin-bottom: 16px;
-    }
-
-    h1 {
-      color: #00eaff;
-      margin-bottom: 12px;
-    }
-
-    .muted {
-      color: #aaa;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
-    }
-
-    label {
-      display: block;
-      text-align: left;
-      margin: 8px 0 4px;
-      font-size: 0.9rem;
-      color: #ddd;
-    }
-
+    .logo { width: 100px; margin-bottom: 16px; }
+    h1 { color: #00eaff; margin-bottom: 12px; }
+    .muted { color: #aaa; margin-bottom: 20px; font-size: 0.9rem; }
+    label { display: block; text-align: left; margin: 8px 0 4px; font-size: 0.9rem; color: #ddd; }
     input, select {
       width: 100%;
       padding: 10px;
@@ -73,7 +53,6 @@
       color: #fff;
       font-size: 0.95rem;
     }
-
     input:focus, select:focus {
       outline: none;
       border-color: #00eaff;
@@ -94,20 +73,13 @@
       cursor: pointer;
       transition: 0.2s ease;
     }
-
-    .btn:hover {
-      background: #00c8e0;
-    }
-
+    .btn:hover { background: #00c8e0; }
     .btn.secondary {
       background: transparent;
       color: #00eaff;
       border: 2px solid #00eaff;
     }
-
-    .btn.secondary:hover {
-      background: rgba(0,234,255,0.1);
-    }
+    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
 
     #toast {
       position: fixed;
@@ -131,32 +103,26 @@
 </head>
 <body>
   <div class="card">
-    <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
-
     <h1>Rider Sign Up</h1>
     <div class="muted">Choose how you want to sign up</div>
 
-    <!-- Choice Buttons -->
+    <!-- Sign Up Options -->
     <div style="margin-bottom:16px;">
       <button class="btn" id="googleSignupBtn">Sign up with Google</button>
       <button class="btn secondary" id="manualSignupBtn">Manual Sign Up</button>
     </div>
 
-    <!-- Form -->
+    <!-- Sign Up Form -->
     <form id="signupForm" style="display:none;">
       <label>Name</label>
       <input id="regName" type="text" placeholder="Enter full name"/>
-
       <label>Email</label>
       <input id="regEmail" type="email" placeholder="Enter email"/>
-
       <label>Phone Number</label>
       <input id="regPhone" type="text" placeholder="Enter phone number"/>
-
       <label>Vendor (optional)</label>
       <input id="regVendor" type="text" placeholder="Enter vendor name"/>
-
       <label>Business Partners</label>
       <select id="regPartners" multiple>
         <option value="BigBasket Daily">BigBasket Daily</option>
@@ -166,7 +132,6 @@
         <option value="BlinkIt">BlinkIt</option>
         <option value="Jio Instamart">Jio Instamart</option>
       </select>
-
       <label>Aadhaar Number</label>
       <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
 
@@ -177,7 +142,7 @@
 
   <div id="toast"></div>
 
-  <!-- Firebase v8 SDKs -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -198,21 +163,18 @@
 
     let signupMode = null;
 
-    // Google Sign Up
+    // Google Sign Up (Android native or Web)
     document.getElementById('googleSignupBtn').addEventListener('click', async () => {
       try {
         let user;
 
         if (Capacitor.isNativePlatform()) {
-          // Native Google Sign-In
           await initialize({
-            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" },
-            ios: { clientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com" }
+            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" }
           });
           const result = await login();
           user = { displayName: result.name, email: result.email };
         } else {
-          // Web Google Sign-In
           const provider = new firebase.auth.GoogleAuthProvider();
           const result = await firebase.auth().signInWithPopup(provider);
           user = result.user;
@@ -241,7 +203,7 @@
     });
 
     // Submit Form
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    document.getElementById('signupForm').addEventListener('submit', async e => {
       e.preventDefault();
       try {
         const name = regName.value.trim();
