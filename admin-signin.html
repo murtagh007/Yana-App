@@ -18,29 +18,24 @@
       padding: 0 12px;
     }
     .card {
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(0, 234, 255, 0.3);
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(0,234,255,0.3);
       border-radius: 16px;
       padding: 24px;
       width: 100%;
       max-width: 400px;
       text-align: center;
-      box-shadow: 0 0 20px rgba(0, 234, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0,234,255,0.3);
       backdrop-filter: blur(10px);
     }
     .logo { width: 120px; height: 120px; margin-bottom: 16px; }
-    .card h1 { color: #00eaff; margin-bottom: 12px; font-size: 1.8rem; }
+    h1 { color: #00eaff; margin-bottom: 12px; font-size: 1.8rem; }
     .muted { color: #aaa; margin-bottom: 24px; font-size: 0.9rem; }
     .btn { display: block; width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 12px; background: #00eaff; color: #000; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s ease; }
     .btn:hover { background: #00c8e0; }
     .btn.secondary { background: transparent; color: #00eaff; border: 2px solid #00eaff; }
     .btn.secondary:hover { background: rgba(0,234,255,0.1); }
-    @media(max-width: 500px){
-      .card { padding: 20px; border-radius: 12px; }
-      .btn { font-size: 0.95rem; padding: 10px; }
-      .card h1 { font-size: 1.5rem; }
-      .logo { width: 50px; height: 50px; margin-bottom: 12px; }
-    }
+    @media(max-width: 500px){ .card { padding: 20px; border-radius: 12px; } .btn { font-size: 0.95rem; padding: 10px; } .logo { width: 50px; height: 50px; margin-bottom: 12px; } h1 { font-size: 1.5rem; } }
   </style>
 </head>
 <body>
@@ -71,12 +66,14 @@
         let email;
 
         if (Capacitor.isNativePlatform()) {
-          // ✅ Android-only native Google login
-          await initialize({ android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" } });
+          // Native Android login
+          await initialize({
+            android: { clientId: "746812065904-tm85l62mtic0l5ljsluvjdek4kspiade.apps.googleusercontent.com" }
+          });
           const result = await login();
           email = result.email;
         } else {
-          // ✅ Web fallback
+          // Web login
           const provider = new firebase.auth.GoogleAuthProvider();
           const result = await auth.signInWithPopup(provider);
           email = result.user.email;
