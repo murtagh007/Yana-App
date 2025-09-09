@@ -80,18 +80,20 @@
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    // Google Sign-In (Android only)
+    // Google Sign-In
     document.getElementById('googleSigninBtn').addEventListener('click', async () => {
       try {
         let email;
 
         if (Capacitor.isNativePlatform()) {
+          // Android native login
           await initialize({
-            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" }
+            android: { clientId: "746812065904-tm85l62mtic0l5ljsluvjdek4kspiade.apps.googleusercontent.com" }
           });
           const result = await login();
           email = result.email;
         } else {
+          // Web login
           const provider = new firebase.auth.GoogleAuthProvider();
           const result = await firebase.auth().signInWithPopup(provider);
           email = result.user.email;
@@ -127,10 +129,7 @@
     document.getElementById('signinBtn').addEventListener('click', async () => {
       try {
         const email = (document.getElementById('signinEmail').value || '').trim();
-        if (!email) {
-          toast("⚠️ Please enter your email.");
-          return;
-        }
+        if (!email) { toast("⚠️ Please enter your email."); return; }
 
         const docRef = db.collection('users').doc(email);
         const snap = await docRef.get();
