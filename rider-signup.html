@@ -17,7 +17,6 @@
       margin: 0;
       padding: 0 12px;
     }
-
     .card {
       background: rgba(0,0,0,0.6);
       border: 1px solid rgba(0,234,255,0.3);
@@ -29,71 +28,35 @@
       box-shadow: 0 0 20px rgba(0,234,255,0.3);
       backdrop-filter: blur(10px);
     }
-
     form#signupForm label,
     form#signupForm input,
     form#signupForm select,
-    form#signupForm button {
-      width: 100%;
-      box-sizing: border-box;
-      margin: 6px 0;
-    }
-
+    form#signupForm button { width: 100%; box-sizing: border-box; margin: 6px 0; }
     .logo { width: 100px; margin-bottom: 16px; }
     h1 { color: #00eaff; margin-bottom: 12px; }
     .muted { color: #aaa; margin-bottom: 20px; font-size: 0.9rem; }
     label { display: block; text-align: left; margin: 8px 0 4px; font-size: 0.9rem; color: #ddd; }
     input, select {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 12px;
+      width: 100%; padding: 10px; margin-bottom: 12px;
       border: 1px solid rgba(0,234,255,0.4);
       border-radius: 10px;
       background: rgba(255,255,255,0.05);
-      color: #fff;
-      font-size: 0.95rem;
+      color: #fff; font-size: 0.95rem;
     }
-    input:focus, select:focus {
-      outline: none;
-      border-color: #00eaff;
-      background: rgba(255,255,255,0.08);
-    }
-
+    input:focus, select:focus { outline: none; border-color: #00eaff; background: rgba(255,255,255,0.08); }
     .btn {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: none;
-      border-radius: 12px;
-      background: #00eaff;
-      color: #000;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: 0.2s ease;
+      display: block; width: 100%; padding: 12px; margin: 10px 0;
+      border: none; border-radius: 12px; background: #00eaff; color: #000;
+      font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s ease;
     }
     .btn:hover { background: #00c8e0; }
-    .btn.secondary {
-      background: transparent;
-      color: #00eaff;
-      border: 2px solid #00eaff;
-    }
+    .btn.secondary { background: transparent; color: #00eaff; border: 2px solid #00eaff; }
     .btn.secondary:hover { background: rgba(0,234,255,0.1); }
-
     #toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,234,255,0.9);
-      color: #000;
-      padding: 10px 16px;
-      border-radius: 6px;
-      display: none;
-      font-weight: bold;
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,234,255,0.9); color: #000; padding: 10px 16px;
+      border-radius: 6px; display: none; font-weight: bold;
     }
-
     @media(max-width: 500px){
       .card { padding: 28px 20px; }
       .logo { width: 80px; margin-bottom: 12px; }
@@ -115,14 +78,10 @@
 
     <!-- Sign Up Form -->
     <form id="signupForm" style="display:none;">
-      <label>Name</label>
-      <input id="regName" type="text" placeholder="Enter full name"/>
-      <label>Email</label>
-      <input id="regEmail" type="email" placeholder="Enter email"/>
-      <label>Phone Number</label>
-      <input id="regPhone" type="text" placeholder="Enter phone number"/>
-      <label>Vendor (optional)</label>
-      <input id="regVendor" type="text" placeholder="Enter vendor name"/>
+      <label>Name</label><input id="regName" type="text" placeholder="Enter full name"/>
+      <label>Email</label><input id="regEmail" type="email" placeholder="Enter email"/>
+      <label>Phone Number</label><input id="regPhone" type="text" placeholder="Enter phone number"/>
+      <label>Vendor (optional)</label><input id="regVendor" type="text" placeholder="Enter vendor name"/>
       <label>Business Partners</label>
       <select id="regPartners" multiple>
         <option value="BigBasket Daily">BigBasket Daily</option>
@@ -132,9 +91,7 @@
         <option value="BlinkIt">BlinkIt</option>
         <option value="Jio Instamart">Jio Instamart</option>
       </select>
-      <label>Aadhaar Number</label>
-      <input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
-
+      <label>Aadhaar Number</label><input id="regAadhar" type="text" placeholder="Enter Aadhaar number"/>
       <button type="submit" class="btn">Submit</button>
       <button type="button" class="btn secondary" onclick="window.location.href='rider-signin.html'">Already registered? Sign In</button>
     </form>
@@ -153,7 +110,6 @@
     import { initialize, login } from '@team-lepisode/capacitor-google-login';
 
     const db = firebase.firestore();
-
     const toast = msg => {
       const t = document.getElementById("toast");
       t.innerText = msg;
@@ -163,18 +119,22 @@
 
     let signupMode = null;
 
-    // Google Sign Up (Android native or Web)
+    // Google Sign Up
     document.getElementById('googleSignupBtn').addEventListener('click', async () => {
       try {
         let user;
 
         if (Capacitor.isNativePlatform()) {
+          // Use your Android client ID
           await initialize({
-            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" }
+            android: {
+              clientId: "746812065904-tm85l62mtic0l5ljsluvjdek4kspiade.apps.googleusercontent.com"
+            }
           });
           const result = await login();
           user = { displayName: result.name, email: result.email };
         } else {
+          // Web Sign-In
           const provider = new firebase.auth.GoogleAuthProvider();
           const result = await firebase.auth().signInWithPopup(provider);
           user = result.user;
