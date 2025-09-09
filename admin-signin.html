@@ -103,7 +103,6 @@
 </head>
 <body>
   <div class="card">
-   
     <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
 
@@ -111,7 +110,6 @@
     <div class="muted">Only admins can sign in here</div>
 
     <button class="btn" id="googleAdminSignin">Sign in with Google</button>
-  
     <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
   </div>
 
@@ -121,26 +119,43 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
-  <script>
-    const provider = new firebase.auth.GoogleAuthProvider();
+  <script type="module">
+    import { Capacitor } from '@capacitor/core';
+    import { initialize, login } from '@team-lepisode/capacitor-google-login';
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     document.getElementById("googleAdminSignin").addEventListener("click", async () => {
       try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
+        let email;
 
-        const docRef = db.collection("users").doc(user.email);
+        if (Capacitor.isNativePlatform()) {
+          // ✅ Native Google Sign-In
+          await initialize({
+            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" },
+            ios: { clientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com" }
+          });
+          const result = await login();
+          email = result.email;
+        } else {
+          // ✅ Web Google Sign-In
+          const provider = new firebase.auth.GoogleAuthProvider();
+          const result = await auth.signInWithPopup(provider);
+          email = result.user.email;
+        }
+
+        const docRef = db.collection("users").doc(email);
         const snap = await docRef.get();
 
         if (!snap.exists) {
-          alert("No user record found. Contact system admin.");
+          alert("⚠️ No user record found. Contact system admin.");
           return;
         }
 
         const data = snap.data();
         if (data.role === "admin") {
-          window.location.href = "admin-dashboard.html?email=" + encodeURIComponent(user.email);
-          window.location.href = "admin-dashboard.html";
+          window.location.href = "admin-dashboard.html?email=" + encodeURIComponent(email);
         } else {
           alert("❌ Access denied. You are not an admin.");
           await auth.signOut();
@@ -148,7 +163,7 @@
 
       } catch (err) {
         console.error("Admin sign in failed:", err);
-        alert("Sign in failed: " + err.message);
+        alert("❌ Sign in failed: " + err.message);
       }
     });
   </script>
