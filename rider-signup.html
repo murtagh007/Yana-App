@@ -22,8 +22,7 @@
       background: rgba(0,0,0,0.6);
       border: 1px solid rgba(0,234,255,0.3);
       border-radius: 16px;
-      padding: 24px;
-      padding: 32px 24px; /* increased top-bottom padding */
+      padding: 32px 24px;
       width: 100%;
       max-width: 400px;
       text-align: center;
@@ -31,7 +30,6 @@
       backdrop-filter: blur(10px);
     }
 
-    /* Ensure fields don't touch edges */
     form#signupForm label,
     form#signupForm input,
     form#signupForm select,
@@ -125,7 +123,6 @@
     }
 
     @media(max-width: 500px){
-      .card { padding: 20px; }
       .card { padding: 28px 20px; }
       .logo { width: 80px; margin-bottom: 12px; }
       h1 { font-size: 1.5rem; }
@@ -186,7 +183,12 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
-  <script>
+  <script type="module">
+    import { Capacitor } from '@capacitor/core';
+    import { initialize, login } from '@team-lepisode/capacitor-google-login';
+
+    const db = firebase.firestore();
+
     const toast = msg => {
       const t = document.getElementById("toast");
       t.innerText = msg;
@@ -194,14 +196,27 @@
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    let signupMode = null; // "google" or "manual"
+    let signupMode = null;
 
     // Google Sign Up
     document.getElementById('googleSignupBtn').addEventListener('click', async () => {
       try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const result = await firebase.auth().signInWithPopup(provider);
-        const user = result.user;
+        let user;
+
+        if (Capacitor.isNativePlatform()) {
+          // Native Google Sign-In
+          await initialize({
+            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" },
+            ios: { clientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com" }
+          });
+          const result = await login();
+          user = { displayName: result.name, email: result.email };
+        } else {
+          // Web Google Sign-In
+          const provider = new firebase.auth.GoogleAuthProvider();
+          const result = await firebase.auth().signInWithPopup(provider);
+          user = result.user;
+        }
 
         signupMode = "google";
         document.getElementById('signupForm').style.display = "block";
