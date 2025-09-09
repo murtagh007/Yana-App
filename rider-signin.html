@@ -125,9 +125,6 @@
     <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
 
-  
-    
-
     <h1>Rider Sign In</h1>
     <div class="muted">Sign in with Google or use your registered email</div>
 
@@ -143,8 +140,7 @@
 
     <!-- Sign Up -->
     <button class="btn secondary" onclick="window.location.href='rider-signup.html'">New user? Sign Up</button>
-
-      <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
+    <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
   </div>
 
   <div id="toast"></div>
@@ -155,7 +151,12 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
-  <script>
+  <script type="module">
+    import { Capacitor } from '@capacitor/core';
+    import { initialize, login } from '@team-lepisode/capacitor-google-login';
+
+    const db = firebase.firestore();
+
     const toast = msg => {
       const t = document.getElementById("toast");
       t.innerText = msg;
@@ -166,10 +167,22 @@
     // 🚪 Google Sign-In
     document.getElementById('googleSigninBtn').addEventListener('click', async () => {
       try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const result = await firebase.auth().signInWithPopup(provider);
-        const user = result.user;
-        const email = user.email;
+        let email;
+
+        if (Capacitor.isNativePlatform()) {
+          // Native Google Sign-In
+          await initialize({
+            android: { clientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com" },
+            ios: { clientId: "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com" }
+          });
+          const result = await login();
+          email = result.email;
+        } else {
+          // Web Google Sign-In
+          const provider = new firebase.auth.GoogleAuthProvider();
+          const result = await firebase.auth().signInWithPopup(provider);
+          email = result.user.email;
+        }
 
         const docRef = db.collection('users').doc(email);
         const snap = await docRef.get();
