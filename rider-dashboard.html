@@ -228,6 +228,8 @@
         <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
         <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
         <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
+        <!-- ✅ New Attendance Button -->
+        <button class="btn" id="attendanceBtn"><i class="fa-solid fa-user-check"></i> Mark Attendance</button>
         <button class="btn secondary" id="logoutBtn2"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
       </div>
     </div>
@@ -291,6 +293,62 @@
 
       document.getElementById("currentScooty").innerText = currentScooty || "None";
       document.getElementById("currentBattery").innerText = currentBattery || "None";
+    }
+
+    // ✅ Attendance Button Handler
+    document.getElementById("attendanceBtn").addEventListener("click", async () => {
+      if (!navigator.geolocation) {
+        toast("❌ Geolocation not supported.");
+        return;
+      }
+
+      toast("📍 Getting location...");
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // Fetch allowed locations from Firestore
+        const locs = await db.collection("locations").get();
+        let inside = null;
+
+        locs.forEach(doc => {
+          const d = doc.data();
+          const distance = getDistanceFromLatLonInKm(lat, lng, d.lat, d.lng) * 1000; // in meters
+          if (distance <= d.radius) {
+            inside = d;
+          }
+        });
+
+        if (inside) {
+          await db.collection("attendance").add({
+            rider: email,
+            location: inside.name,
+            lat, lng,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          toast(`✅ Attendance marked at ${inside.name}`);
+        } else {
+          toast("❌ You are outside allowed attendance zones.");
+        }
+      }, err => {
+        toast("❌ Location error: " + err.message);
+      });
+    });
+
+    // ✅ Helper function to calculate distance (Haversine formula)
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371; // km
+      const dLat = deg2rad(lat2 - lat1);
+      const dLon = deg2rad(lon2 - lon1);
+      const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+    function deg2rad(deg) {
+      return deg * (Math.PI/180);
     }
 
     document.getElementById("scanBtn").addEventListener("click", () => {
