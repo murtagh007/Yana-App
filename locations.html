@@ -20,21 +20,19 @@
   </div>
 
   <div class="container">
-    <!-- Add Location Form -->
-    <h2>Add Location</h2>
-    <form id="locationForm" class="panel" style="padding:15px">
-      <input type="text" id="locName" placeholder="Location Name" required class="input"/>
-      <input type="number" id="lat" placeholder="Latitude" step="any" required class="input"/>
-      <input type="number" id="lng" placeholder="Longitude" step="any" required class="input"/>
-      <input type="number" id="radius" placeholder="Radius (meters)" required class="input"/>
-      <button type="submit" class="menu-btn ripple" style="margin-top:10px">
-        <i class="fas fa-plus-circle"></i> Save
-      </button>
+    <h2>Add New Location</h2>
+    <form id="locationForm" class="panel" style="padding:1rem;">
+      <input type="text" id="locName" placeholder="Location Name" class="input"/>
+      <input type="number" id="locLat" placeholder="Latitude" step="any" class="input"/>
+      <input type="number" id="locLng" placeholder="Longitude" step="any" class="input"/>
+      <input type="number" id="locRadius" placeholder="Radius (meters)" class="input"/>
+      <button type="submit" class="menu-btn ripple" style="margin-top:1rem;">➕ Save Location</button>
     </form>
 
-    <!-- Location List -->
-    <h2>Existing Locations</h2>
-    <div id="locationsList" class="panel" style="padding:15px"></div>
+    <h2 style="margin-top:2rem;">Saved Locations</h2>
+    <div id="locationsList" class="panel" style="padding:1rem;">
+      <p>Loading...</p>
+    </div>
   </div>
 
   <!-- Firebase -->
@@ -44,7 +42,7 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    // Auth check
+    // Ensure only admins can access
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
@@ -55,43 +53,56 @@
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
 
-    const form = document.getElementById("locationForm");
-    const listDiv = document.getElementById("locationsList");
-
-    form.onsubmit = async (e) => {
+    // Add new location
+    document.getElementById("locationForm").addEventListener("submit", async e => {
       e.preventDefault();
       const name = document.getElementById("locName").value.trim();
-      const lat = parseFloat(document.getElementById("lat").value);
-      const lng = parseFloat(document.getElementById("lng").value);
-      const radius = parseInt(document.getElementById("radius").value);
+      const lat = parseFloat(document.getElementById("locLat").value);
+      const lng = parseFloat(document.getElementById("locLng").value);
+      const radius = parseInt(document.getElementById("locRadius").value);
 
-      try {
-        await db.collection("locations").add({
-          name, lat, lng, radius,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        form.reset();
-        alert("✅ Location added");
-      } catch (err) {
-        alert("❌ Error: " + err.message);
-      }
-    };
-
-    // Realtime list
-    db.collection("locations").orderBy("createdAt","desc").onSnapshot(snap => {
-      listDiv.innerHTML = "";
-      if (snap.empty) {
-        listDiv.innerHTML = "<p>No locations added yet.</p>";
+      if (!name || isNaN(lat) || isNaN(lng) || isNaN(radius)) {
+        alert("⚠️ Please fill all fields correctly.");
         return;
       }
-      snap.forEach(doc => {
-        const loc = doc.data();
-        const item = document.createElement("div");
-        item.className = "chip";
-        item.innerHTML = `<b>${loc.name}</b> — [${loc.lat}, ${loc.lng}] — ${loc.radius}m`;
-        listDiv.appendChild(item);
+
+      await db.collection("locations").add({
+        name, lat, lng, radius,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      document.getElementById("locationForm").reset();
     });
+
+    // Load locations list
+    function loadLocations() {
+      db.collection("locations").orderBy("createdAt","desc").onSnapshot(snap => {
+        const list = document.getElementById("locationsList");
+        if (snap.empty) {
+          list.innerHTML = "<p>No locations added yet.</p>";
+          return;
+        }
+        list.innerHTML = snap.docs.map(doc => {
+          const d = doc.data();
+          return `
+            <div class="chip" style="margin:0.3rem 0; display:flex; justify-content:space-between; align-items:center;">
+              <span><b>${d.name}</b> — [${d.lat}, ${d.lng}] — ${d.radius}m</span>
+              <button onclick="deleteLocation('${doc.id}')" class="menu-btn" style="padding:0.2rem 0.5rem; font-size:0.8rem; background:#c0392b; color:white;">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          `;
+        }).join("");
+      });
+    }
+    loadLocations();
+
+    // Delete location
+    async function deleteLocation(id) {
+      if (confirm("Delete this location?")) {
+        await db.collection("locations").doc(id).delete();
+      }
+    }
   </script>
 </body>
 </html>
