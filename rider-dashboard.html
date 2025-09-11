@@ -4,7 +4,6 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YANA — Rider Dashboard</title>
-<link rel="stylesheet" href="styles.css">
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -13,11 +12,11 @@
 <style>
 :root{
   --bg:#0a0f12;
-  --card:rgba(255,255,255,0.08);
+  --card:rgba(255,255,255,0.12);
   --border:rgba(255,255,255,0.2);
   --action:#00eaff;
   --text:#eaf4f8;
-  --radius:16px;
+  --radius:20px;
 }
 body{
   margin:0;
@@ -40,7 +39,7 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:12px 20px;
+  padding:14px 20px;
   background:var(--card);
   border-bottom:1px solid var(--border);
   backdrop-filter:blur(6px);
@@ -48,35 +47,36 @@ body{
   top:0;
   z-index:1000;
 }
-.navbar h2{margin:0;color:var(--action);font-size:1.2rem;}
+.navbar h2{margin:0;color:var(--action);font-size:1.3rem;font-weight:700;}
 .profile{position:relative;display:flex;align-items:center;cursor:pointer;}
-.profile-pic{width:36px;height:36px;border-radius:50%;background:var(--action);color:#000;font-weight:bold;display:flex;align-items:center;justify-content:center;}
-.dropdown{display:none;position:absolute;top:44px;right:0;background:var(--card);border-radius:var(--radius);padding:4px 0;min-width:100px;}
-.dropdown button{width:100%;background:none;border:none;color:var(--text);padding:8px 12px;cursor:pointer;text-align:left;}
+.profile-pic{width:40px;height:40px;border-radius:50%;background:var(--action);color:#000;font-weight:bold;display:flex;align-items:center;justify-content:center;}
+.dropdown{display:none;position:absolute;top:50px;right:0;background:var(--card);border-radius:var(--radius);padding:4px 0;min-width:110px;}
+.dropdown button{width:100%;background:none;border:none;color:var(--text);padding:10px 12px;cursor:pointer;text-align:left;font-weight:600;}
 .profile:hover .dropdown{display:block;}
 
 /* Container */
-.container{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:0 4px 20px rgba(0,234,255,0.3);text-align:center;backdrop-filter:blur(10px);margin-bottom:16px;}
-h1{font-size:24px;color:var(--action);margin-bottom:12px;}
-.timer-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:8px 0;}
-.timer-label{font-weight:500;margin-bottom:4px;}
-.timer-value{font-size:1.5rem;font-weight:600;}
-.shift-info{margin:12px 0;}
-.actions{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;background:var(--action);color:#000;transition:0.2s;}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 8px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;width:100%;max-width:420px;box-shadow:0 6px 25px rgba(0,234,255,0.35);text-align:center;backdrop-filter:blur(12px);margin-bottom:16px;}
+h1{font-size:26px;color:var(--action);margin-bottom:14px;}
+.timer-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:10px 0;}
+.timer-label{font-weight:600;margin-bottom:6px;font-size:0.95rem;}
+.timer-value{font-size:2rem;font-weight:700;}
+.shift-info{margin:14px 0;font-size:0.95rem;}
+.actions{display:flex;flex-direction:row;gap:12px;justify-content:center;margin-top:16px;}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;background:var(--action);color:#000;transition:0.2s;}
 .btn:hover{background:#00c8e0;}
 .btn.secondary{background:transparent;color:var(--action);border:2px solid var(--action);}
-.btn.secondary:hover{background:rgba(0,234,255,0.1);}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;border-radius:6px;display:none;font-weight:bold;z-index:1000;}
-.bottom-nav{display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;width:100%;background:var(--card);border-top:1px solid var(--border);backdrop-filter:blur(6px);padding:6px 0;}
+.btn.secondary:hover{background:rgba(0,234,255,0.12);}
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,234,255,0.95);color:#000;padding:12px 18px;border-radius:8px;display:none;font-weight:700;z-index:1000;}
+.bottom-nav{display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;width:100%;background:var(--card);border-top:1px solid var(--border);backdrop-filter:blur(6px);padding:8px 0;}
 .bottom-nav button{background:none;border:none;color:var(--text);font-size:1.2rem;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
 .bottom-nav button.active{color:var(--action);}
-.status-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:8px;margin:6px 0;display:flex;justify-content:space-between;font-weight:500;}
+.status-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0;display:flex;justify-content:space-between;font-weight:500;font-size:0.95rem;}
 @media(max-width:480px){
-  .card{padding:16px;}
-  h1{font-size:20px;}
-  .timer-value{font-size:1.3rem;}
+  .card{padding:20px;}
+  h1{font-size:22px;}
+  .timer-value{font-size:1.6rem;}
+  .actions{flex-direction:column;}
 }
 </style>
 </head>
@@ -92,7 +92,7 @@ h1{font-size:24px;color:var(--action);margin-bottom:12px;}
   </div>
 </div>
 
-<div class="container" id="homePage">
+<div class="container">
 
   <div class="card">
     <h1>Working Hours</h1>
@@ -107,7 +107,7 @@ h1{font-size:24px;color:var(--action);margin-bottom:12px;}
     <div class="shift-info" id="shiftInfo">Assigned Shift: --:-- to --:--</div>
     <div class="actions">
       <button class="btn" id="punchBtn">Punch In</button>
-      <button class="btn" id="breakBtn">Start Break</button>
+      <button class="btn secondary" id="breakBtn">Start Break</button>
     </div>
   </div>
 
@@ -143,49 +143,43 @@ const breakBtn=document.getElementById("breakBtn");
 const timerDisplay=document.getElementById("workTimer");
 const breakDisplay=document.getElementById("breakTime");
 
-// --- Helper
+// --- Helpers
 function secToHMS(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
-function getDistance(lat1,lon1,lat2,lon2){const R=6371;const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1000;}
+function getDistance(lat1,lon1,lat2,lon2){const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1000;}
 
 // --- Load Rider Info
 async function loadRider(){
   const doc=await db.collection("users").doc(email).get();
-  if(!doc.exists){ toast("❌ Rider not found"); window.location.href="rider-signup.html"; return; }
+  if(!doc.exists){toast("❌ Rider not found"); window.location.href="rider-signup.html"; return;}
   const data=doc.data();
-  document.getElementById("currentScooty").innerText = data.currentScooty || "None";
-  document.getElementById("currentBattery").innerText = data.currentBattery || "None";
-  document.getElementById("shiftInfo").innerText = `Assigned Shift: ${data.shift||"--:-- to --:--"}`;
-  restoreSession();
-}
-
-// --- Restore Timers
-async function restoreSession(){
-  const userDoc = await db.collection("users").doc(email).get();
-  const session = userDoc.data().currentSession || {};
-  const now = new Date();
+  document.getElementById("currentScooty").innerText=data.assignedScooty||"None";
+  document.getElementById("currentBattery").innerText=data.assignedBattery||"None";
+  if(!data.currentSession) data.currentSession={};
+  const session=data.currentSession;
 
   if(session.punchedIn && session.punchInTime){
     punchedIn=true;
-    const punchDate = session.punchInTime.toDate ? session.punchInTime.toDate() : new Date(session.punchInTime);
-    workSeconds=Math.floor((now-punchDate)/1000);
+    const punchDate=session.punchInTime.toDate ? session.punchInTime.toDate() : new Date(session.punchInTime);
+    workSeconds=Math.floor((new Date()-punchDate)/1000 - (session.totalBreakSeconds||0));
     timerDisplay.textContent=secToHMS(workSeconds);
-    clearInterval(workInterval); 
     workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
     punchBtn.textContent="Punch Out";
   }
+
   if(session.onBreak && session.breakStartTime){
     onBreak=true;
-    const breakDate = session.breakStartTime.toDate ? session.breakStartTime.toDate() : new Date(session.breakStartTime);
-    breakSeconds=Math.floor((now-breakDate)/1000);
+    const breakStart=session.breakStartTime.toDate ? session.breakStartTime.toDate() : new Date(session.breakStartTime);
+    breakSeconds=Math.floor((new Date()-breakStart)/1000);
     breakDisplay.textContent=secToHMS(breakSeconds);
-    clearInterval(breakInterval); 
     breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
     breakBtn.textContent="End Break";
+    clearInterval(workInterval); // pause work while on break
   }
 }
+loadRider();
 
 // --- Punch In / Out
-punchBtn.onclick=async ()=>{
+punchBtn.onclick=async()=>{
   if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
@@ -194,22 +188,26 @@ punchBtn.onclick=async ()=>{
     locs.forEach(doc=>{const d=doc.data(); if(getDistance(lat,lng,d.lat,d.lng)<=d.radius) inside=d.name;});
     if(!inside){toast("❌ Outside allowed geofence"); return;}
     const userRef=db.collection("users").doc(email);
-    const userDoc=await userRef.get();
-    const session=userDoc.data().currentSession||{};
-    if(!session.punchedIn){
-      await userRef.set({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null}}, {merge:true});
+    const session=(await userRef.get()).data().currentSession||{};
+    if(!punchedIn){
+      // Punch in
+      await userRef.set({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null,totalBreakSeconds:0}}, {merge:true});
       punchedIn=true; workSeconds=0;
-      clearInterval(workInterval); workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
+      clearInterval(workInterval);
+      workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
       punchBtn.textContent="Punch Out"; toast(`✅ Punched in at ${inside}`);
     } else {
-      await userRef.set({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null}}, {merge:true});
-      punchedIn=false; clearInterval(workInterval); punchBtn.textContent="Punch In"; toast("✅ Punched out");
+      // Punch out
+      await userRef.set({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null,totalBreakSeconds:0}}, {merge:true});
+      punchedIn=false; clearInterval(workInterval); clearInterval(breakInterval); workSeconds=0; breakSeconds=0;
+      timerDisplay.textContent="00:00:00"; breakDisplay.textContent="00:00:00"; punchBtn.textContent="Punch In"; breakBtn.textContent="Start Break";
+      toast("✅ Punched out");
     }
   }, err=>toast("❌ Location error: "+err.message));
 };
 
 // --- Break Start / End
-breakBtn.onclick=async ()=>{
+breakBtn.onclick=async()=>{
   if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
@@ -219,15 +217,29 @@ breakBtn.onclick=async ()=>{
     if(!inside){toast("❌ Outside allowed geofence"); return;}
     const userRef=db.collection("users").doc(email);
     const userDoc=await userRef.get();
-    const session=userDoc.data().currentSession||{};
-    if(!session.onBreak){
-      await userRef.set({currentSession:{onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}}, {merge:true});
-      onBreak=true; breakSeconds=0;
-      clearInterval(breakInterval); breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
-      breakBtn.textContent="End Break"; toast(`✅ Break started at ${inside}`);
+    const session=userDoc.data().currentSession||{totalBreakSeconds:0};
+    if(!onBreak){
+      // Start break
+      onBreak=true;
+      clearInterval(workInterval);
+      breakSeconds=0;
+      breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
+      breakBtn.textContent="End Break";
+      await userRef.set({currentSession:{...session,onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}},{merge:true});
+      toast(`✅ Break started at ${inside}`);
     } else {
-      await userRef.set({currentSession:{onBreak:false,breakStartTime:null}}, {merge:true});
-      onBreak=false; clearInterval(breakInterval); breakBtn.textContent="Start Break"; toast("✅ Break ended");
+      // End break
+      onBreak=false;
+      clearInterval(breakInterval);
+      breakBtn.textContent="Start Break";
+      // update totalBreakSeconds
+      const breakTime=session.breakStartTime ? Math.floor((new Date()-session.breakStartTime.toDate())/1000) : breakSeconds;
+      const totalBreak=session.totalBreakSeconds ? session.totalBreakSeconds + breakTime : breakTime;
+      await userRef.set({currentSession:{...session,onBreak:false,breakStartTime:null,totalBreakSeconds:totalBreak}},{merge:true});
+      // Resume work timer
+      workSeconds+=breakSeconds;
+      workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
+      toast("✅ Break ended");
     }
   }, err=>toast("❌ Location error: "+err.message));
 };
@@ -241,8 +253,6 @@ document.getElementById("navLogs").onclick=()=>{window.location.href=`rider-logs
 
 // --- Logout
 document.getElementById("logoutBtn").onclick=()=>firebase.auth().signOut().then(()=>window.location.href="rider-signin.html");
-
-loadRider();
 </script>
 
 </body>
