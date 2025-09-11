@@ -155,32 +155,10 @@ h1{
   transform:scale(1.2);
   text-shadow:0 0 6px #00eaff;
 }
-.progress-ring{
-  position:relative;
-  width:80px;
-  height:80px;
-}
-.progress-ring svg{
-  transform:rotate(-90deg);
-  width:80px;
-  height:80px;
-}
-.progress-ring circle{
-  fill:transparent;
-  stroke:var(--action);
-  stroke-width:6;
-  stroke-dasharray:251.2;
-  stroke-dashoffset:251.2;
-  transition:stroke-dashoffset 0.3s;
-}
-.progress-label{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  font-size:12px;
-  color:#fff;
-  text-align:center;
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;
+  border-radius:6px;display:none;font-weight:bold;z-index:1000;
 }
 @media(max-width:480px){
   .card{padding:16px;}
@@ -201,23 +179,13 @@ h1{
 <h1>Work Tracker</h1>
 
 <div class="info-block">
-<div class="progress-ring" id="workRing">
-  <svg>
-    <circle r="40" cx="40" cy="40"></circle>
-  </svg>
-  <div class="progress-label" id="workTimer">00:00:00</div>
-</div>
 <div class="info-label">Working Hours</div>
+<div class="info-value" id="workTimer">00:00:00</div>
 </div>
 
 <div class="info-block">
-<div class="progress-ring" id="breakRing">
-  <svg>
-    <circle r="40" cx="40" cy="40"></circle>
-  </svg>
-  <div class="progress-label" id="breakTime">00:00:00</div>
-</div>
 <div class="info-label">Total Break Time</div>
+<div class="info-value" id="breakTime">00:00:00</div>
 </div>
 
 <div class="info-block">
@@ -246,11 +214,15 @@ h1{
 <a href="#" id="navLogs"><i class="fa-solid fa-file-lines"></i>Logs</a>
 </div>
 
+<div id="toast"></div>
+
 <script>
-// URL email param
+const toast = msg => { const t = document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000); }
+
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
-if(!email){ alert("❌ Not signed in"); window.location.href="rider-signin.html"; }
+if(!email){ toast("❌ Not signed in"); window.location.href="rider-signin.html"; }
+
 const navEmail=encodeURIComponent(email);
 document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
 document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
@@ -265,13 +237,12 @@ const punchBtn=document.getElementById("punchBtn");
 const breakBtn=document.getElementById("breakBtn");
 const timerDisplay=document.getElementById("workTimer");
 const breakDisplay=document.getElementById("breakTime");
-function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; updateRing('workRing', workSeconds); }
-function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; updateRing('breakRing', breakSeconds); }
-function updateRing(id, seconds){ const c=document.querySelector(`#${id} circle`); const max=8*3600; const offset=251.2-((seconds/max)*251.2); c.style.strokeDashoffset=offset; }
 
-// Haversine
-function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c; }
+// Helpers
+function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; }
+function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; }
+function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*c=Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*2*R; }
 
 // Load assignments
 async function loadAssignments(){
@@ -282,54 +253,71 @@ async function loadAssignments(){
 }
 loadAssignments();
 
-// Restore timers
+// Restore timers from Firebase
 async function restoreTimers(){
   const att=await db.collection("attendance").where("rider","==",email).orderBy("timestamp","asc").get();
-  let lastPunchIn=null, lastBreakStart=null;
+  let lastPunchIn=null,lastBreakStart=null;
+  workSeconds=0; breakSeconds=0;
+
   att.forEach(doc=>{
     const d=doc.data();
-    if(d.type=="punch_in") lastPunchIn=d.timestamp?.toDate();
-    if(d.type=="punch_out" && lastPunchIn){ workSeconds+=Math.floor((d.timestamp.toDate()-lastPunchIn)/1000); lastPunchIn=null; }
-    if(d.type=="break_start") lastBreakStart=d.timestamp?.toDate();
-    if(d.type=="break_end" && lastBreakStart){ breakSeconds+=Math.floor((d.timestamp.toDate()-lastBreakStart)/1000); lastBreakStart=null; }
+    const ts=d.timestamp?.toDate();
+    if(d.type==="punch_in") lastPunchIn=ts;
+    if(d.type==="punch_out" && lastPunchIn){ workSeconds+=Math.floor((ts-lastPunchIn)/1000); lastPunchIn=null; }
+    if(d.type==="break_start") lastBreakStart=ts;
+    if(d.type==="break_end" && lastBreakStart){ breakSeconds+=Math.floor((ts-lastBreakStart)/1000); lastBreakStart=null; }
   });
+
   timerDisplay.textContent=secToHMS(workSeconds);
   breakDisplay.textContent=secToHMS(breakSeconds);
+
   if(lastPunchIn){ punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); }
   if(lastBreakStart){ onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); }
 }
 restoreTimers();
 
-// Punch / Break
-punchBtn.addEventListener("click", ()=>{
-  if(!navigator.geolocation){ alert("❌ Geolocation not supported"); return; }
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat=pos.coords.latitude, lng=pos.coords.longitude;
-    const locs=await db.collection("locations").get();
-    let inside=null;
-    locs.forEach(doc=>{ const d=doc.data(); const distance=getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000; if(distance<=d.radius) inside=d; });
-    if(!inside){ alert("❌ You are outside allowed attendance zone"); return; }
+// Geofenced punch
+async function checkGeofence(){ 
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){ toast("❌ Geolocation not supported."); reject(); return; }
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const lat=pos.coords.latitude;
+      const lng=pos.coords.longitude;
+      const locs=await db.collection("locations").get();
+      let inside=null;
+      locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng)*1000; if(dist<=d.radius) inside=d; });
+      if(inside) resolve(inside.name); else { toast("❌ You are outside allowed zones."); reject(); }
+    },err=>{ toast("❌ Location error: "+err.message); reject(); });
+  });
+}
+
+// Punch in/out
+punchBtn.addEventListener("click", async()=>{
+  try{
+    const loc=await checkGeofence();
     if(!punchedIn){
-      punchedIn=true; punchBtn.textContent="Punch Out"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000);
-      await db.collection("attendance").add({rider:email,type:"punch_in",lat,lng,location:inside.name,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection("attendance").add({rider:email,type:"punch_in",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Punched In");
     } else {
-      punchedIn=false; punchBtn.textContent="Punch In"; clearInterval(timerInterval);
-      await db.collection("attendance").add({rider:email,type:"punch_out",lat,lng,location:inside.name,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection("attendance").add({rider:email,type:"punch_out",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      punchedIn=false; punchBtn.textContent="Punch In"; clearInterval(timerInterval); toast("✅ Punched Out");
     }
-  }, err=> alert("❌ Location error: "+err.message));
+  } catch(e){}
 });
 
-breakBtn.addEventListener("click", ()=>{
-  if(!punchedIn){ alert("⚠️ Punch in first"); return; }
+// Break button
+breakBtn.addEventListener("click", async()=>{
+  if(!punchedIn){ toast("❌ Punch in first"); return; }
   if(!onBreak){
-    onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000);
-    db.collection("attendance").add({rider:email,type:"break_start",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+    const loc=await checkGeofence();
+    await db.collection("attendance").add({rider:email,type:"break_start",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+    onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); toast("✅ Break Started");
   } else {
-    onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000);
-    db.collection("attendance").add({rider:email,type:"break_end",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+    const loc=await checkGeofence();
+    await db.collection("attendance").add({rider:email,type:"break_end",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+    onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Break Ended");
   }
 });
 </script>
-
 </body>
 </html>
