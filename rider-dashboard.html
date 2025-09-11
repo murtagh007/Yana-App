@@ -4,7 +4,6 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YANA — Rider Dashboard</title>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -13,160 +12,64 @@
 
 <style>
 :root{
-  --bg:#0a0f12;
-  --card:rgba(255,255,255,0.08);
-  --border:rgba(255,255,255,0.2);
-  --action:#00eaff;
-  --text:#eaf4f8;
-  --radius:16px;
+  --bg:#0a0f12; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.2);
+  --action:#00eaff; --text:#eaf4f8; --radius:16px;
 }
 body{
-  margin:0;
-  font-family:'Inter',sans-serif;
+  margin:0; font-family:'Inter',sans-serif;
   background:linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
-  background-size:600% 600%;
-  animation:gradientShift 20s ease infinite;
-  color:var(--text);
-  display:flex;
-  flex-direction:column;
-  min-height:100vh;
+  background-size:600% 600%; animation:gradientShift 20s ease infinite;
+  color:var(--text); display:flex; flex-direction:column; min-height:100vh;
 }
-@keyframes gradientShift{
-  0%{background-position:0% 50%}
-  50%{background-position:100% 50%}
-  100%{background-position:0% 50%}
-}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .navbar{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:14px;
-  background:linear-gradient(135deg,#00eaff,#0066ff);
-  border-radius:0 0 20px 20px;
-  font-weight:bold;
-  color:#fff;
-  font-size:1.2rem;
+  display:flex; justify-content:center; align-items:center;
+  padding:14px; background:linear-gradient(135deg,#00eaff,#0066ff);
+  border-radius:0 0 20px 20px; font-weight:bold; color:#fff; font-size:1.2rem;
   box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
-.container{
-  flex:1;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  padding:12px;
-}
+.container{flex:1; display:flex; justify-content:center; align-items:flex-start; padding:12px;}
 .card{
-  background:rgba(255,255,255,0.05);
-  border-radius:20px;
-  padding:20px;
-  width:100%;
-  max-width:400px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.4);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.2);
-  display:flex;
-  flex-direction:column;
-  gap:16px;
+  background:rgba(255,255,255,0.05); border-radius:20px; padding:20px;
+  width:100%; max-width:400px; box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.2);
+  display:flex; flex-direction:column; gap:16px;
 }
-h1{
-  font-size:20px;
-  font-weight:700;
-  color:var(--action);
-  text-align:center;
-}
+h1{font-size:20px; font-weight:700; color:var(--action); text-align:center;}
 .info-block{
-  background:rgba(255,255,255,0.08);
-  border-radius:16px;
-  padding:12px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  position:relative;
-  justify-content:center;
+  background:rgba(255,255,255,0.08); border-radius:16px;
+  padding:12px; display:flex; flex-direction:column; align-items:center; justify-content:center;
 }
 .info-label{font-size:13px;color:#aaa;}
 .info-value{font-size:20px;font-weight:bold;margin-top:4px;}
-.btn-group{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:space-between;
-}
+.btn-group{display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;}
 .btn{
-  flex:1;
-  min-width:48%;
-  text-align:center;
-  border-radius:50px;
-  padding:12px 0;
-  font-weight:700;
-  color:var(--action);
-  border:2px solid var(--action);
-  cursor:pointer;
-  transition:all 0.2s ease;
-  background:rgba(0,0,0,0.2);
+  flex:1; min-width:48%; text-align:center; border-radius:50px; padding:12px 0;
+  font-weight:700; color:var(--action); border:2px solid var(--action);
+  cursor:pointer; transition:all 0.2s ease; background:rgba(0,0,0,0.2);
 }
 .btn:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,234,255,0.4);}
-.status{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
+.status{display:flex; flex-direction:column; gap:8px;}
 .status-box{
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.2);
-  border-radius:16px;
-  padding:8px 12px;
-  font-weight:500;
-  color:var(--text);
-  display:flex;
-  justify-content:space-between;
-  box-shadow:inset 0 0 6px rgba(0,0,0,0.2);
-  font-size:14px;
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);
+  border-radius:16px; padding:8px 12px; font-weight:500; color:var(--text);
+  display:flex; justify-content:space-between; box-shadow:inset 0 0 6px rgba(0,0,0,0.2); font-size:14px;
 }
 .bottom-nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
-  background:rgba(0,0,0,0.25);
-  border-radius:24px 24px 0 0;
-  box-shadow:0 -4px 12px rgba(0,0,0,0.4);
-  display:flex;
-  justify-content:space-around;
-  padding:8px 0;
-  backdrop-filter:blur(6px);
-  z-index:1000;
+  position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.25);
+  border-radius:24px 24px 0 0; box-shadow:0 -4px 12px rgba(0,0,0,0.4);
+  display:flex; justify-content:space-around; padding:8px 0; backdrop-filter:blur(6px); z-index:1000;
 }
-.bottom-nav a{
-  color:var(--text);
-  text-decoration:none;
-  text-align:center;
-  flex:1;
-  font-size:12px;
-  transition:all 0.2s;
-}
-.bottom-nav a i{
-  display:block;
-  font-size:18px;
-  margin-bottom:2px;
-  color:var(--action);
-}
-.bottom-nav a.active i{
-  transform:scale(1.2);
-  text-shadow:0 0 6px #00eaff;
-}
+.bottom-nav a{color:var(--text); text-decoration:none; text-align:center; flex:1; font-size:12px;}
+.bottom-nav a i{display:block; font-size:18px; margin-bottom:2px; color:var(--action);}
+.bottom-nav a.active i{transform:scale(1.2); text-shadow:0 0 6px #00eaff;}
 #toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
   background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;
   border-radius:6px;display:none;font-weight:bold;z-index:1000;
 }
-@media(max-width:480px){
-  .card{padding:16px;}
-  .info-value{font-size:18px;}
-  h1{font-size:18px;}
-  .btn{padding:10px 0; font-size:14px;}
-  .status-box{font-size:13px; padding:6px 8px;}
-}
+@media(max-width:480px){.card{padding:16px;}.info-value{font-size:18px;} h1{font-size:18px;}
+.btn{padding:10px 0; font-size:14px;} .status-box{font-size:13px; padding:6px 8px;}}
 </style>
 </head>
 <body>
@@ -175,7 +78,6 @@ h1{
 
 <div class="container">
 <div class="card">
-
 <h1>Work Tracker</h1>
 
 <div class="info-block">
@@ -202,7 +104,6 @@ h1{
 <div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
 <div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
 </div>
-
 </div>
 </div>
 
@@ -218,11 +119,9 @@ h1{
 
 <script>
 const toast = msg => { const t = document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000); }
-
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
 if(!email){ toast("❌ Not signed in"); window.location.href="rider-signin.html"; }
-
 const navEmail=encodeURIComponent(email);
 document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
 document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
@@ -242,7 +141,7 @@ const breakDisplay=document.getElementById("breakTime");
 function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
 function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; }
 function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; }
-function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*c=Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*2*R; }
+function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c*1000; }
 
 // Load assignments
 async function loadAssignments(){
@@ -256,21 +155,16 @@ loadAssignments();
 // Restore timers from Firebase
 async function restoreTimers(){
   const att=await db.collection("attendance").where("rider","==",email).orderBy("timestamp","asc").get();
-  let lastPunchIn=null,lastBreakStart=null;
-  workSeconds=0; breakSeconds=0;
-
+  let lastPunchIn=null,lastBreakStart=null; workSeconds=0; breakSeconds=0;
   att.forEach(doc=>{
-    const d=doc.data();
-    const ts=d.timestamp?.toDate();
+    const d=doc.data(); const ts=d.timestamp?.toDate();
     if(d.type==="punch_in") lastPunchIn=ts;
     if(d.type==="punch_out" && lastPunchIn){ workSeconds+=Math.floor((ts-lastPunchIn)/1000); lastPunchIn=null; }
     if(d.type==="break_start") lastBreakStart=ts;
     if(d.type==="break_end" && lastBreakStart){ breakSeconds+=Math.floor((ts-lastBreakStart)/1000); lastBreakStart=null; }
   });
-
   timerDisplay.textContent=secToHMS(workSeconds);
   breakDisplay.textContent=secToHMS(breakSeconds);
-
   if(lastPunchIn){ punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); }
   if(lastBreakStart){ onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); }
 }
@@ -285,7 +179,7 @@ async function checkGeofence(){
       const lng=pos.coords.longitude;
       const locs=await db.collection("locations").get();
       let inside=null;
-      locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng)*1000; if(dist<=d.radius) inside=d; });
+      locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d; });
       if(inside) resolve(inside.name); else { toast("❌ You are outside allowed zones."); reject(); }
     },err=>{ toast("❌ Location error: "+err.message); reject(); });
   });
