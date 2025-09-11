@@ -4,237 +4,246 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YANA — Rider Dashboard</title>
+<link rel="stylesheet" href="styles.css">
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
 <style>
 :root{
-  --bg:#0a0f12; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.2);
-  --action:#00eaff; --text:#eaf4f8; --radius:16px;
+  --bg:#0a0f12;
+  --card:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.2);
+  --action:#00eaff;
+  --text:#eaf4f8;
+  --radius:16px;
 }
 body{
-  margin:0; font-family:'Inter',sans-serif;
-  background:linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
-  background-size:600% 600%; animation:gradientShift 20s ease infinite;
-  color:var(--text); display:flex; flex-direction:column; min-height:100vh;
+  margin:0;
+  font-family:'Inter',sans-serif;
+  background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
+  background-size:600% 600%;
+  animation: gradientShift 20s ease infinite;
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
 }
-@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes gradientShift{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+/* Navbar */
 .navbar{
-  display:flex; justify-content:center; align-items:center;
-  padding:14px; background:linear-gradient(135deg,#00eaff,#0066ff);
-  border-radius:0 0 20px 20px; font-weight:bold; color:#fff; font-size:1.2rem;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 20px;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(6px);
+  position:sticky;
+  top:0;
+  z-index:1000;
 }
-.container{flex:1; display:flex; justify-content:center; align-items:flex-start; padding:12px;}
-.card{
-  background:rgba(255,255,255,0.05); border-radius:20px; padding:20px;
-  width:100%; max-width:400px; box-shadow:0 8px 32px rgba(0,0,0,0.4);
-  backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.2);
-  display:flex; flex-direction:column; gap:16px;
+.navbar h2{margin:0;color:var(--action);font-size:1.2rem;}
+.profile{position:relative;display:flex;align-items:center;cursor:pointer;}
+.profile-pic{width:36px;height:36px;border-radius:50%;background:var(--action);color:#000;font-weight:bold;display:flex;align-items:center;justify-content:center;}
+.dropdown{display:none;position:absolute;top:44px;right:0;background:var(--card);border-radius:var(--radius);padding:4px 0;min-width:100px;}
+.dropdown button{width:100%;background:none;border:none;color:var(--text);padding:8px 12px;cursor:pointer;text-align:left;}
+.profile:hover .dropdown{display:block;}
+
+/* Container */
+.container{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:0 4px 20px rgba(0,234,255,0.3);text-align:center;backdrop-filter:blur(10px);margin-bottom:16px;}
+h1{font-size:24px;color:var(--action);margin-bottom:12px;}
+.timer-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:8px 0;}
+.timer-label{font-weight:500;margin-bottom:4px;}
+.timer-value{font-size:1.5rem;font-weight:600;}
+.shift-info{margin:12px 0;}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;background:var(--action);color:#000;transition:0.2s;}
+.btn:hover{background:#00c8e0;}
+.btn.secondary{background:transparent;color:var(--action);border:2px solid var(--action);}
+.btn.secondary:hover{background:rgba(0,234,255,0.1);}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;border-radius:6px;display:none;font-weight:bold;z-index:1000;}
+.bottom-nav{display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;width:100%;background:var(--card);border-top:1px solid var(--border);backdrop-filter:blur(6px);padding:6px 0;}
+.bottom-nav button{background:none;border:none;color:var(--text);font-size:1.2rem;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
+.bottom-nav button.active{color:var(--action);}
+.status-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:8px;margin:6px 0;display:flex;justify-content:space-between;font-weight:500;}
+@media(max-width:480px){
+  .card{padding:16px;}
+  h1{font-size:20px;}
+  .timer-value{font-size:1.3rem;}
 }
-h1{font-size:20px; font-weight:700; color:var(--action); text-align:center;}
-.info-block{
-  background:rgba(255,255,255,0.08); border-radius:16px;
-  padding:12px; display:flex; flex-direction:column; align-items:center; justify-content:center;
-}
-.info-label{font-size:13px;color:#aaa;}
-.info-value{font-size:20px;font-weight:bold;margin-top:4px;}
-.btn-group{display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;}
-.btn{
-  flex:1; min-width:48%; text-align:center; border-radius:50px; padding:12px 0;
-  font-weight:700; color:var(--action); border:2px solid var(--action);
-  cursor:pointer; transition:all 0.2s ease; background:rgba(0,0,0,0.2);
-}
-.btn:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,234,255,0.4);}
-.status{display:flex; flex-direction:column; gap:8px;}
-.status-box{
-  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2);
-  border-radius:16px; padding:8px 12px; font-weight:500; color:var(--text);
-  display:flex; justify-content:space-between; box-shadow:inset 0 0 6px rgba(0,0,0,0.2); font-size:14px;
-}
-.bottom-nav{
-  position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.25);
-  border-radius:24px 24px 0 0; box-shadow:0 -4px 12px rgba(0,0,0,0.4);
-  display:flex; justify-content:space-around; padding:8px 0; backdrop-filter:blur(6px); z-index:1000;
-}
-.bottom-nav a{color:var(--text); text-decoration:none; text-align:center; flex:1; font-size:12px;}
-.bottom-nav a i{display:block; font-size:18px; margin-bottom:2px; color:var(--action);}
-.bottom-nav a.active i{transform:scale(1.2); text-shadow:0 0 6px #00eaff;}
-#toast{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;
-  border-radius:6px;display:none;font-weight:bold;z-index:1000;
-}
-/* Progress bars */
-.progress-bar { width:100%; height:12px; background: rgba(255,255,255,0.1); border-radius:8px; overflow:hidden; margin-top:4px; }
-.progress-fill { width:0%; height:100%; background: linear-gradient(90deg,#00eaff,#0066ff); transition: width 0.5s ease; border-radius:8px; }
-@media(max-width:480px){.card{padding:16px;}.info-value{font-size:18px;} h1{font-size:18px;}
-.btn{padding:10px 0; font-size:14px;} .status-box{font-size:13px; padding:6px 8px;}}
 </style>
 </head>
 <body>
 
-<div class="navbar">⚡ YANA Rider</div>
-
-<div class="container">
-<div class="card">
-<h1>Work Tracker</h1>
-
-<div class="info-block">
-<div class="info-label">Working Hours</div>
-<div class="info-value" id="workTimer">00:00:00</div>
+<div class="navbar">
+  <h2>⚡ YANA Rider</h2>
+  <div class="profile">
+    <div class="profile-pic">R</div>
+    <div class="dropdown">
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </div>
 </div>
 
-<div class="info-block">
-<div class="info-label">Total Break Time</div>
-<div class="info-value" id="breakTime">00:00:00</div>
-</div>
+<div class="container" id="homePage">
 
-<div class="info-block">
-<div class="info-label">Shift Progress</div>
-<div class="progress-bar"><div id="shiftProgress" class="progress-fill"></div></div>
-</div>
+  <div class="card">
+    <h1>Working Hours</h1>
+    <div class="timer-box">
+      <div class="timer-label">Total Worked</div>
+      <div class="timer-value" id="workTimer">00:00:00</div>
+    </div>
+    <div class="timer-box">
+      <div class="timer-label">Break Time</div>
+      <div class="timer-value" id="breakTime">00:00:00</div>
+    </div>
+    <div class="shift-info" id="shiftInfo">Assigned Shift: --:-- to --:--</div>
+    <div class="actions">
+      <button class="btn" id="punchBtn">Punch In</button>
+      <button class="btn" id="breakBtn">Start Break</button>
+    </div>
+  </div>
 
-<div class="info-block">
-<div class="info-label">Assigned Shift</div>
-<div class="info-value" id="shiftTiming">09:00 AM – 06:00 PM</div>
-</div>
+  <div class="card">
+    <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
+    <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
+  </div>
 
-<div class="btn-group">
-<button class="btn" id="punchBtn">Punch In</button>
-<button class="btn" id="breakBtn">Start Break</button>
-</div>
-
-<div class="status">
-<div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
-<div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
-</div>
-</div>
-</div>
-
-<div class="bottom-nav">
-<a href="#" id="navHome" class="active"><i class="fa-solid fa-house"></i>Home</a>
-<a href="#" id="navScanner"><i class="fa-solid fa-qrcode"></i>Scanner</a>
-<a href="#" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
-<a href="#" id="navAttendance"><i class="fa-solid fa-user-check"></i>Attendance</a>
-<a href="#" id="navLogs"><i class="fa-solid fa-file-lines"></i>Logs</a>
 </div>
 
 <div id="toast"></div>
 
+<div class="bottom-nav">
+  <button id="navHome" class="active"><i class="fas fa-home"></i><span>Home</span></button>
+  <button id="navScanner"><i class="fas fa-qrcode"></i><span>Scan</span></button>
+  <button id="navIssue"><i class="fas fa-triangle-exclamation"></i><span>Issues</span></button>
+  <button id="navAttendance"><i class="fas fa-user-check"></i><span>Attendance</span></button>
+  <button id="navLogs"><i class="fas fa-file-lines"></i><span>Logs</span></button>
+</div>
+
 <script>
-// ------------------ INITIAL SETUP ------------------
-const toast = msg => { const t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000);}
+const toast = msg=>{const t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000);}
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
-if(!email){ toast("❌ Not signed in"); window.location.href="rider-signin.html";}
-const navEmail=encodeURIComponent(email);
-document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
-document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
-document.getElementById("navIssues").onclick = ()=> window.location.href=`issue.html?email=${navEmail}`;
-document.getElementById("navAttendance").onclick = ()=> window.location.href=`attendance.html?email=${navEmail}`;
-document.getElementById("navLogs").onclick = ()=> window.location.href=`rider-logs.html?email=${navEmail}`;
+if(!email){toast("❌ Not signed in!"); window.location.href="rider-signin.html";}
 
-// ------------------ TIMERS ------------------
-let punchedIn=false, onBreak=false, workSeconds=0, breakSeconds=0;
-let timerInterval, breakInterval;
+let workSeconds=0, breakSeconds=0;
+let workInterval, breakInterval;
+let punchedIn=false, onBreak=false;
+
 const punchBtn=document.getElementById("punchBtn");
 const breakBtn=document.getElementById("breakBtn");
 const timerDisplay=document.getElementById("workTimer");
 const breakDisplay=document.getElementById("breakTime");
 
-// ------------------ HELPERS ------------------
-function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; }
-function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; }
-function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c*1000; }
+// --- Helper
+function secToHMS(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
+function getDistance(lat1,lon1,lat2,lon2){const R=6371;const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1000;}
 
-// ------------------ ASSIGNMENTS ------------------
-async function loadAssignments(){
-  const s=await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  let scooty="None"; s.forEach(d=>scooty=d.id); document.getElementById("currentScooty").textContent=scooty;
-  const b=await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  let battery="None"; b.forEach(d=>battery=d.id); document.getElementById("currentBattery").textContent=battery;
+// --- Load Rider Info
+async function loadRider(){
+  const doc=await db.collection("users").doc(email).get();
+  if(!doc.exists){ toast("❌ Rider not found"); window.location.href="rider-signup.html"; return; }
+  const data=doc.data();
+  document.getElementById("currentScooty").innerText = data.currentScooty || "None";
+  document.getElementById("currentBattery").innerText = data.currentBattery || "None";
+  document.getElementById("shiftInfo").innerText = `Assigned Shift: ${data.shift||"--:-- to --:--"}`;
+  restoreSession();
 }
-loadAssignments();
 
-// ------------------ SHIFT PROGRESS ------------------
-function updateShiftProgress(){
-  const shiftStart=new Date(); shiftStart.setHours(9,0,0,0);
-  const shiftEnd=new Date(); shiftEnd.setHours(18,0,0,0);
-  const now=new Date();
-  let progress=0;
-  if(now>=shiftStart && now<=shiftEnd){ progress=((now-shiftStart)/(shiftEnd-shiftStart))*100; }
-  else if(now>shiftEnd){ progress=100; }
-  document.getElementById("shiftProgress").style.width=progress+"%";
+// --- Restore Timers
+async function restoreSession(){
+  const userDoc = await db.collection("users").doc(email).get();
+  const session = userDoc.data().currentSession || {};
+  const now = new Date();
+
+  if(session.punchedIn && session.punchInTime){
+    punchedIn=true;
+    workSeconds=Math.floor((now.toDate()-session.punchInTime.toDate())/1000);
+    timerDisplay.textContent=secToHMS(workSeconds);
+    workInterval=setInterval(()=>{workSeconds++;timerDisplay.textContent=secToHMS(workSeconds);},1000);
+    punchBtn.textContent="Punch Out";
+  }
+  if(session.onBreak && session.breakStartTime){
+    onBreak=true;
+    breakSeconds=Math.floor((now.toDate()-session.breakStartTime.toDate())/1000);
+    breakDisplay.textContent=secToHMS(breakSeconds);
+    breakInterval=setInterval(()=>{breakSeconds++;breakDisplay.textContent=secToHMS(breakSeconds);},1000);
+    breakBtn.textContent="End Break";
+  }
 }
-setInterval(updateShiftProgress,1000);
 
-// ------------------ RESTORE TIMERS FROM FIREBASE ------------------
-async function restoreTimers(){
-  const att=await db.collection("attendance").where("rider","==",email).orderBy("timestamp","asc").get();
-  let lastPunchIn=null, lastBreakStart=null;
-  workSeconds=0; breakSeconds=0;
-  att.forEach(doc=>{
-    const d=doc.data(); const ts=d.timestamp?.toDate();
-    if(d.type==="punch_in") lastPunchIn=ts;
-    if(d.type==="punch_out" && lastPunchIn){ workSeconds+=Math.floor((ts-lastPunchIn)/1000); lastPunchIn=null; }
-    if(d.type==="break_start") lastBreakStart=ts;
-    if(d.type==="break_end" && lastBreakStart){ breakSeconds+=Math.floor((ts-lastBreakStart)/1000); lastBreakStart=null; }
-  });
-  if(lastPunchIn){ punchedIn=true; timerInterval=setInterval(updateWorkTimer,1000); }
-  if(lastBreakStart){ onBreak=true; breakInterval=setInterval(updateBreakTimer,1000); }
-  timerDisplay.textContent=secToHMS(workSeconds);
-  breakDisplay.textContent=secToHMS(breakSeconds);
-  punchBtn.textContent=punchedIn?"Punch Out":"Punch In";
-  breakBtn.textContent=onBreak?"End Break":"Start Break";
-}
-restoreTimers();
-
-// ------------------ PUNCH IN / OUT ------------------
-punchBtn.onclick = ()=>{
-  if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
+// --- Punch In / Out
+punchBtn.onclick=async ()=>{
+  if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
     const locs=await db.collection("locations").get();
     let inside=null;
-    locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d.name; });
-    if(!inside){ toast("❌ Outside allowed geofence"); return; }
-    if(!punchedIn){
-      await db.collection("attendance").add({rider:email,type:"punch_in",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      punchedIn=true; punchBtn.textContent="Punch Out";
-      timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Punched In");
+    locs.forEach(doc=>{const d=doc.data(); if(getDistance(lat,lng,d.lat,d.lng)<=d.radius) inside=d.name;});
+    if(!inside){toast("❌ Outside allowed geofence"); return;}
+    const userRef=db.collection("users").doc(email);
+    const userDoc=await userRef.get();
+    const session=userDoc.data().currentSession||{};
+    if(!session.punchedIn){
+      await userRef.update({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null}});
+      workSeconds=0; timerDisplay.textContent=secToHMS(workSeconds);
+      clearInterval(workInterval); workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
+      punchedIn=true; punchBtn.textContent="Punch Out"; toast("✅ Punched In");
     } else{
-      await db.collection("attendance").add({rider:email,type:"punch_out",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      punchedIn=false; punchBtn.textContent="Punch In";
-      clearInterval(timerInterval); toast("✅ Punched Out");
+      clearInterval(workInterval);
+      await db.collection("attendance").add({rider:email,type:"punch_out",workSeconds,location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      await userRef.update({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null}});
+      punchedIn=false; punchBtn.textContent="Punch In"; toast("✅ Punched Out");
     }
-  }, err=>{ toast("❌ Location error: "+err.message); });
+  }, err=>toast("❌ Location error: "+err.message));
 };
 
-// ------------------ BREAK START / END ------------------
-breakBtn.onclick = ()=>{
-  if(!punchedIn){ toast("❌ Punch in first"); return; }
-  if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
+// --- Break Start / End
+breakBtn.onclick=async ()=>{
+  if(!punchedIn){toast("❌ Punch in first"); return;}
+  if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
     const locs=await db.collection("locations").get();
     let inside=null;
-    locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d.name; });
-    if(!inside){ toast("❌ Outside allowed geofence"); return; }
+    locs.forEach(doc=>{const d=doc.data(); if(getDistance(lat,lng,d.lat,d.lng)<=d.radius) inside=d.name;});
+    if(!inside){toast("❌ Outside allowed geofence"); return;}
+    const userRef=db.collection("users").doc(email);
+    const userDoc=await userRef.get();
+    const session=userDoc.data().currentSession||{};
     if(!onBreak){
-      await db.collection("attendance").add({rider:email,type:"break_start",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      onBreak=true; breakBtn.textContent="End Break"; breakInterval=setInterval(updateBreakTimer,1000); toast("✅ Break Started");
+      await userRef.update({currentSession:{...session,onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}});
+      breakSeconds=0; breakDisplay.textContent=secToHMS(breakSeconds);
+      clearInterval(breakInterval); breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
+      onBreak=true; breakBtn.textContent="End Break"; toast("✅ Break Started");
     } else{
-      await db.collection("attendance").add({rider:email,type:"break_end",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); toast("✅ Break Ended");
+      clearInterval(breakInterval);
+      await db.collection("attendance").add({rider:email,type:"break_end",breakSeconds,location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      await userRef.update({currentSession:{...session,onBreak:false,breakStartTime:null}});
+      onBreak=false; breakBtn.textContent="Start Break"; toast("✅ Break Ended");
     }
-  }, err=>{ toast("❌ Location error: "+err.message); });
+  }, err=>toast("❌ Location error: "+err.message));
 };
-</script>
 
+// --- Logout
+document.getElementById("logoutBtn").onclick = ()=>{firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");};
+
+// --- Navigation
+document.getElementById("navHome").onclick = ()=>{window.location.href=`rider-dashboard.html?email=${email}`;}
+document.getElementById("navScanner").onclick = ()=>{window.location.href=`scanner.html?email=${email}`;}
+document.getElementById("navIssue").onclick = ()=>{window.location.href=`issue.html?email=${email}`;}
+document.getElementById("navAttendance").onclick = ()=>{window.location.href=`rider-attendance.html?email=${email}`;}
+document.getElementById("navLogs").onclick = ()=>{window.location.href=`rider-logs.html?email=${email}`;}
+
+loadRider();
+</script>
 </body>
 </html>
