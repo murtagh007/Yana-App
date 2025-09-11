@@ -166,16 +166,20 @@ async function restoreSession(){
 
   if(session.punchedIn && session.punchInTime){
     punchedIn=true;
-    workSeconds=Math.floor((now.toDate()-session.punchInTime.toDate())/1000);
+    const punchDate = session.punchInTime.toDate ? session.punchInTime.toDate() : new Date(session.punchInTime);
+    workSeconds=Math.floor((now-punchDate)/1000);
     timerDisplay.textContent=secToHMS(workSeconds);
-    workInterval=setInterval(()=>{workSeconds++;timerDisplay.textContent=secToHMS(workSeconds);},1000);
+    clearInterval(workInterval); 
+    workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
     punchBtn.textContent="Punch Out";
   }
   if(session.onBreak && session.breakStartTime){
     onBreak=true;
-    breakSeconds=Math.floor((now.toDate()-session.breakStartTime.toDate())/1000);
+    const breakDate = session.breakStartTime.toDate ? session.breakStartTime.toDate() : new Date(session.breakStartTime);
+    breakSeconds=Math.floor((now-breakDate)/1000);
     breakDisplay.textContent=secToHMS(breakSeconds);
-    breakInterval=setInterval(()=>{breakSeconds++;breakDisplay.textContent=secToHMS(breakSeconds);},1000);
+    clearInterval(breakInterval); 
+    breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
     breakBtn.textContent="End Break";
   }
 }
@@ -193,22 +197,19 @@ punchBtn.onclick=async ()=>{
     const userDoc=await userRef.get();
     const session=userDoc.data().currentSession||{};
     if(!session.punchedIn){
-      await userRef.update({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null}});
-      workSeconds=0; timerDisplay.textContent=secToHMS(workSeconds);
+      await userRef.set({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null}}, {merge:true});
+      punchedIn=true; workSeconds=0;
       clearInterval(workInterval); workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
-      punchedIn=true; punchBtn.textContent="Punch Out"; toast("✅ Punched In");
-    } else{
-      clearInterval(workInterval);
-      await db.collection("attendance").add({rider:email,type:"punch_out",workSeconds,location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      await userRef.update({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null}});
-      punchedIn=false; punchBtn.textContent="Punch In"; toast("✅ Punched Out");
+      punchBtn.textContent="Punch Out"; toast(`✅ Punched in at ${inside}`);
+    } else {
+      await userRef.set({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null}}, {merge:true});
+      punchedIn=false; clearInterval(workInterval); punchBtn.textContent="Punch In"; toast("✅ Punched out");
     }
   }, err=>toast("❌ Location error: "+err.message));
 };
 
 // --- Break Start / End
 breakBtn.onclick=async ()=>{
-  if(!punchedIn){toast("❌ Punch in first"); return;}
   if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude, lng=pos.coords.longitude;
@@ -219,31 +220,30 @@ breakBtn.onclick=async ()=>{
     const userRef=db.collection("users").doc(email);
     const userDoc=await userRef.get();
     const session=userDoc.data().currentSession||{};
-    if(!onBreak){
-      await userRef.update({currentSession:{...session,onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}});
-      breakSeconds=0; breakDisplay.textContent=secToHMS(breakSeconds);
+    if(!session.onBreak){
+      await userRef.set({currentSession:{onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}}, {merge:true});
+      onBreak=true; breakSeconds=0;
       clearInterval(breakInterval); breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
-      onBreak=true; breakBtn.textContent="End Break"; toast("✅ Break Started");
-    } else{
-      clearInterval(breakInterval);
-      await db.collection("attendance").add({rider:email,type:"break_end",breakSeconds,location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      await userRef.update({currentSession:{...session,onBreak:false,breakStartTime:null}});
-      onBreak=false; breakBtn.textContent="Start Break"; toast("✅ Break Ended");
+      breakBtn.textContent="End Break"; toast(`✅ Break started at ${inside}`);
+    } else {
+      await userRef.set({currentSession:{onBreak:false,breakStartTime:null}}, {merge:true});
+      onBreak=false; clearInterval(breakInterval); breakBtn.textContent="Start Break"; toast("✅ Break ended");
     }
   }, err=>toast("❌ Location error: "+err.message));
 };
 
-// --- Logout
-document.getElementById("logoutBtn").onclick = ()=>{firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");};
+// --- Bottom Nav
+document.getElementById("navHome").onclick=()=>{window.location.href=`rider-dashboard.html?email=${email}`;}
+document.getElementById("navScanner").onclick=()=>{window.location.href=`scanner.html?email=${email}`;}
+document.getElementById("navIssue").onclick=()=>{window.location.href=`issue.html?email=${email}`;}
+document.getElementById("navAttendance").onclick=()=>{window.location.href=`attendance.html?email=${email}`;}
+document.getElementById("navLogs").onclick=()=>{window.location.href=`rider-logs.html?email=${email}`;}
 
-// --- Navigation
-document.getElementById("navHome").onclick = ()=>{window.location.href=`rider-dashboard.html?email=${email}`;}
-document.getElementById("navScanner").onclick = ()=>{window.location.href=`scanner.html?email=${email}`;}
-document.getElementById("navIssue").onclick = ()=>{window.location.href=`issue.html?email=${email}`;}
-document.getElementById("navAttendance").onclick = ()=>{window.location.href=`rider-attendance.html?email=${email}`;}
-document.getElementById("navLogs").onclick = ()=>{window.location.href=`rider-logs.html?email=${email}`;}
+// --- Logout
+document.getElementById("logoutBtn").onclick=()=>firebase.auth().signOut().then(()=>window.location.href="rider-signin.html");
 
 loadRider();
 </script>
+
 </body>
 </html>
