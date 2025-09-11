@@ -4,200 +4,118 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
+
+  <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
   <style>
     :root {
       --bg: #0a0f12;
-      --card: rgba(255,255,255,0.1);
+      --glass: rgba(255,255,255,0.1);
       --border: rgba(255,255,255,0.2);
-      --action: #00eaff;
+      --neon1: #00eaff;
+      --neon2: #8a2be2;
       --text: #eaf4f8;
-      --radius: 16px;
+      --radius: 18px;
     }
-
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
-      background-size: 600% 600%;
-      animation: gradientShift 20s ease infinite;
+      background: linear-gradient(135deg, #0a0f12, #141a1f, #0a0f12);
+      background-size: 400% 400%;
+      animation: bgShift 15s ease infinite;
       color: var(--text);
       display: flex;
       flex-direction: column;
       min-height: 100vh;
     }
-
-    @keyframes gradientShift {
-      0%{background-position:0% 50%}
-      50%{background-position:100% 50%}
-      100%{background-position:0% 50%}
+    @keyframes bgShift {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
     }
-
-    /* Navbar */
     .navbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 20px;
-      background: var(--card);
+      padding: 14px 20px;
+      background: var(--glass);
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
       z-index: 1000;
     }
-    .navbar h2 {
-      margin: 0;
-      color: var(--action);
-      font-size: 1.2rem;
-    }
-    .profile {
-      position: relative;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-    }
+    .navbar h2 { margin: 0; color: var(--neon1); font-size: 1.2rem; font-weight: 700; }
     .profile-pic {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: var(--action);
-      color: #000;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg,var(--neon1),var(--neon2));
+      color: #000; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
     }
-    .dropdown {
-      display: none;
-      position: absolute;
-      top: 44px;
-      right: 0;
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 4px 0;
-      min-width: 100px;
-    }
-    .dropdown button {
-      width: 100%;
-      background: none;
-      border: none;
-      color: var(--text);
-      padding: 8px 12px;
-      cursor: pointer;
-      text-align: left;
-    }
-    .profile:hover .dropdown { display: block; }
-
-    /* Card */
     .container {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
+      flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px;
     }
     .card {
-      background: var(--card);
+      background: var(--glass);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 30px 24px;
-      width: 100%;
-      max-width: 400px; /* Card won't touch edges */
-      box-shadow: 0 4px 20px rgba(0,234,255,0.3);
+      width: 100%; max-width: 420px;
+      box-shadow: 0 8px 25px rgba(0,234,255,0.25);
+      backdrop-filter: blur(12px);
       text-align: center;
-      backdrop-filter: blur(10px);
     }
-
-    h1 {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--action);
-      margin-bottom: 16px;
-    }
-
-    #riderName {
-      font-size: 22px;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 20px;
-    }
-
+    h1 { font-size: 26px; font-weight: 700; color: var(--neon1); margin-bottom: 10px; }
+    #riderName { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
     .status {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
     }
     .status-box {
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 12px 16px;
-      width: 80%;
-      display: flex;
-      justify-content: center;
+      padding: 16px 12px;
+      display: flex; flex-direction: column; align-items: center;
       font-weight: 500;
-      color: var(--text);
       box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
     }
-
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
+    .status-box i { font-size: 1.4rem; margin-bottom: 6px; color: var(--neon1); }
+    .actions { display: flex; flex-direction: column; gap: 12px; }
     .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: 0.2s;
-      background: var(--action);
-      color: #000;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px; border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      background: linear-gradient(135deg,var(--neon1),var(--neon2));
+      color: #000; transition: 0.25s ease;
     }
-    .btn:hover { background: #00c8e0; }
-    .btn.secondary {
-      background: transparent;
-      color: var(--action);
-      border: 2px solid var(--action);
-    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 0 15px var(--neon1); }
+    .btn.secondary { background: transparent; color: var(--neon1); border: 2px solid var(--neon1); }
     .btn.secondary:hover { background: rgba(0,234,255,0.1); }
-
+    .bottom-nav {
+      display: flex; justify-content: space-around; align-items: center;
+      background: var(--glass); border-top: 1px solid var(--border);
+      padding: 10px 0; backdrop-filter: blur(10px); position: sticky; bottom: 0;
+    }
+    .bottom-nav button {
+      background: none; border: none; color: var(--text); font-size: 1.2rem;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    }
+    .bottom-nav button span { font-size: 0.75rem; margin-top: 2px; }
+    .bottom-nav button.active { color: var(--neon1); }
     #toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,234,255,0.9);
-      color: #000;
-      padding: 10px 16px;
-      border-radius: 6px;
-      display: none;
-      font-weight: bold;
-      z-index: 1000;
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg,var(--neon1),var(--neon2));
+      color: #000; padding: 12px 20px; border-radius: var(--radius);
+      font-weight: 600; display: none; z-index: 2000;
     }
-
-    @media(max-width:480px){
-      .status-box { width: 100%; font-size: 0.95rem; }
-      h1 { font-size: 24px; }
-      #riderName { font-size: 20px; }
-      .navbar h2 { font-size: 1rem; }
-    }
+    @media(max-width:480px){ .status { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
   </style>
 </head>
 <body>
@@ -205,182 +123,153 @@
   <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Rider</h2>
-    <div class="profile">
-      <div class="profile-pic">R</div>
-      <div class="dropdown">
-        <button id="logoutBtn">Logout</button>
-      </div>
-    </div>
+    <div class="profile-pic">R</div>
   </div>
 
   <!-- Card -->
   <div class="container">
     <div class="card">
-      <h1>Rider Dashboard</h1>
-      <div id="riderName"></div>
+      <h1>Dashboard</h1>
+      <div id="riderName">Loading...</div>
 
       <div class="status">
-        <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-        <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
+        <div class="status-box">
+          <i class="fa-solid fa-motorcycle"></i>
+          Scooty: <span id="currentScooty">--</span>
+        </div>
+        <div class="status-box">
+          <i class="fa-solid fa-battery-half"></i>
+          Battery: <span id="currentBattery">--</span>
+        </div>
       </div>
 
       <div class="actions">
         <button class="btn" id="scanBtn"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
         <button class="btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Rider Logs</button>
         <button class="btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Raise Issue</button>
-        <!-- ✅ New Attendance Button -->
         <button class="btn" id="attendanceBtn"><i class="fa-solid fa-user-check"></i> Mark Attendance</button>
-        <button class="btn secondary" id="logoutBtn2"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+        <button class="btn secondary" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
       </div>
     </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button class="active"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button id="logsNav"><i class="fa-solid fa-file-lines"></i><span>Logs</span></button>
+    <button id="issueNav"><i class="fa-solid fa-triangle-exclamation"></i><span>Issue</span></button>
+    <button id="attendanceNav"><i class="fa-solid fa-user-check"></i><span>Attendance</span></button>
+    <button id="profileNav"><i class="fa-solid fa-user"></i><span>Profile</span></button>
   </div>
 
   <div id="toast"></div>
 
   <script>
-  const toast = msg => {
-    const t = document.getElementById("toast");
-    t.innerText = msg;
-    t.style.display = "block";
-    setTimeout(()=>t.style.display="none",4000);
-  };
+    const toast = msg => {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none",3000);
+    };
 
-  const params = new URLSearchParams(window.location.search);
-  const email = params.get("email");
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
 
-  let currentScooty = null;
-  let currentBattery = null;
+    let currentScooty = null;
+    let currentBattery = null;
 
-  if(!email){
-    toast("❌ Not signed in!");
-    window.location.href="rider-signin.html";
-  }
-
-  async function loadRider(){
-    const doc = await db.collection("users").doc(email).get();
-    if(!doc.exists){
-      toast("❌ Rider not found.");
-      window.location.href="rider-signup.html";
-      return;
-    }
-    const data = doc.data();
-    document.getElementById("riderName").innerText = data.name || "Rider";
-
-    if(data.status !== "approved"){
-      toast("⚠️ Your account is not approved.");
+    if(!email){
+      toast("❌ Not signed in!");
       window.location.href="rider-signin.html";
-      return;
     }
 
-    loadMyAssignments();
-  }
-
-  async function loadMyAssignments(){
-    currentScooty = null;
-    currentBattery = null;
-
-    const s = await db.collection("scooty_master")
-      .where("assignedTo", "==", email)
-      .where("status", "==", "assigned")
-      .limit(1).get();
-    s.forEach(d => currentScooty = d.id);
-
-    const b = await db.collection("battery_master")
-      .where("assignedTo", "==", email)
-      .where("status", "==", "assigned")
-      .limit(1).get();
-    b.forEach(d => currentBattery = d.id);
-
-    document.getElementById("currentScooty").innerText = currentScooty || "None";
-    document.getElementById("currentBattery").innerText = currentBattery || "None";
-  }
-
-  // ✅ Attendance Button Handler with Debug
-  document.getElementById("attendanceBtn").addEventListener("click", async () => {
-    if (!navigator.geolocation) {
-      toast("❌ Geolocation not supported.");
-      return;
-    }
-
-    toast("📍 Getting location...");
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      console.log("📍 My GPS:", lat, lng);
-
-      const locs = await db.collection("locations").get();
-      let inside = null;
-
-      locs.forEach(doc => {
-        const d = doc.data();
-        const distance = getDistanceFromLatLonInKm(lat, lng, d.lat, d.lng) * 1000; // meters
-
-        // Debug logs
-        console.log("➡️ Checking:", d.name);
-        console.log("   Location coords:", d.lat, d.lng);
-        console.log("   Distance:", distance.toFixed(2), "m");
-        console.log("   Allowed radius:", d.radius, "m");
-
-        if (distance <= d.radius) {
-          inside = d;
-        }
-      });
-
-      if (inside) {
-        await db.collection("attendance").add({
-          rider: email,
-          location: inside.name,
-          lat, lng,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        toast(`✅ Attendance marked at ${inside.name}`);
-      } else {
-        toast("❌ You are outside allowed attendance zones.");
+    async function loadRider(){
+      const doc = await db.collection("users").doc(email).get();
+      if(!doc.exists){
+        toast("❌ Rider not found.");
+        window.location.href="rider-signup.html";
+        return;
       }
-    }, err => {
-      console.error("Location error:", err);
-      toast("❌ Location error: " + err.message);
+      const data = doc.data();
+      document.getElementById("riderName").innerText = data.name || "Rider";
+
+      if(data.status !== "approved"){
+        toast("⚠️ Your account is not approved.");
+        window.location.href="rider-signin.html";
+        return;
+      }
+      loadMyAssignments();
+    }
+
+    async function loadMyAssignments(){
+      currentScooty = null; currentBattery = null;
+
+      const s = await db.collection("scooty_master")
+        .where("assignedTo", "==", email).where("status", "==", "assigned").limit(1).get();
+      s.forEach(d => currentScooty = d.id);
+
+      const b = await db.collection("battery_master")
+        .where("assignedTo", "==", email).where("status", "==", "assigned").limit(1).get();
+      b.forEach(d => currentBattery = d.id);
+
+      document.getElementById("currentScooty").innerText = currentScooty || "None";
+      document.getElementById("currentBattery").innerText = currentBattery || "None";
+    }
+
+    // Attendance handler
+    document.getElementById("attendanceBtn").addEventListener("click", async () => {
+      if (!navigator.geolocation) return toast("❌ Geolocation not supported.");
+
+      toast("📍 Getting location...");
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        const locs = await db.collection("locations").get();
+        let inside = null;
+
+        locs.forEach(doc => {
+          const d = doc.data();
+          const distance = getDistanceFromLatLonInKm(lat, lng, d.lat, d.lng) * 1000;
+          if (distance <= d.radius) inside = d;
+        });
+
+        if (inside) {
+          await db.collection("attendance").add({
+            rider: email, location: inside.name, lat, lng,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          toast(`✅ Attendance marked at ${inside.name}`);
+        } else {
+          toast("❌ Outside allowed zones.");
+        }
+      }, err => toast("❌ Location error: " + err.message));
     });
-  });
 
-  // ✅ Helper function (Haversine)
-  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
-  function deg2rad(deg) {
-    return deg * (Math.PI/180);
-  }
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = deg2rad(lat2 - lat1);
+      const dLon = deg2rad(lon2 - lon1);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+    const deg2rad = deg => deg * (Math.PI/180);
 
-  // Navigation
-  document.getElementById("scanBtn").addEventListener("click", () => {
-    window.location.href = `scanner.html?email=${email}`;
-  });
-  document.getElementById("logsBtn").addEventListener("click", () => {
-    window.location.href = `rider-logs.html?email=${email}`;
-  });
-  document.getElementById("issueBtn").addEventListener("click", () => {
-    window.location.href = `issue.html?email=${email}`;
-  });
+    // Navigation
+    document.getElementById("scanBtn").onclick = () => window.location.href = `scanner.html?email=${email}`;
+    document.getElementById("logsBtn").onclick = () => window.location.href = `rider-logs.html?email=${email}`;
+    document.getElementById("issueBtn").onclick = () => window.location.href = `issue.html?email=${email}`;
+    document.getElementById("logoutBtn").onclick = () => firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
 
-  // Logout
-  function logout(){
-    firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
-  }
-  document.getElementById("logoutBtn").onclick = logout;
-  document.getElementById("logoutBtn2").onclick = logout;
+    // Bottom nav
+    document.getElementById("logsNav").onclick = () => window.location.href = `rider-logs.html?email=${email}`;
+    document.getElementById("issueNav").onclick = () => window.location.href = `issue.html?email=${email}`;
+    document.getElementById("attendanceNav").onclick = () => document.getElementById("attendanceBtn").click();
+    document.getElementById("profileNav").onclick = () => toast("👤 Profile coming soon...");
 
-  loadRider();
-</script>
-
-
+    loadRider();
+  </script>
 </body>
 </html>
