@@ -238,137 +238,149 @@
   <div id="toast"></div>
 
   <script>
-    const toast = msg => {
-      const t = document.getElementById("toast");
-      t.innerText = msg;
-      t.style.display = "block";
-      setTimeout(()=>t.style.display="none",3000);
-    };
+  const toast = msg => {
+    const t = document.getElementById("toast");
+    t.innerText = msg;
+    t.style.display = "block";
+    setTimeout(()=>t.style.display="none",4000);
+  };
 
-    const params = new URLSearchParams(window.location.search);
-    const email = params.get("email");
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get("email");
 
-    let currentScooty = null;
-    let currentBattery = null;
+  let currentScooty = null;
+  let currentBattery = null;
 
-    if(!email){
-      toast("❌ Not signed in!");
+  if(!email){
+    toast("❌ Not signed in!");
+    window.location.href="rider-signin.html";
+  }
+
+  async function loadRider(){
+    const doc = await db.collection("users").doc(email).get();
+    if(!doc.exists){
+      toast("❌ Rider not found.");
+      window.location.href="rider-signup.html";
+      return;
+    }
+    const data = doc.data();
+    document.getElementById("riderName").innerText = data.name || "Rider";
+
+    if(data.status !== "approved"){
+      toast("⚠️ Your account is not approved.");
       window.location.href="rider-signin.html";
+      return;
     }
 
-    async function loadRider(){
-      const doc = await db.collection("users").doc(email).get();
-      if(!doc.exists){
-        toast("❌ Rider not found.");
-        window.location.href="rider-signup.html";
-        return;
-      }
-      const data = doc.data();
-      document.getElementById("riderName").innerText = data.name || "Rider";
+    loadMyAssignments();
+  }
 
-      if(data.status !== "approved"){
-        toast("⚠️ Your account is not approved.");
-        window.location.href="rider-signin.html";
-        return;
-      }
+  async function loadMyAssignments(){
+    currentScooty = null;
+    currentBattery = null;
 
-      loadMyAssignments();
+    const s = await db.collection("scooty_master")
+      .where("assignedTo", "==", email)
+      .where("status", "==", "assigned")
+      .limit(1).get();
+    s.forEach(d => currentScooty = d.id);
+
+    const b = await db.collection("battery_master")
+      .where("assignedTo", "==", email)
+      .where("status", "==", "assigned")
+      .limit(1).get();
+    b.forEach(d => currentBattery = d.id);
+
+    document.getElementById("currentScooty").innerText = currentScooty || "None";
+    document.getElementById("currentBattery").innerText = currentBattery || "None";
+  }
+
+  // ✅ Attendance Button Handler with Debug
+  document.getElementById("attendanceBtn").addEventListener("click", async () => {
+    if (!navigator.geolocation) {
+      toast("❌ Geolocation not supported.");
+      return;
     }
 
-    async function loadMyAssignments(){
-      currentScooty = null;
-      currentBattery = null;
+    toast("📍 Getting location...");
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
 
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => currentScooty = d.id);
+      console.log("📍 My GPS:", lat, lng);
 
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => currentBattery = d.id);
+      const locs = await db.collection("locations").get();
+      let inside = null;
 
-      document.getElementById("currentScooty").innerText = currentScooty || "None";
-      document.getElementById("currentBattery").innerText = currentBattery || "None";
-    }
+      locs.forEach(doc => {
+        const d = doc.data();
+        const distance = getDistanceFromLatLonInKm(lat, lng, d.lat, d.lng) * 1000; // meters
 
-    // ✅ Attendance Button Handler
-    document.getElementById("attendanceBtn").addEventListener("click", async () => {
-      if (!navigator.geolocation) {
-        toast("❌ Geolocation not supported.");
-        return;
-      }
+        // Debug logs
+        console.log("➡️ Checking:", d.name);
+        console.log("   Location coords:", d.lat, d.lng);
+        console.log("   Distance:", distance.toFixed(2), "m");
+        console.log("   Allowed radius:", d.radius, "m");
 
-      toast("📍 Getting location...");
-      navigator.geolocation.getCurrentPosition(async pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-
-        // Fetch allowed locations from Firestore
-        const locs = await db.collection("locations").get();
-        let inside = null;
-
-        locs.forEach(doc => {
-          const d = doc.data();
-          const distance = getDistanceFromLatLonInKm(lat, lng, d.lat, d.lng) * 1000; // in meters
-          if (distance <= d.radius) {
-            inside = d;
-          }
-        });
-
-        if (inside) {
-          await db.collection("attendance").add({
-            rider: email,
-            location: inside.name,
-            lat, lng,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          toast(`✅ Attendance marked at ${inside.name}`);
-        } else {
-          toast("❌ You are outside allowed attendance zones.");
+        if (distance <= d.radius) {
+          inside = d;
         }
-      }, err => {
-        toast("❌ Location error: " + err.message);
       });
-    });
 
-    // ✅ Helper function to calculate distance (Haversine formula)
-    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-      const R = 6371; // km
-      const dLat = deg2rad(lat2 - lat1);
-      const dLon = deg2rad(lon2 - lon1);
-      const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-    function deg2rad(deg) {
-      return deg * (Math.PI/180);
-    }
+      if (inside) {
+        await db.collection("attendance").add({
+          rider: email,
+          location: inside.name,
+          lat, lng,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        toast(`✅ Attendance marked at ${inside.name}`);
+      } else {
+        toast("❌ You are outside allowed attendance zones.");
+      }
+    }, err => {
+      console.error("Location error:", err);
+      toast("❌ Location error: " + err.message);
+    });
+  });
 
-    document.getElementById("scanBtn").addEventListener("click", () => {
-      window.location.href = `scanner.html?email=${email}`;
-    });
-    document.getElementById("logsBtn").addEventListener("click", () => {
-      window.location.href = `rider-logs.html?email=${email}`;
-    });
-    document.getElementById("issueBtn").addEventListener("click", () => {
-      window.location.href = `issue.html?email=${email}`;
-    });
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
-    });
-    document.getElementById("logoutBtn2").addEventListener("click", () => {
-      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
-    });
+  // ✅ Helper function (Haversine)
+  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+  function deg2rad(deg) {
+    return deg * (Math.PI/180);
+  }
 
-    loadRider();
-  </script>
+  // Navigation
+  document.getElementById("scanBtn").addEventListener("click", () => {
+    window.location.href = `scanner.html?email=${email}`;
+  });
+  document.getElementById("logsBtn").addEventListener("click", () => {
+    window.location.href = `rider-logs.html?email=${email}`;
+  });
+  document.getElementById("issueBtn").addEventListener("click", () => {
+    window.location.href = `issue.html?email=${email}`;
+  });
+
+  // Logout
+  function logout(){
+    firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+  }
+  document.getElementById("logoutBtn").onclick = logout;
+  document.getElementById("logoutBtn2").onclick = logout;
+
+  loadRider();
+</script>
+
 
 </body>
 </html>
