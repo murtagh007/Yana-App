@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 <title>YANA — Rider Dashboard</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
@@ -22,9 +22,9 @@ body{
   margin:0;
   font-family:'Inter',sans-serif;
   background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
-  background-size:600% 600%;
+  background-size: 600% 600%;
   animation: gradientShift 20s ease infinite;
-  color:var(--text);
+  color: var(--text);
   display:flex;
   flex-direction:column;
   min-height:100vh;
@@ -39,44 +39,190 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:14px 20px;
-  background:var(--card);
+  padding:16px 20px;
+  height:60px;
+  background: var(--card);
   border-bottom:1px solid var(--border);
-  backdrop-filter:blur(6px);
-  position:sticky;
+  backdrop-filter: blur(6px);
+  position: sticky;
   top:0;
   z-index:1000;
 }
-.navbar h2{margin:0;color:var(--action);font-size:1.3rem;font-weight:700;}
-.profile{position:relative;display:flex;align-items:center;cursor:pointer;}
-.profile-pic{width:40px;height:40px;border-radius:50%;background:var(--action);color:#000;font-weight:bold;display:flex;align-items:center;justify-content:center;}
-.dropdown{display:none;position:absolute;top:50px;right:0;background:var(--card);border-radius:var(--radius);padding:4px 0;min-width:110px;}
-.dropdown button{width:100%;background:none;border:none;color:var(--text);padding:10px 12px;cursor:pointer;text-align:left;font-weight:600;}
-.profile:hover .dropdown{display:block;}
+.navbar h2{
+  margin:0;
+  color: var(--action);
+  font-size:1.3rem;
+}
+.profile{
+  position:relative;
+  display:flex;
+  align-items:center;
+  cursor:pointer;
+}
+.profile-pic{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background: var(--action);
+  color:#000;
+  font-weight:bold;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.1rem;
+}
+.dropdown{
+  display:none;
+  position:absolute;
+  top:50px;
+  right:0;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding:4px 0;
+  min-width:120px;
+}
+.dropdown button{
+  width:100%;
+  background:none;
+  border:none;
+  color: var(--text);
+  padding:10px 12px;
+  cursor:pointer;
+  text-align:left;
+}
+.profile:hover .dropdown { display:block; }
 
 /* Container */
-.container{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 8px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;width:100%;max-width:420px;box-shadow:0 6px 25px rgba(0,234,255,0.35);text-align:center;backdrop-filter:blur(12px);margin-bottom:16px;}
-h1{font-size:26px;color:var(--action);margin-bottom:14px;}
-.timer-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:10px 0;}
-.timer-label{font-weight:600;margin-bottom:6px;font-size:0.95rem;}
-.timer-value{font-size:2rem;font-weight:700;}
-.shift-info{margin:14px 0;font-size:0.95rem;}
-.actions{display:flex;flex-direction:row;gap:12px;justify-content:center;margin-top:16px;}
-.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;background:var(--action);color:#000;transition:0.2s;}
+.container{
+  flex:1;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+/* Card */
+.card{
+  width:90vw;
+  max-width:420px;
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  padding:24px;
+  box-shadow:0 6px 25px rgba(0,234,255,0.35);
+  backdrop-filter:blur(12px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin-bottom:16px;
+}
+h1{
+  font-size:28px;
+  font-weight:700;
+  color:var(--action);
+  margin-bottom:16px;
+}
+#riderName{
+  font-size:22px;
+  font-weight:600;
+  color:#fff;
+  margin-bottom:20px;
+}
+.status-box{
+  background: rgba(255,255,255,0.05);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  padding:12px 16px;
+  width:100%;
+  text-align:center;
+  font-weight:500;
+  color:var(--text);
+  margin-bottom:10px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
+}
+.timer-value{
+  font-size:2rem;
+  font-weight:700;
+  margin-bottom:8px;
+}
+.actions{
+  display:flex;
+  flex-direction:row;
+  gap:12px;
+  justify-content:center;
+  margin-top:12px;
+  flex-wrap:wrap;
+}
+.btn{
+  flex:1;
+  min-width:130px;
+  padding:14px;
+  border:none;
+  border-radius: var(--radius);
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.2s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  background: var(--action);
+  color:#000;
+}
 .btn:hover{background:#00c8e0;}
-.btn.secondary{background:transparent;color:var(--action);border:2px solid var(--action);}
-.btn.secondary:hover{background:rgba(0,234,255,0.12);}
-#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,234,255,0.95);color:#000;padding:12px 18px;border-radius:8px;display:none;font-weight:700;z-index:1000;}
-.bottom-nav{display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;width:100%;background:var(--card);border-top:1px solid var(--border);backdrop-filter:blur(6px);padding:8px 0;}
-.bottom-nav button{background:none;border:none;color:var(--text);font-size:1.2rem;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
-.bottom-nav button.active{color:var(--action);}
-.status-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0;display:flex;justify-content:space-between;font-weight:500;font-size:0.95rem;}
+.btn.secondary{
+  background:transparent;
+  color: var(--action);
+  border:2px solid var(--action);
+}
+.btn.secondary:hover{background:rgba(0,234,255,0.1);}
+
+/* Bottom Nav */
+.bottom-nav{
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  position:fixed;
+  bottom:0;
+  width:100%;
+  height:60px;
+  background: var(--card);
+  border-top:1px solid var(--border);
+  backdrop-filter: blur(6px);
+  padding:4px 0;
+  z-index:1000;
+}
+.bottom-nav button{
+  font-size:1.3rem;
+  flex-direction:column;
+  display:flex;
+  align-items:center;
+  gap:2px;
+  background:none;
+  border:none;
+  color:var(--text);
+  cursor:pointer;
+}
+.bottom-nav button.active{color: var(--action);}
+#toast{
+  position:fixed;
+  bottom:70px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,234,255,0.9);
+  color:#000;
+  padding:10px 16px;
+  border-radius:8px;
+  display:none;
+  font-weight:bold;
+  z-index:2000;
+}
 @media(max-width:480px){
-  .card{padding:20px;}
-  h1{font-size:22px;}
-  .timer-value{font-size:1.6rem;}
-  .actions{flex-direction:column;}
+  .status-box{font-size:0.95rem;}
+  h1{font-size:24px;}
+  #riderName{font-size:20px;}
+  .navbar h2{font-size:1rem;}
 }
 </style>
 </head>
@@ -93,70 +239,92 @@ h1{font-size:26px;color:var(--action);margin-bottom:14px;}
 </div>
 
 <div class="container">
-
   <div class="card">
-    <h1>Working Hours</h1>
-    <div class="timer-box">
-      <div class="timer-label">Total Worked</div>
-      <div class="timer-value" id="workTimer">00:00:00</div>
+    <h1>Rider Dashboard</h1>
+    <div id="riderName">Loading...</div>
+
+    <div class="status-box">
+      <div>Working Hours</div>
+      <div class="timer-value" id="timerDisplay">00:00:00</div>
     </div>
-    <div class="timer-box">
-      <div class="timer-label">Break Time</div>
-      <div class="timer-value" id="breakTime">00:00:00</div>
+    <div class="status-box">
+      <div>Break Time</div>
+      <div class="timer-value" id="breakDisplay">00:00:00</div>
     </div>
-    <div class="shift-info" id="shiftInfo">Assigned Shift: --:-- to --:--</div>
+    <div class="status-box">
+      Assigned Scooty: <span id="currentScooty">Loading...</span><br>
+      Assigned Battery: <span id="currentBattery">Loading...</span>
+    </div>
+
     <div class="actions">
-      <button class="btn" id="punchBtn">Punch In</button>
-      <button class="btn secondary" id="breakBtn">Start Break</button>
+      <button class="btn" id="punchBtn"><i class="fa-solid fa-user-check"></i> Punch In</button>
+      <button class="btn" id="breakBtn"><i class="fa-solid fa-coffee"></i> Start Break</button>
+    </div>
+
+    <div class="actions" style="margin-top:12px;">
+      <button class="btn secondary" id="scannerBtn"><i class="fa-solid fa-qrcode"></i> Scanner</button>
+      <button class="btn secondary" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i> Issues</button>
+      <button class="btn secondary" id="logsBtn"><i class="fa-solid fa-file-lines"></i> Logs</button>
     </div>
   </div>
+</div>
 
-  <div class="card">
-    <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-    <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
-  </div>
-
+<div class="bottom-nav">
+  <button id="navHome" class="active"><i class="fa-solid fa-house"></i><span>Home</span></button>
+  <button id="navScanner"><i class="fa-solid fa-qrcode"></i><span>Scanner</span></button>
+  <button id="navIssue"><i class="fa-solid fa-triangle-exclamation"></i><span>Issues</span></button>
+  <button id="navAttendance"><i class="fa-solid fa-user-check"></i><span>Attendance</span></button>
+  <button id="navLogs"><i class="fa-solid fa-file-lines"></i><span>Logs</span></button>
 </div>
 
 <div id="toast"></div>
 
-<div class="bottom-nav">
-  <button id="navHome" class="active"><i class="fas fa-home"></i><span>Home</span></button>
-  <button id="navScanner"><i class="fas fa-qrcode"></i><span>Scan</span></button>
-  <button id="navIssue"><i class="fas fa-triangle-exclamation"></i><span>Issues</span></button>
-  <button id="navAttendance"><i class="fas fa-user-check"></i><span>Attendance</span></button>
-  <button id="navLogs"><i class="fas fa-file-lines"></i><span>Logs</span></button>
-</div>
-
 <script>
-const toast = msg=>{const t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000);}
+const toast = msg => {
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",3000);
+};
+
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
-if(!email){toast("❌ Not signed in!"); window.location.href="rider-signin.html";}
+if(!email){ toast("❌ Not signed in!"); window.location.href="rider-signin.html"; }
 
-let workSeconds=0, breakSeconds=0;
-let workInterval, breakInterval;
 let punchedIn=false, onBreak=false;
-
+let workSeconds=0, breakSeconds=0;
+let workInterval=null, breakInterval=null;
+const timerDisplay=document.getElementById("timerDisplay");
+const breakDisplay=document.getElementById("breakDisplay");
 const punchBtn=document.getElementById("punchBtn");
 const breakBtn=document.getElementById("breakBtn");
-const timerDisplay=document.getElementById("workTimer");
-const breakDisplay=document.getElementById("breakTime");
 
-// --- Helpers
-function secToHMS(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
-function getDistance(lat1,lon1,lat2,lon2){const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*1000;}
+// Haversine formula
+function getDistance(lat1,lon1,lat2,lon2){
+  const R=6371; // km
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*1000*c; // meters
+}
+function secToHMS(sec){
+  const h=Math.floor(sec/3600).toString().padStart(2,'0');
+  const m=Math.floor((sec%3600)/60).toString().padStart(2,'0');
+  const s=(sec%60).toString().padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
 
-// --- Load Rider Info
+// Load Rider and session
 async function loadRider(){
   const doc=await db.collection("users").doc(email).get();
-  if(!doc.exists){toast("❌ Rider not found"); window.location.href="rider-signup.html"; return;}
+  if(!doc.exists){ toast("❌ Rider not found"); window.location.href="rider-signup.html"; return;}
   const data=doc.data();
+  document.getElementById("riderName").innerText=data.name||"Rider";
   document.getElementById("currentScooty").innerText=data.assignedScooty||"None";
   document.getElementById("currentBattery").innerText=data.assignedBattery||"None";
-  if(!data.currentSession) data.currentSession={};
-  const session=data.currentSession;
 
+  const session=data.currentSession||{};
   if(session.punchedIn && session.punchInTime){
     punchedIn=true;
     const punchDate=session.punchInTime.toDate ? session.punchInTime.toDate() : new Date(session.punchInTime);
@@ -173,32 +341,32 @@ async function loadRider(){
     breakDisplay.textContent=secToHMS(breakSeconds);
     breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
     breakBtn.textContent="End Break";
-    clearInterval(workInterval); // pause work while on break
+    clearInterval(workInterval);
   }
 }
 loadRider();
 
-// --- Punch In / Out
+// --- Punch In/Out
 punchBtn.onclick=async()=>{
   if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
     const locs=await db.collection("locations").get();
     let inside=null;
     locs.forEach(doc=>{const d=doc.data(); if(getDistance(lat,lng,d.lat,d.lng)<=d.radius) inside=d.name;});
-    if(!inside){toast("❌ Outside allowed geofence"); return;}
+    if(!inside){toast("❌ Outside geofence"); return;}
     const userRef=db.collection("users").doc(email);
-    const session=(await userRef.get()).data().currentSession||{};
-    if(!punchedIn){
-      // Punch in
-      await userRef.set({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null,totalBreakSeconds:0}}, {merge:true});
+    const session=(await userRef.get()).data().currentSession||{totalBreakSeconds:0};
+    const currentlyIn=session.punchedIn||false;
+    if(!currentlyIn){
+      await userRef.set({currentSession:{punchedIn:true,punchInTime:firebase.firestore.FieldValue.serverTimestamp(),onBreak:false,breakStartTime:null,totalBreakSeconds:0}},{merge:true});
       punchedIn=true; workSeconds=0;
       clearInterval(workInterval);
       workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
-      punchBtn.textContent="Punch Out"; toast(`✅ Punched in at ${inside}`);
+      punchBtn.textContent="Punch Out";
+      toast(`✅ Punched in at ${inside}`);
     } else {
-      // Punch out
-      await userRef.set({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null,totalBreakSeconds:0}}, {merge:true});
+      await userRef.set({currentSession:{punchedIn:false,punchInTime:null,onBreak:false,breakStartTime:null,totalBreakSeconds:0}},{merge:true});
       punchedIn=false; clearInterval(workInterval); clearInterval(breakInterval); workSeconds=0; breakSeconds=0;
       timerDisplay.textContent="00:00:00"; breakDisplay.textContent="00:00:00"; punchBtn.textContent="Punch In"; breakBtn.textContent="Start Break";
       toast("✅ Punched out");
@@ -206,37 +374,35 @@ punchBtn.onclick=async()=>{
   }, err=>toast("❌ Location error: "+err.message));
 };
 
-// --- Break Start / End
+// --- Break
 breakBtn.onclick=async()=>{
   if(!navigator.geolocation){toast("❌ Geolocation not supported"); return;}
   navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
     const locs=await db.collection("locations").get();
     let inside=null;
     locs.forEach(doc=>{const d=doc.data(); if(getDistance(lat,lng,d.lat,d.lng)<=d.radius) inside=d.name;});
-    if(!inside){toast("❌ Outside allowed geofence"); return;}
+    if(!inside){toast("❌ Outside geofence"); return;}
     const userRef=db.collection("users").doc(email);
     const userDoc=await userRef.get();
     const session=userDoc.data().currentSession||{totalBreakSeconds:0};
-    if(!onBreak){
-      // Start break
+    const currentlyOnBreak=session.onBreak||false;
+
+    if(!currentlyOnBreak){
       onBreak=true;
       clearInterval(workInterval);
       breakSeconds=0;
       breakInterval=setInterval(()=>{breakSeconds++; breakDisplay.textContent=secToHMS(breakSeconds);},1000);
       breakBtn.textContent="End Break";
-      await userRef.set({currentSession:{...session,onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()}},{merge:true});
+      await userRef.set({...session,onBreak:true,breakStartTime:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       toast(`✅ Break started at ${inside}`);
     } else {
-      // End break
       onBreak=false;
       clearInterval(breakInterval);
       breakBtn.textContent="Start Break";
-      // update totalBreakSeconds
-      const breakTime=session.breakStartTime ? Math.floor((new Date()-session.breakStartTime.toDate())/1000) : breakSeconds;
-      const totalBreak=session.totalBreakSeconds ? session.totalBreakSeconds + breakTime : breakTime;
-      await userRef.set({currentSession:{...session,onBreak:false,breakStartTime:null,totalBreakSeconds:totalBreak}},{merge:true});
-      // Resume work timer
+      const breakStartTime=session.breakStartTime ? session.breakStartTime.toDate() : new Date();
+      const totalBreak=(session.totalBreakSeconds||0)+Math.floor((new Date()-breakStartTime)/1000);
+      await userRef.set({...session,onBreak:false,breakStartTime:null,totalBreakSeconds:totalBreak},{merge:true});
       workSeconds+=breakSeconds;
       workInterval=setInterval(()=>{workSeconds++; timerDisplay.textContent=secToHMS(workSeconds);},1000);
       toast("✅ Break ended");
@@ -244,12 +410,15 @@ breakBtn.onclick=async()=>{
   }, err=>toast("❌ Location error: "+err.message));
 };
 
-// --- Bottom Nav
-document.getElementById("navHome").onclick=()=>{window.location.href=`rider-dashboard.html?email=${email}`;}
-document.getElementById("navScanner").onclick=()=>{window.location.href=`scanner.html?email=${email}`;}
-document.getElementById("navIssue").onclick=()=>{window.location.href=`issue.html?email=${email}`;}
-document.getElementById("navAttendance").onclick=()=>{window.location.href=`attendance.html?email=${email}`;}
-document.getElementById("navLogs").onclick=()=>{window.location.href=`rider-logs.html?email=${email}`;}
+// --- Navigation
+document.getElementById("scannerBtn").onclick=()=>window.location.href=`scanner.html?email=${email}`;
+document.getElementById("issueBtn").onclick=()=>window.location.href=`issue.html?email=${email}`;
+document.getElementById("logsBtn").onclick=()=>window.location.href=`rider-logs.html?email=${email}`;
+document.getElementById("navHome").onclick=()=>window.location.href=`rider-dashboard.html?email=${email}`;
+document.getElementById("navScanner").onclick=()=>window.location.href=`scanner.html?email=${email}`;
+document.getElementById("navIssue").onclick=()=>window.location.href=`issue.html?email=${email}`;
+document.getElementById("navAttendance").onclick=()=>window.location.href=`attendance.html?email=${email}`;
+document.getElementById("navLogs").onclick=()=>window.location.href=`rider-logs.html?email=${email}`;
 
 // --- Logout
 document.getElementById("logoutBtn").onclick=()=>firebase.auth().signOut().then(()=>window.location.href="rider-signin.html");
