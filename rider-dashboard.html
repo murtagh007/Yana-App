@@ -5,15 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Dashboard</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
-
-  <!-- Font Awesome -->
+  <!-- Styles -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+  <link rel="stylesheet" href="styles.css">
   <style>
     :root {
       --bg: #0a0f12;
@@ -23,11 +17,9 @@
       --text: #eaf4f8;
       --radius: 16px;
     }
-    * { box-sizing: border-box; }
-
     body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
+      margin:0;
+      font-family:'Inter',sans-serif;
       background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
       background-size: 600% 600%;
       animation: gradientShift 20s ease infinite;
@@ -36,69 +28,75 @@
       flex-direction: column;
       min-height: 100vh;
     }
-    @keyframes gradientShift {
+    @keyframes gradientShift{
       0%{background-position:0% 50%}
       50%{background-position:100% 50%}
       100%{background-position:0% 50%}
     }
 
     /* Navbar */
-    .navbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(6px);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
+    .navbar{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:12px 20px;background:var(--card);
+      border-bottom:1px solid var(--border);
+      backdrop-filter: blur(6px);position:sticky;top:0;z-index:1000;
     }
-    .navbar h2 { margin:0; font-size:1.2rem; color: var(--action); }
-    .profile { position: relative; display: flex; align-items: center; cursor: pointer; }
-    .profile-pic { width:36px; height:36px; border-radius:50%; background: var(--action); color:#000; font-weight:bold; display:flex; align-items:center; justify-content:center; }
-    .dropdown { display:none; position:absolute; top:44px; right:0; background:var(--card); border-radius: var(--radius); padding:4px 0; min-width:100px; }
-    .dropdown button { width:100%; background:none; border:none; color:var(--text); padding:8px 12px; cursor:pointer; text-align:left; }
-    .profile:hover .dropdown { display:block; }
+    .navbar h2{margin:0;color:var(--action);font-size:1.2rem;}
+    .profile{position:relative;display:flex;align-items:center;cursor:pointer;}
+    .profile-pic{width:36px;height:36px;border-radius:50%;background:var(--action);
+      color:#000;font-weight:bold;display:flex;align-items:center;justify-content:center;}
+    .dropdown{display:none;position:absolute;top:44px;right:0;background:var(--card);
+      border-radius:var(--radius);padding:4px 0;min-width:100px;}
+    .dropdown button{width:100%;background:none;border:none;color:var(--text);
+      padding:8px 12px;cursor:pointer;text-align:left;}
+    .profile:hover .dropdown{display:block;}
 
-    /* Container & Card */
-    .container { flex:1; padding:16px; display:flex; flex-direction:column; align-items:center; }
-    .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:24px; width:100%; max-width:420px; box-shadow: 0 6px 20px rgba(0,234,255,0.3); backdrop-filter: blur(10px); display:flex; flex-direction:column; align-items:center; gap:16px; }
-    h1 { font-size:28px; color: var(--action); margin:0; }
-    #riderName { font-size:22px; font-weight:600; color:#fff; }
+    /* Container/Card */
+    .container{flex:1;display:flex;justify-content:center;align-items:flex-start;padding:10px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      padding:24px;width:100%;max-width:420px;box-shadow:0 4px 20px rgba(0,234,255,0.3);
+      text-align:center;backdrop-filter:blur(10px);margin-bottom:80px;}
 
-    /* Timers */
-    .timer-block { background: rgba(255,255,255,0.05); border:1px solid var(--border); border-radius: var(--radius); padding:16px; width:100%; text-align:center; }
-    .timer-block h3 { margin:0 0 8px 0; font-weight:500; color: var(--action); }
-    .timer { font-size:1.6rem; font-weight:bold; margin-bottom:4px; }
-    .small-text { font-size:0.9rem; color: #aaa; }
-
-    /* Assigned Scooty/Battery */
-    .status { display:flex; justify-content:space-between; width:100%; gap:12px; }
-    .status-box { flex:1; background: rgba(255,255,255,0.05); border:1px solid var(--border); border-radius: var(--radius); padding:12px; text-align:center; font-weight:500; }
+    h1{font-size:24px;font-weight:700;color:var(--action);margin-bottom:16px;}
+    .timer-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);
+      border-radius:var(--radius);padding:12px 16px;margin-bottom:12px;}
+    .timer-title{font-weight:600;margin-bottom:4px;font-size:1rem;color:#fff;}
+    .timer-value{font-size:1.8rem;font-weight:700;margin-bottom:4px;}
 
     /* Buttons */
-    .btn { width:100%; padding:14px; border:none; border-radius:var(--radius); font-weight:600; font-size:1rem; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:8px; }
-    .btn.action { background: var(--action); color:#000; }
-    .btn.action:hover { background:#00c8e0; }
-    .btn.secondary { background:transparent; border:2px solid var(--action); color: var(--action); }
-    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
+    .btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0;}
+    .btn{flex:1;min-width:120px;padding:12px;border:none;border-radius:var(--radius);
+      font-size:1rem;font-weight:600;cursor:pointer;transition:0.2s;background:var(--action);color:#000;
+      display:flex;align-items:center;justify-content:center;gap:6px;}
+    .btn:hover{background:#00c8e0;}
+    .btn.secondary{background:transparent;color:var(--action);border:2px solid var(--action);}
+    .btn.secondary:hover{background:rgba(0,234,255,0.1);}
 
-    /* Bottom nav */
-    .bottom-nav { display:flex; justify-content:space-around; align-items:center; padding:10px; background: var(--card); border-top:1px solid var(--border); backdrop-filter:blur(6px); position:sticky; bottom:0; }
-    .bottom-nav button { background:none; border:none; color: var(--text); display:flex; flex-direction:column; align-items:center; font-size:0.8rem; cursor:pointer; }
-    .bottom-nav button.active { color: var(--action); }
+    /* Scooty/Battery info */
+    .info-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);
+      border-radius:var(--radius);padding:12px;margin:6px 0;display:flex;justify-content:space-between;
+      font-weight:500;color:var(--text);box-shadow: inset 0 0 6px rgba(0,0,0,0.5);}
 
-    #toast { position:fixed; bottom:70px; left:50%; transform:translateX(-50%); background: rgba(0,234,255,0.9); color:#000; padding:10px 16px; border-radius:6px; display:none; font-weight:bold; z-index:1000; }
+    /* Bottom Nav */
+    .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;
+      justify-content:space-around;background:var(--card);padding:8px 0;border-top:1px solid var(--border);
+      backdrop-filter:blur(10px);z-index:1000;}
+    .nav-btn{flex:1;text-align:center;color:var(--text);cursor:pointer;font-size:0.9rem;display:flex;flex-direction:column;align-items:center;gap:2px;}
+    .nav-btn.active{color:var(--action);}
 
-    @media(max-width:480px){
-      .timer { font-size:1.4rem; }
-      h1 { font-size:24px; }
-      #riderName { font-size:20px; }
-      .btn { font-size:0.95rem; padding:12px; }
-    }
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+      background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;border-radius:6px;
+      display:none;font-weight:bold;z-index:1000;}
+    @media(max-width:480px){.timer-value{font-size:1.5rem;}.btn{font-size:0.9rem;padding:10px;}
+      h1{font-size:20px;}}
   </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
 </head>
 <body>
 
@@ -116,213 +114,227 @@
   <!-- Main Card -->
   <div class="container">
     <div class="card">
-      <h1>Rider Dashboard</h1>
-      <div id="riderName">Loading...</div>
+      <h1>Dashboard</h1>
 
       <!-- Timers -->
-      <div class="timer-block">
-        <h3>Working Hours</h3>
-        <div class="timer" id="workTimer">00:00:00</div>
-        <div class="small-text">Total Break: <span id="breakTimer">00:00:00</span></div>
-        <div class="small-text" id="shiftInfo">Assigned Shift: --:-- to --:--</div>
+      <div class="timer-box">
+        <div class="timer-title">Working Hours</div>
+        <div class="timer-value" id="workingTimer">00:00:00</div>
+        <div class="timer-title">Total Break</div>
+        <div class="timer-value" id="breakTimer">00:00:00</div>
+        <div class="timer-title" id="shiftInfo">Assigned Shift: 09:00 - 18:00</div>
       </div>
 
       <!-- Punch / Break Buttons -->
-      <div style="width:100%; display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="btn action" id="punchBtn"><i class="fa-solid fa-clock"></i> Punch In</button>
-        <button class="btn action" id="breakBtn"><i class="fa-solid fa-bed"></i> Start Break</button>
+      <div class="btn-row">
+        <button class="btn" id="punchBtn"><i class="fa-solid fa-user-check"></i> Punch In</button>
+        <button class="btn" id="breakBtn"><i class="fa-solid fa-bed"></i> Start Break</button>
       </div>
 
-      <!-- Assigned Scooty / Battery -->
-      <div class="status" style="margin-top:16px;">
-        <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-        <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
-      </div>
+      <!-- Scooty / Battery Info -->
+      <div class="info-box">Scooty: <span id="currentScooty">Loading...</span></div>
+      <div class="info-box">Battery: <span id="currentBattery">Loading...</span></div>
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
+  <!-- Bottom Nav -->
   <div class="bottom-nav">
-    <button id="homeNav" class="active"><i class="fa-solid fa-house"></i> Home</button>
-    <button id="scannerNav"><i class="fa-solid fa-qrcode"></i> Scan</button>
-    <button id="issuesNav"><i class="fa-solid fa-triangle-exclamation"></i> Issues</button>
-    <button id="attendanceNav"><i class="fa-solid fa-user-check"></i> Attendance</button>
-    <button id="logsNav"><i class="fa-solid fa-file-lines"></i> Logs</button>
+    <div class="nav-btn" id="scannerBtn"><i class="fa-solid fa-qrcode"></i><span>Scanner</span></div>
+    <div class="nav-btn" id="issueBtn"><i class="fa-solid fa-triangle-exclamation"></i><span>Issues</span></div>
+    <div class="nav-btn" id="attendanceBtn"><i class="fa-solid fa-user-check"></i><span>Attendance</span></div>
+    <div class="nav-btn" id="logsBtn"><i class="fa-solid fa-file-lines"></i><span>Logs</span></div>
   </div>
 
   <div id="toast"></div>
 
   <script>
-    // Toast helper
+    // ------------------ Toast ------------------
     const toast = msg => {
       const t = document.getElementById("toast");
       t.innerText = msg;
-      t.style.display="block";
+      t.style.display = "block";
       setTimeout(()=>t.style.display="none",3000);
     };
 
-    // Globals
-    const email = new URLSearchParams(window.location.search).get("email");
-    let workInterval=null, breakInterval=null;
-    let punchProcessing=false, breakProcessing=false;
-    let punchedIn=false, onBreak=false;
-    let workSeconds=0, breakSeconds=0;
-    let punchInTime=null, breakStartTime=null, totalBreakSeconds=0;
+    // ------------------ Geolocation ------------------
+    function getCurrentPositionAsync() {
+      return new Promise((resolve,reject)=>{
+        if(!navigator.geolocation) reject("Geolocation not supported");
+        navigator.geolocation.getCurrentPosition(resolve,reject);
+      });
+    }
 
+    // ------------------ Global State ------------------
+    const email = new URLSearchParams(window.location.search).get("email");
+    if(!email){toast("❌ Not signed in!");window.location.href="rider-signin.html";}
+
+    let session = {
+      punchedIn:false,
+      punchInTime:null,
+      workingSeconds:0,
+      onBreak:false,
+      breakStartTime:null,
+      totalBreakSeconds:0,
+      lastReset:null
+    };
+    let workingInterval=null;
+    let breakInterval=null;
+    let punchProcessing=false;
+    let breakProcessing=false;
+
+    const workingTimer = document.getElementById("workingTimer");
+    const breakTimer = document.getElementById("breakTimer");
     const punchBtn = document.getElementById("punchBtn");
     const breakBtn = document.getElementById("breakBtn");
 
-    if(!email){ toast("❌ Not signed in!"); window.location.href="rider-signin.html"; }
+    // ------------------ Firestore References ------------------
+    const todayKey = new Date().toISOString().split("T")[0];
+    const sessionDocRef = db.collection("attendance").doc(`${email}_${todayKey}`);
 
-    // Load rider and assigned scooty/battery
-    async function loadRider(){
-      const doc = await db.collection("users").doc(email).get();
-      if(!doc.exists){ toast("❌ Rider not found."); window.location.href="rider-signup.html"; return; }
-      const data = doc.data();
-      document.getElementById("riderName").innerText = data.name || "Rider";
-      if(data.status!=="approved"){ toast("⚠️ Account not approved"); window.location.href="rider-signin.html"; return; }
+    // ------------------ Load Existing Session ------------------
+    async function loadSession(){
+      // Local storage first
+      const local = localStorage.getItem("attendanceSession");
+      if(local) session = JSON.parse(local);
 
-      // Assigned scooty/battery
-      const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      s.forEach(d => document.getElementById("currentScooty").innerText = d.id);
-      const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      b.forEach(d => document.getElementById("currentBattery").innerText = d.id);
+      // Firestore sync
+      const doc = await sessionDocRef.get();
+      if(doc.exists) session = {...session, ...doc.data()};
 
-      // Load timers from Firestore
-      const attSnap = await db.collection("attendance").where("rider","==",email).orderBy("timestamp","desc").limit(1).get();
-      if(!attSnap.empty){
-        const att = attSnap.docs[0].data();
-        punchedIn = att.punchedIn || false;
-        onBreak = att.onBreak || false;
-        punchInTime = att.punchInTime ? att.punchInTime.toDate() : null;
-        breakStartTime = att.breakStartTime ? att.breakStartTime.toDate() : null;
-        totalBreakSeconds = att.totalBreakSeconds || 0;
+      updateUI();
+      startIntervals();
+    }
+
+    // ------------------ UI Update ------------------
+    function updateUI(){
+      workingTimer.innerText = secondsToHMS(session.workingSeconds);
+      breakTimer.innerText = secondsToHMS(session.totalBreakSeconds);
+      punchBtn.innerText = session.punchedIn ? "Punch Out" : "Punch In";
+      breakBtn.innerText = session.onBreak ? "Stop Break" : "Start Break";
+    }
+
+    function secondsToHMS(sec){
+      const h = Math.floor(sec/3600);
+      const m = Math.floor((sec%3600)/60);
+      const s = sec%60;
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+    function pad(n){return n.toString().padStart(2,"0");}
+
+    // ------------------ Intervals ------------------
+    function startIntervals(){
+      if(workingInterval) clearInterval(workingInterval);
+      if(breakInterval) clearInterval(breakInterval);
+
+      if(session.punchedIn && !session.onBreak){
+        workingInterval = setInterval(()=>{
+          session.workingSeconds++;
+          workingTimer.innerText = secondsToHMS(session.workingSeconds);
+          localStorage.setItem("attendanceSession",JSON.stringify(session));
+        },1000);
       }
 
-      updateTimers();
-    }
-
-    // Timer update
-    function updateTimers(){
-      clearInterval(workInterval);
-      clearInterval(breakInterval);
-
-      // Work Timer
-      if(punchedIn){
-        workInterval = setInterval(()=>{
-          const now = new Date();
-          workSeconds = Math.floor((now - punchInTime)/1000 - totalBreakSeconds);
-          document.getElementById("workTimer").innerText = formatTime(workSeconds);
-        },1000);
-        punchBtn.innerText = "Punch Out";
-      } else { punchBtn.innerText = "Punch In"; document.getElementById("workTimer").innerText = "00:00:00"; }
-
-      // Break Timer
-      if(onBreak){
+      if(session.onBreak){
         breakInterval = setInterval(()=>{
-          const now = new Date();
-          breakSeconds = Math.floor((now - breakStartTime)/1000);
-          document.getElementById("breakTimer").innerText = formatTime(breakSeconds);
+          session.totalBreakSeconds++;
+          breakTimer.innerText = secondsToHMS(session.totalBreakSeconds);
+          localStorage.setItem("attendanceSession",JSON.stringify(session));
         },1000);
-        breakBtn.innerText = "End Break";
-      } else { breakBtn.innerText = "Start Break"; document.getElementById("breakTimer").innerText = formatTime(totalBreakSeconds); }
+      }
     }
 
-    function formatTime(sec){
-      const h = String(Math.floor(sec/3600)).padStart(2,'0');
-      const m = String(Math.floor((sec%3600)/60)).padStart(2,'0');
-      const s = String(sec%60).padStart(2,'0');
-      return `${h}:${m}:${s}`;
-    }
+    // ------------------ Punch In/Out ------------------
+    punchBtn.addEventListener("click",async()=>{
+      if(punchProcessing) return;
+      punchProcessing=true;
 
-    // Punch button
-    punchBtn.addEventListener("click", async ()=>{
-      if(punchProcessing) return; punchProcessing=true;
       try{
-        if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
-        navigator.geolocation.getCurrentPosition(async pos=>{
-          const lat=pos.coords.latitude, lng=pos.coords.longitude;
-          const locSnap = await db.collection("locations").get();
-          let inside=null;
-          locSnap.forEach(doc=>{
-            const d=doc.data();
-            const dist = getDistance(lat,lng,d.lat,d.lng)*1000;
-            if(dist<=d.radius+5) inside=d.name;
-          });
-          if(!inside){ toast("❌ Outside geofence"); return; }
+        const pos = await getCurrentPositionAsync();
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-          const attRef = db.collection("attendance").doc(email+"-current");
-          if(!punchedIn){
-            // Punch In
-            punchInTime = new Date();
-            await attRef.set({ rider:email, punchedIn:true, punchInTime:punchInTime, onBreak:false, totalBreakSeconds:totalBreakSeconds }, { merge:true });
-            punchedIn=true; onBreak=false;
-          } else {
-            // Punch Out
-            punchedIn=false; onBreak=false;
-            await attRef.update({ punchedIn:false, onBreak:false, totalBreakSeconds:totalBreakSeconds });
-          }
-          updateTimers();
-        }, err=>toast("❌ Location error: "+err.message));
-      } finally { punchProcessing=false; }
+        // Check geofence (replace with your Firestore locations)
+        const locsSnap = await db.collection("locations").get();
+        let inside=false;
+        locsSnap.forEach(doc=>{
+          const d=doc.data();
+          const distance=getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000;
+          if(distance<=d.radius) inside=true;
+        });
+        if(!inside){toast("❌ Outside allowed area"); punchProcessing=false; return;}
+
+        if(!session.punchedIn){
+          session.punchedIn=true;
+          session.punchInTime=Date.now();
+          toast("✅ Punched In");
+        }else{
+          session.punchedIn=false;
+          toast("✅ Punched Out");
+        }
+
+        // Stop any intervals and restart correctly
+        startIntervals();
+        updateUI();
+
+        // Store locally and sync Firestore
+        localStorage.setItem("attendanceSession",JSON.stringify(session));
+        await sessionDocRef.set(session,{merge:true});
+
+      }catch(err){toast("❌ "+err.message);}finally{punchProcessing=false;}
     });
 
-    // Break button
-    breakBtn.addEventListener("click", async ()=>{
-      if(breakProcessing) return; breakProcessing=true;
-      try{
-        if(!punchedIn){ toast("❌ Punch in first"); return; }
-        if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
-        navigator.geolocation.getCurrentPosition(async pos=>{
-          const lat=pos.coords.latitude, lng=pos.coords.longitude;
-          const locSnap = await db.collection("locations").get();
-          let inside=null;
-          locSnap.forEach(doc=>{
-            const d=doc.data();
-            const dist = getDistance(lat,lng,d.lat,d.lng)*1000;
-            if(dist<=d.radius+5) inside=d.name;
-          });
-          if(!inside){ toast("❌ Outside geofence"); return; }
+    // ------------------ Break Button ------------------
+    breakBtn.addEventListener("click",async()=>{
+      if(breakProcessing) return;
+      breakProcessing=true;
 
-          const attRef = db.collection("attendance").doc(email+"-current");
-          if(!onBreak){
-            // Start Break
-            breakStartTime = new Date();
-            onBreak=true;
-            await attRef.update({ onBreak:true, breakStartTime:breakStartTime });
-          } else {
-            // End Break
-            const breakEnd = new Date();
-            totalBreakSeconds += Math.floor((breakEnd - breakStartTime)/1000);
-            onBreak=false;
-            await attRef.update({ onBreak:false, totalBreakSeconds:totalBreakSeconds });
-          }
-          updateTimers();
-        }, err=>toast("❌ Location error: "+err.message));
-      } finally { breakProcessing=false; }
+      try{
+        if(!session.punchedIn){toast("❌ Punch in first"); breakProcessing=false; return;}
+
+        if(!session.onBreak){
+          session.onBreak=true;
+          session.breakStartTime=Date.now();
+          toast("⏸ Break Started");
+        }else{
+          session.onBreak=false;
+          // Calculate duration
+          const dur = Math.floor((Date.now()-session.breakStartTime)/1000);
+          session.totalBreakSeconds+=dur;
+          session.breakStartTime=null;
+          toast("▶️ Break Ended");
+        }
+
+        // Stop/start intervals accordingly
+        startIntervals();
+        updateUI();
+
+        localStorage.setItem("attendanceSession",JSON.stringify(session));
+        await sessionDocRef.set(session,{merge:true});
+
+      }catch(err){toast("❌ "+err.message);}finally{breakProcessing=false;}
     });
 
-    function getDistance(lat1, lon1, lat2, lon2){
+    // ------------------ Helper: Distance ------------------
+    function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2){
       const R=6371;
-      const dLat = deg2rad(lat2-lat1);
-      const dLon = deg2rad(lon2-lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)**2;
-      const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const dLat=(lat2-lat1)*Math.PI/180;
+      const dLon=(lon2-lon1)*Math.PI/180;
+      const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
       return R*c;
     }
-    function deg2rad(d){ return d*(Math.PI/180); }
 
-    // Bottom nav
-    document.getElementById("homeNav").onclick = ()=> toast("You are on Home");
-    document.getElementById("scannerNav").onclick = ()=> window.location.href=`scanner.html?email=${email}`;
-    document.getElementById("issuesNav").onclick = ()=> window.location.href=`issue.html?email=${email}`;
-    document.getElementById("attendanceNav").onclick = ()=> window.location.href=`attendance.html?email=${email}`;
-    document.getElementById("logsNav").onclick = ()=> window.location.href=`rider-logs.html?email=${email}`;
+    // ------------------ Navigation ------------------
+    document.getElementById("scannerBtn").addEventListener("click",()=>window.location.href=`scanner.html?email=${email}`);
+    document.getElementById("issueBtn").addEventListener("click",()=>window.location.href=`issue.html?email=${email}`);
+    document.getElementById("attendanceBtn").addEventListener("click",()=>window.location.href=`rider-dashboard.html?email=${email}`);
+    document.getElementById("logsBtn").addEventListener("click",()=>window.location.href=`rider-logs.html?email=${email}`);
 
-    // Logout
-    document.getElementById("logoutBtn").onclick = ()=> firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+    document.getElementById("logoutBtn").addEventListener("click",()=>firebase.auth().signOut().then(()=>window.location.href="rider-signin.html"));
 
-    loadRider();
+    // ------------------ Load Data ------------------
+    loadSession();
   </script>
+
 </body>
 </html>
