@@ -68,6 +68,9 @@ h1{font-size:20px; font-weight:700; color:var(--action); text-align:center;}
   background:rgba(0,234,255,0.9);color:#000;padding:10px 16px;
   border-radius:6px;display:none;font-weight:bold;z-index:1000;
 }
+/* Progress bars */
+.progress-bar { width:100%; height:12px; background: rgba(255,255,255,0.1); border-radius:8px; overflow:hidden; margin-top:4px; }
+.progress-fill { width:0%; height:100%; background: linear-gradient(90deg,#00eaff,#0066ff); transition: width 0.5s ease; border-radius:8px; }
 @media(max-width:480px){.card{padding:16px;}.info-value{font-size:18px;} h1{font-size:18px;}
 .btn{padding:10px 0; font-size:14px;} .status-box{font-size:13px; padding:6px 8px;}}
 </style>
@@ -88,6 +91,11 @@ h1{font-size:20px; font-weight:700; color:var(--action); text-align:center;}
 <div class="info-block">
 <div class="info-label">Total Break Time</div>
 <div class="info-value" id="breakTime">00:00:00</div>
+</div>
+
+<div class="info-block">
+<div class="info-label">Shift Progress</div>
+<div class="progress-bar"><div id="shiftProgress" class="progress-fill"></div></div>
 </div>
 
 <div class="info-block">
@@ -118,10 +126,11 @@ h1{font-size:20px; font-weight:700; color:var(--action); text-align:center;}
 <div id="toast"></div>
 
 <script>
-const toast = msg => { const t = document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000); }
+// ------------------ INITIAL SETUP ------------------
+const toast = msg => { const t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",3000);}
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
-if(!email){ toast("❌ Not signed in"); window.location.href="rider-signin.html"; }
+if(!email){ toast("❌ Not signed in"); window.location.href="rider-signin.html";}
 const navEmail=encodeURIComponent(email);
 document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
 document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
@@ -129,7 +138,7 @@ document.getElementById("navIssues").onclick = ()=> window.location.href=`issue.
 document.getElementById("navAttendance").onclick = ()=> window.location.href=`attendance.html?email=${navEmail}`;
 document.getElementById("navLogs").onclick = ()=> window.location.href=`rider-logs.html?email=${navEmail}`;
 
-// Timers
+// ------------------ TIMERS ------------------
 let punchedIn=false, onBreak=false, workSeconds=0, breakSeconds=0;
 let timerInterval, breakInterval;
 const punchBtn=document.getElementById("punchBtn");
@@ -137,13 +146,13 @@ const breakBtn=document.getElementById("breakBtn");
 const timerDisplay=document.getElementById("workTimer");
 const breakDisplay=document.getElementById("breakTime");
 
-// Helpers
+// ------------------ HELPERS ------------------
 function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
 function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; }
 function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; }
 function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c*1000; }
 
-// Load assignments
+// ------------------ ASSIGNMENTS ------------------
 async function loadAssignments(){
   const s=await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
   let scooty="None"; s.forEach(d=>scooty=d.id); document.getElementById("currentScooty").textContent=scooty;
@@ -152,10 +161,23 @@ async function loadAssignments(){
 }
 loadAssignments();
 
-// Restore timers from Firebase
+// ------------------ SHIFT PROGRESS ------------------
+function updateShiftProgress(){
+  const shiftStart=new Date(); shiftStart.setHours(9,0,0,0);
+  const shiftEnd=new Date(); shiftEnd.setHours(18,0,0,0);
+  const now=new Date();
+  let progress=0;
+  if(now>=shiftStart && now<=shiftEnd){ progress=((now-shiftStart)/(shiftEnd-shiftStart))*100; }
+  else if(now>shiftEnd){ progress=100; }
+  document.getElementById("shiftProgress").style.width=progress+"%";
+}
+setInterval(updateShiftProgress,1000);
+
+// ------------------ RESTORE TIMERS FROM FIREBASE ------------------
 async function restoreTimers(){
   const att=await db.collection("attendance").where("rider","==",email).orderBy("timestamp","asc").get();
-  let lastPunchIn=null,lastBreakStart=null; workSeconds=0; breakSeconds=0;
+  let lastPunchIn=null, lastBreakStart=null;
+  workSeconds=0; breakSeconds=0;
   att.forEach(doc=>{
     const d=doc.data(); const ts=d.timestamp?.toDate();
     if(d.type==="punch_in") lastPunchIn=ts;
@@ -163,55 +185,56 @@ async function restoreTimers(){
     if(d.type==="break_start") lastBreakStart=ts;
     if(d.type==="break_end" && lastBreakStart){ breakSeconds+=Math.floor((ts-lastBreakStart)/1000); lastBreakStart=null; }
   });
+  if(lastPunchIn){ punchedIn=true; timerInterval=setInterval(updateWorkTimer,1000); }
+  if(lastBreakStart){ onBreak=true; breakInterval=setInterval(updateBreakTimer,1000); }
   timerDisplay.textContent=secToHMS(workSeconds);
   breakDisplay.textContent=secToHMS(breakSeconds);
-  if(lastPunchIn){ punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); }
-  if(lastBreakStart){ onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); }
+  punchBtn.textContent=punchedIn?"Punch Out":"Punch In";
+  breakBtn.textContent=onBreak?"End Break":"Start Break";
 }
 restoreTimers();
 
-// Geofenced punch
-async function checkGeofence(){ 
-  return new Promise((resolve,reject)=>{
-    if(!navigator.geolocation){ toast("❌ Geolocation not supported."); reject(); return; }
-    navigator.geolocation.getCurrentPosition(async pos=>{
-      const lat=pos.coords.latitude;
-      const lng=pos.coords.longitude;
-      const locs=await db.collection("locations").get();
-      let inside=null;
-      locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d; });
-      if(inside) resolve(inside.name); else { toast("❌ You are outside allowed zones."); reject(); }
-    },err=>{ toast("❌ Location error: "+err.message); reject(); });
-  });
-}
-
-// Punch in/out
-punchBtn.addEventListener("click", async()=>{
-  try{
-    const loc=await checkGeofence();
+// ------------------ PUNCH IN / OUT ------------------
+punchBtn.onclick = ()=>{
+  if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    const locs=await db.collection("locations").get();
+    let inside=null;
+    locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d.name; });
+    if(!inside){ toast("❌ Outside allowed geofence"); return; }
     if(!punchedIn){
-      await db.collection("attendance").add({rider:email,type:"punch_in",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Punched In");
-    } else {
-      await db.collection("attendance").add({rider:email,type:"punch_out",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      punchedIn=false; punchBtn.textContent="Punch In"; clearInterval(timerInterval); toast("✅ Punched Out");
+      await db.collection("attendance").add({rider:email,type:"punch_in",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      punchedIn=true; punchBtn.textContent="Punch Out";
+      timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Punched In");
+    } else{
+      await db.collection("attendance").add({rider:email,type:"punch_out",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      punchedIn=false; punchBtn.textContent="Punch In";
+      clearInterval(timerInterval); toast("✅ Punched Out");
     }
-  } catch(e){}
-});
+  }, err=>{ toast("❌ Location error: "+err.message); });
+};
 
-// Break button
-breakBtn.addEventListener("click", async()=>{
+// ------------------ BREAK START / END ------------------
+breakBtn.onclick = ()=>{
   if(!punchedIn){ toast("❌ Punch in first"); return; }
-  if(!onBreak){
-    const loc=await checkGeofence();
-    await db.collection("attendance").add({rider:email,type:"break_start",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-    onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); toast("✅ Break Started");
-  } else {
-    const loc=await checkGeofence();
-    await db.collection("attendance").add({rider:email,type:"break_end",location:loc,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-    onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000); toast("✅ Break Ended");
-  }
-});
+  if(!navigator.geolocation){ toast("❌ Geolocation not supported"); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    const locs=await db.collection("locations").get();
+    let inside=null;
+    locs.forEach(doc=>{ const d=doc.data(); const dist=getDistance(lat,lng,d.lat,d.lng); if(dist<=d.radius) inside=d.name; });
+    if(!inside){ toast("❌ Outside allowed geofence"); return; }
+    if(!onBreak){
+      await db.collection("attendance").add({rider:email,type:"break_start",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      onBreak=true; breakBtn.textContent="End Break"; breakInterval=setInterval(updateBreakTimer,1000); toast("✅ Break Started");
+    } else{
+      await db.collection("attendance").add({rider:email,type:"break_end",location:inside,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+      onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); toast("✅ Break Ended");
+    }
+  }, err=>{ toast("❌ Location error: "+err.message); });
+};
 </script>
+
 </body>
 </html>
