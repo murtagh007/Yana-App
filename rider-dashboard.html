@@ -4,12 +4,16 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Rider Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
+
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
   <style>
     :root {
       --bg: #0a0f12;
@@ -41,19 +45,14 @@
     /* Navbar */
     .navbar {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
-      padding: 12px 20px;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(6px);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-    }
-    .navbar h2 {
-      margin: 0;
-      color: var(--action);
+      padding: 16px;
+      background: linear-gradient(135deg, #00eaff, #0066ff);
+      border-radius: 0 0 20px 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      font-weight: bold;
+      color: #fff;
       font-size: 1.2rem;
     }
 
@@ -65,15 +64,17 @@
       align-items: flex-start;
       padding: 20px;
     }
+
+    /* Card */
     .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
       padding: 24px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 4px 20px rgba(0,234,255,0.2);
-      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.2);
     }
 
     h1 {
@@ -85,36 +86,57 @@
     }
 
     .info-block {
-      margin-bottom: 16px;
-      text-align: center;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
+      position: relative;
     }
+
+    .info-block i {
+      font-size: 24px;
+      color: var(--action);
+      margin-bottom: 6px;
+    }
+
     .info-label {
       font-size: 14px;
       color: #aaa;
     }
+
     .info-value {
       font-size: 20px;
       font-weight: bold;
       margin-top: 4px;
     }
 
+    /* Buttons */
     .btn {
-      display: block;
-      width: 100%;
-      padding: 14px;
-      margin: 12px 0;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--action);
+      background: linear-gradient(90deg, #00eaff, #00ffaa);
+      border-radius: 50px;
+      padding: 14px 0;
+      font-weight: 700;
       color: #000;
-      transition: 0.2s;
+      border: none;
+      cursor: pointer;
+      flex: 1;
+      transition: all 0.3s ease;
     }
-    .btn:hover { background: #00c8e0; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,234,255,0.4); }
+    .btn.secondary {
+      background: rgba(0,0,0,0.2);
+      color: var(--action);
+      border: 2px solid var(--action);
+    }
 
-    /* Scooty/Battery block */
+    /* Buttons container */
+    .btn-group { display: flex; gap: 10px; margin: 12px 0; }
+
+    /* Scooty/Battery Block */
     .status {
       margin-top: 20px;
       display: flex;
@@ -123,12 +145,16 @@
     }
     .status-box {
       background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
       padding: 12px 16px;
       text-align: center;
       font-weight: 500;
       color: var(--text);
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     /* Bottom Navigation */
@@ -137,12 +163,14 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      background: var(--card);
-      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,0.25);
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
       display: flex;
       justify-content: space-around;
       padding: 8px 0;
       backdrop-filter: blur(6px);
+      z-index: 1000;
     }
     .bottom-nav a {
       color: var(--text);
@@ -150,54 +178,74 @@
       text-align: center;
       flex: 1;
       font-size: 12px;
+      transition: all 0.2s;
     }
-    .bottom-nav i {
+    .bottom-nav a i {
       display: block;
       font-size: 18px;
       margin-bottom: 2px;
       color: var(--action);
+    }
+    .bottom-nav a.active i {
+      transform: scale(1.2);
+      text-shadow: 0 0 6px #00eaff;
+    }
+
+    @media(max-width:480px){
+      .card { padding: 16px; }
+      .info-value { font-size: 18px; }
+      h1 { font-size: 20px; }
     }
   </style>
 </head>
 <body>
 
   <!-- Navbar -->
-  <div class="navbar">
-    <h2>⚡ YANA Rider</h2>
-  </div>
+  <div class="navbar">⚡ YANA Rider</div>
 
   <!-- Main Card -->
   <div class="container">
     <div class="card">
       <h1>Work Tracker</h1>
 
+      <!-- Working Hours -->
       <div class="info-block">
+        <i class="fa-solid fa-clock"></i>
         <div class="info-label">Working Hours</div>
         <div class="info-value" id="workTimer">00:00:00</div>
       </div>
 
+      <!-- Break Time -->
       <div class="info-block">
+        <i class="fa-solid fa-bed"></i>
         <div class="info-label">Total Break Time</div>
         <div class="info-value" id="breakTime">00h : 00m</div>
       </div>
 
+      <!-- Assigned Shift -->
       <div class="info-block">
+        <i class="fa-solid fa-calendar-day"></i>
         <div class="info-label">Assigned Shift</div>
-        <div class="info-value" id="shiftTiming">-- : --</div>
+        <div class="info-value" id="shiftTiming">09:00 AM – 06:00 PM</div>
       </div>
 
-      <button class="btn" id="punchBtn">Press to Punch In</button>
+      <!-- Punch / Break Buttons -->
+      <div class="btn-group">
+        <button class="btn" id="punchBtn">Press to Punch In</button>
+        <button class="btn secondary" id="breakBtn">Start Break</button>
+      </div>
 
+      <!-- Scooty / Battery -->
       <div class="status">
-        <div class="status-box">Scooty: <span id="currentScooty">Loading...</span></div>
-        <div class="status-box">Battery: <span id="currentBattery">Loading...</span></div>
+        <div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
+        <div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
       </div>
     </div>
   </div>
 
   <!-- Bottom Navigation -->
   <div class="bottom-nav">
-    <a href="rider-dashboard.html"><i class="fa-solid fa-house"></i>Home</a>
+    <a href="rider-dashboard.html" class="active"><i class="fa-solid fa-house"></i>Home</a>
     <a href="scanner.html"><i class="fa-solid fa-qrcode"></i>Scanner</a>
     <a href="issue.html"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
     <a href="attendance.html"><i class="fa-solid fa-user-check"></i>Attendance</a>
@@ -207,15 +255,19 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
-    let currentScooty = null;
-    let currentBattery = null;
+
     let punchedIn = false;
+    let onBreak = false;
     let workSeconds = 0;
-    let timerInterval;
+    let breakSeconds = 0;
+    let timerInterval, breakInterval;
 
-    const timerDisplay = document.getElementById("workTimer");
     const punchBtn = document.getElementById("punchBtn");
+    const breakBtn = document.getElementById("breakBtn");
+    const timerDisplay = document.getElementById("workTimer");
+    const breakDisplay = document.getElementById("breakTime");
 
+    // Timer updates
     function updateTimer() {
       workSeconds++;
       const hrs = String(Math.floor(workSeconds / 3600)).padStart(2,'0');
@@ -223,36 +275,112 @@
       const secs = String(workSeconds % 60).padStart(2,'0');
       timerDisplay.textContent = `${hrs}:${mins}:${secs}`;
     }
+    function updateBreakTimer() {
+      breakSeconds++;
+      const hrs = String(Math.floor(breakSeconds / 3600)).padStart(2,'0');
+      const mins = String(Math.floor((breakSeconds % 3600) / 60)).padStart(2,'0');
+      breakDisplay.textContent = `${hrs}h : ${mins}m`;
+    }
 
-    punchBtn.addEventListener("click", () => {
-      punchedIn = !punchedIn;
-      if (punchedIn) {
-        punchBtn.textContent = "Press to Punch Out";
-        timerInterval = setInterval(updateTimer, 1000);
-      } else {
-        punchBtn.textContent = "Press to Punch In";
+    // Haversine distance
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2-lat1) * Math.PI/180;
+      const dLon = (lon2-lon1) * Math.PI/180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    async function isInsideLocation(lat, lng) {
+      const locs = await db.collection("locations").get();
+      let inside = null;
+      locs.forEach(doc=>{
+        const d = doc.data();
+        const dist = getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000;
+        if(dist<=d.radius) inside=d;
+      });
+      return inside;
+    }
+
+    // Punch In/Out
+    punchBtn.addEventListener("click", ()=>{
+      if(!navigator.geolocation){ alert("❌ Geolocation not supported."); return; }
+
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const inside = await isInsideLocation(lat,lng);
+
+        if(!inside){ alert("❌ You are outside allowed attendance zones."); return; }
+
+        if(!punchedIn){
+          punchedIn=true;
+          punchBtn.textContent="Press to Punch Out";
+          timerInterval=setInterval(updateTimer,1000);
+
+          await db.collection("attendance").add({
+            rider: email,
+            type:"punch_in",
+            location:inside.name,
+            lat,lng,
+            timestamp:firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }else{
+          punchedIn=false;
+          punchBtn.textContent="Press to Punch In";
+          clearInterval(timerInterval);
+
+          await db.collection("attendance").add({
+            rider: email,
+            type:"punch_out",
+            location:inside.name,
+            lat,lng,
+            workSeconds,
+            breakSeconds,
+            timestamp:firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      },err=>{ alert("❌ Location error: "+err.message); });
+    });
+
+    // Break button
+    breakBtn.addEventListener("click", ()=>{
+      if(!punchedIn){ alert("⚠️ You must Punch In before starting a break."); return; }
+
+      if(!onBreak){
+        onBreak=true;
+        breakBtn.textContent="End Break";
         clearInterval(timerInterval);
+        breakInterval=setInterval(updateBreakTimer,60*1000);
+
+        db.collection("attendance").add({
+          rider:email,
+          type:"break_start",
+          timestamp:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }else{
+        onBreak=false;
+        breakBtn.textContent="Start Break";
+        clearInterval(breakInterval);
+        timerInterval=setInterval(updateTimer,1000);
+
+        db.collection("attendance").add({
+          rider:email,
+          type:"break_end",
+          timestamp:firebase.firestore.FieldValue.serverTimestamp()
+        });
       }
     });
 
-    async function loadMyAssignments() {
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => currentScooty = d.id);
+    // Load scooty/battery
+    async function loadAssignments(){
+      const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+      s.forEach(d=>document.getElementById("currentScooty").innerText=d.id || "None");
 
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => currentBattery = d.id);
-
-      document.getElementById("currentScooty").innerText = currentScooty || "None";
-      document.getElementById("currentBattery").innerText = currentBattery || "None";
+      const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+      b.forEach(d=>document.getElementById("currentBattery").innerText=d.id || "None");
     }
-
-    loadMyAssignments();
+    loadAssignments();
   </script>
 </body>
 </html>
