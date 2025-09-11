@@ -42,7 +42,6 @@
       100%{background-position:0% 50%}
     }
 
-    /* Navbar */
     .navbar {
       display: flex;
       justify-content: center;
@@ -56,7 +55,6 @@
       font-size: 1.2rem;
     }
 
-    /* Container */
     .container {
       flex: 1;
       display: flex;
@@ -65,7 +63,6 @@
       padding: 20px;
     }
 
-    /* Card */
     .card {
       background: rgba(255,255,255,0.05);
       border-radius: 20px;
@@ -114,7 +111,6 @@
       margin-top: 4px;
     }
 
-    /* Buttons */
     .btn {
       background: linear-gradient(90deg, #00eaff, #00ffaa);
       border-radius: 50px;
@@ -126,6 +122,7 @@
       flex: 1;
       transition: all 0.3s ease;
     }
+
     .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,234,255,0.4); }
     .btn.secondary {
       background: rgba(0,0,0,0.2);
@@ -133,16 +130,15 @@
       border: 2px solid var(--action);
     }
 
-    /* Buttons container */
     .btn-group { display: flex; gap: 10px; margin: 12px 0; }
 
-    /* Scooty/Battery Block */
     .status {
       margin-top: 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
+
     .status-box {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.2);
@@ -157,7 +153,6 @@
       align-items: center;
     }
 
-    /* Bottom Navigation */
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -172,6 +167,7 @@
       backdrop-filter: blur(6px);
       z-index: 1000;
     }
+
     .bottom-nav a {
       color: var(--text);
       text-decoration: none;
@@ -180,12 +176,14 @@
       font-size: 12px;
       transition: all 0.2s;
     }
+
     .bottom-nav a i {
       display: block;
       font-size: 18px;
       margin-bottom: 2px;
       color: var(--action);
     }
+
     .bottom-nav a.active i {
       transform: scale(1.2);
       text-shadow: 0 0 6px #00eaff;
@@ -200,42 +198,35 @@
 </head>
 <body>
 
-  <!-- Navbar -->
   <div class="navbar">⚡ YANA Rider</div>
 
-  <!-- Main Card -->
   <div class="container">
     <div class="card">
       <h1>Work Tracker</h1>
 
-      <!-- Working Hours -->
       <div class="info-block">
         <i class="fa-solid fa-clock"></i>
         <div class="info-label">Working Hours</div>
         <div class="info-value" id="workTimer">00:00:00</div>
       </div>
 
-      <!-- Break Time -->
       <div class="info-block">
         <i class="fa-solid fa-bed"></i>
         <div class="info-label">Total Break Time</div>
         <div class="info-value" id="breakTime">00h : 00m</div>
       </div>
 
-      <!-- Assigned Shift -->
       <div class="info-block">
         <i class="fa-solid fa-calendar-day"></i>
         <div class="info-label">Assigned Shift</div>
         <div class="info-value" id="shiftTiming">09:00 AM – 06:00 PM</div>
       </div>
 
-      <!-- Punch / Break Buttons -->
       <div class="btn-group">
         <button class="btn" id="punchBtn">Press to Punch In</button>
         <button class="btn secondary" id="breakBtn">Start Break</button>
       </div>
 
-      <!-- Scooty / Battery -->
       <div class="status">
         <div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
         <div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
@@ -243,57 +234,60 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
   <div class="bottom-nav">
-    <a href="rider-dashboard.html" class="active"><i class="fa-solid fa-house"></i>Home</a>
-    <a href="scanner.html"><i class="fa-solid fa-qrcode"></i>Scanner</a>
-    <a href="issue.html"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
-    <a href="attendance.html"><i class="fa-solid fa-user-check"></i>Attendance</a>
-    <a href="rider-logs.html"><i class="fa-solid fa-file-lines"></i>Logs</a>
+    <a href="#" id="navHome" class="active"><i class="fa-solid fa-house"></i>Home</a>
+    <a href="#" id="navScanner"><i class="fa-solid fa-qrcode"></i>Scanner</a>
+    <a href="#" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
+    <a href="#" id="navAttendance"><i class="fa-solid fa-user-check"></i>Attendance</a>
+    <a href="#" id="navLogs"><i class="fa-solid fa-file-lines"></i>Logs</a>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
+    if(!email) { alert("❌ Not signed in"); window.location.href="rider-signin.html"; }
 
-    let punchedIn = false;
-    let onBreak = false;
-    let workSeconds = 0;
-    let breakSeconds = 0;
-    let timerInterval, breakInterval;
+    // Bottom nav links with email param
+    const navEmail = encodeURIComponent(email);
+    document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
+    document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
+    document.getElementById("navIssues").onclick = ()=> window.location.href=`issue.html?email=${navEmail}`;
+    document.getElementById("navAttendance").onclick = ()=> window.location.href=`attendance.html?email=${navEmail}`;
+    document.getElementById("navLogs").onclick = ()=> window.location.href=`rider-logs.html?email=${navEmail}`;
 
+    // Timers
+    let punchedIn = false, onBreak = false, workSeconds = 0, breakSeconds = 0, timerInterval, breakInterval;
     const punchBtn = document.getElementById("punchBtn");
     const breakBtn = document.getElementById("breakBtn");
     const timerDisplay = document.getElementById("workTimer");
     const breakDisplay = document.getElementById("breakTime");
 
-    // Timer updates
     function updateTimer() {
       workSeconds++;
-      const hrs = String(Math.floor(workSeconds / 3600)).padStart(2,'0');
-      const mins = String(Math.floor((workSeconds % 3600) / 60)).padStart(2,'0');
-      const secs = String(workSeconds % 60).padStart(2,'0');
+      const hrs = String(Math.floor(workSeconds/3600)).padStart(2,'0');
+      const mins = String(Math.floor((workSeconds%3600)/60)).padStart(2,'0');
+      const secs = String(workSeconds%60).padStart(2,'0');
       timerDisplay.textContent = `${hrs}:${mins}:${secs}`;
     }
+
     function updateBreakTimer() {
       breakSeconds++;
-      const hrs = String(Math.floor(breakSeconds / 3600)).padStart(2,'0');
-      const mins = String(Math.floor((breakSeconds % 3600) / 60)).padStart(2,'0');
+      const hrs = String(Math.floor(breakSeconds/3600)).padStart(2,'0');
+      const mins = String(Math.floor((breakSeconds%3600)/60)).padStart(2,'0');
       breakDisplay.textContent = `${hrs}h : ${mins}m`;
     }
 
-    // Haversine distance
-    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2-lat1) * Math.PI/180;
-      const dLon = (lon2-lon1) * Math.PI/180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2){
+      const R=6371;
+      const dLat=(lat2-lat1)*Math.PI/180;
+      const dLon=(lon2-lon1)*Math.PI/180;
+      const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      return R * (2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     }
 
-    async function isInsideLocation(lat, lng) {
+    async function isInsideLocation(lat,lng){
       const locs = await db.collection("locations").get();
-      let inside = null;
+      let inside=null;
       locs.forEach(doc=>{
         const d = doc.data();
         const dist = getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000;
@@ -302,83 +296,59 @@
       return inside;
     }
 
-    // Punch In/Out
     punchBtn.addEventListener("click", ()=>{
-      if(!navigator.geolocation){ alert("❌ Geolocation not supported."); return; }
-
+      if(!navigator.geolocation){ alert("❌ Geolocation not supported"); return; }
       navigator.geolocation.getCurrentPosition(async pos=>{
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+        const lat=pos.coords.latitude;
+        const lng=pos.coords.longitude;
         const inside = await isInsideLocation(lat,lng);
-
-        if(!inside){ alert("❌ You are outside allowed attendance zones."); return; }
+        if(!inside){ alert("❌ You are outside allowed attendance zones"); return; }
 
         if(!punchedIn){
           punchedIn=true;
           punchBtn.textContent="Press to Punch Out";
           timerInterval=setInterval(updateTimer,1000);
-
           await db.collection("attendance").add({
-            rider: email,
-            type:"punch_in",
-            location:inside.name,
-            lat,lng,
-            timestamp:firebase.firestore.FieldValue.serverTimestamp()
+            rider:email, type:"punch_in", location:inside.name,
+            lat,lng, timestamp:firebase.firestore.FieldValue.serverTimestamp()
           });
         }else{
           punchedIn=false;
           punchBtn.textContent="Press to Punch In";
           clearInterval(timerInterval);
-
           await db.collection("attendance").add({
-            rider: email,
-            type:"punch_out",
-            location:inside.name,
-            lat,lng,
-            workSeconds,
-            breakSeconds,
+            rider:email, type:"punch_out", location:inside.name,
+            lat,lng, workSeconds, breakSeconds,
             timestamp:firebase.firestore.FieldValue.serverTimestamp()
           });
         }
       },err=>{ alert("❌ Location error: "+err.message); });
     });
 
-    // Break button
     breakBtn.addEventListener("click", ()=>{
-      if(!punchedIn){ alert("⚠️ You must Punch In before starting a break."); return; }
-
+      if(!punchedIn){ alert("⚠️ Punch in first"); return; }
       if(!onBreak){
         onBreak=true;
         breakBtn.textContent="End Break";
         clearInterval(timerInterval);
         breakInterval=setInterval(updateBreakTimer,60*1000);
-
-        db.collection("attendance").add({
-          rider:email,
-          type:"break_start",
-          timestamp:firebase.firestore.FieldValue.serverTimestamp()
-        });
+        db.collection("attendance").add({rider:email,type:"break_start",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
       }else{
         onBreak=false;
         breakBtn.textContent="Start Break";
         clearInterval(breakInterval);
         timerInterval=setInterval(updateTimer,1000);
-
-        db.collection("attendance").add({
-          rider:email,
-          type:"break_end",
-          timestamp:firebase.firestore.FieldValue.serverTimestamp()
-        });
+        db.collection("attendance").add({rider:email,type:"break_end",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
       }
     });
 
     // Load scooty/battery
     async function loadAssignments(){
       const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      s.forEach(d=>document.getElementById("currentScooty").innerText=d.id || "None");
+      let scooty="None"; s.forEach(d=> scooty=d.id); document.getElementById("currentScooty").textContent=scooty;
 
       const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-      b.forEach(d=>document.getElementById("currentBattery").innerText=d.id || "None");
+      let battery="None"; b.forEach(d=> battery=d.id); document.getElementById("currentBattery").textContent=battery;
     }
     loadAssignments();
   </script>
