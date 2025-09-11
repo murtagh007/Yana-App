@@ -5,189 +5,189 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>YANA — Rider Dashboard</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
-
-<!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-:root {
-  --bg: #0a0f12;
-  --card: rgba(255,255,255,0.08);
-  --border: rgba(255,255,255,0.2);
-  --action: #00eaff;
-  --text: #eaf4f8;
-  --radius: 16px;
+:root{
+  --bg:#0a0f12;
+  --card:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.2);
+  --action:#00eaff;
+  --text:#eaf4f8;
+  --radius:16px;
 }
-
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
-  background-size: 600% 600%;
-  animation: gradientShift 20s ease infinite;
-  color: var(--text);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+body{
+  margin:0;
+  font-family:'Inter',sans-serif;
+  background:linear-gradient(270deg,var(--bg),#141a1f,var(--bg));
+  background-size:600% 600%;
+  animation:gradientShift 20s ease infinite;
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
 }
-
-@keyframes gradientShift {
+@keyframes gradientShift{
   0%{background-position:0% 50%}
   50%{background-position:100% 50%}
   100%{background-position:0% 50%}
 }
-
-.navbar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 16px;
-  background: linear-gradient(135deg, #00eaff, #0066ff);
-  border-radius: 0 0 20px 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  font-weight: bold;
-  color: #fff;
-  font-size: 1.2rem;
+.navbar{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:14px;
+  background:linear-gradient(135deg,#00eaff,#0066ff);
+  border-radius:0 0 20px 20px;
+  font-weight:bold;
+  color:#fff;
+  font-size:1.2rem;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
-
-.container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 20px;
+.container{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:12px;
 }
-
-.card {
-  background: rgba(255,255,255,0.05);
-  border-radius: 20px;
-  padding: 24px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.2);
+.card{
+  background:rgba(255,255,255,0.05);
+  border-radius:20px;
+  padding:20px;
+  width:100%;
+  max-width:400px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.2);
+  display:flex;
+  flex-direction:column;
+  gap:16px;
 }
-
-h1 {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--action);
-  margin-bottom: 16px;
-  text-align: center;
+h1{
+  font-size:20px;
+  font-weight:700;
+  color:var(--action);
+  text-align:center;
 }
-
-.info-block {
-  background: rgba(255,255,255,0.1);
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
-  position: relative;
+.info-block{
+  background:rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  position:relative;
+  justify-content:center;
 }
-
-.info-block i {
-  font-size: 24px;
-  color: var(--action);
-  margin-bottom: 6px;
+.info-label{font-size:13px;color:#aaa;}
+.info-value{font-size:20px;font-weight:bold;margin-top:4px;}
+.btn-group{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:space-between;
 }
-
-.info-label {
-  font-size: 14px;
-  color: #aaa;
+.btn{
+  flex:1;
+  min-width:48%;
+  text-align:center;
+  border-radius:50px;
+  padding:12px 0;
+  font-weight:700;
+  color:var(--action);
+  border:2px solid var(--action);
+  cursor:pointer;
+  transition:all 0.2s ease;
+  background:rgba(0,0,0,0.2);
 }
-
-.info-value {
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 4px;
+.btn:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,234,255,0.4);}
+.status{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
 }
-
-.btn {
-  border-radius: 50px;
-  padding: 14px 0;
-  font-weight: 700;
-  color: var(--action);
-  border: 2px solid var(--action);
-  cursor: pointer;
-  flex: 1;
-  transition: all 0.3s ease;
-  background: rgba(0,0,0,0.2);
+.status-box{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:16px;
+  padding:8px 12px;
+  font-weight:500;
+  color:var(--text);
+  display:flex;
+  justify-content:space-between;
+  box-shadow:inset 0 0 6px rgba(0,0,0,0.2);
+  font-size:14px;
 }
-
-.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,234,255,0.4); }
-
-.btn-group { display: flex; gap: 10px; margin: 12px 0; }
-
-.status {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.bottom-nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  background:rgba(0,0,0,0.25);
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -4px 12px rgba(0,0,0,0.4);
+  display:flex;
+  justify-content:space-around;
+  padding:8px 0;
+  backdrop-filter:blur(6px);
+  z-index:1000;
 }
-
-.status-box {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 16px;
-  padding: 12px 16px;
-  text-align: center;
-  font-weight: 500;
-  color: var(--text);
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.2);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.bottom-nav a{
+  color:var(--text);
+  text-decoration:none;
+  text-align:center;
+  flex:1;
+  font-size:12px;
+  transition:all 0.2s;
 }
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: rgba(0,0,0,0.25);
-  border-radius: 24px 24px 0 0;
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
-  display: flex;
-  justify-content: space-around;
-  padding: 8px 0;
-  backdrop-filter: blur(6px);
-  z-index: 1000;
+.bottom-nav a i{
+  display:block;
+  font-size:18px;
+  margin-bottom:2px;
+  color:var(--action);
 }
-
-.bottom-nav a {
-  color: var(--text);
-  text-decoration: none;
-  text-align: center;
-  flex: 1;
-  font-size: 12px;
-  transition: all 0.2s;
+.bottom-nav a.active i{
+  transform:scale(1.2);
+  text-shadow:0 0 6px #00eaff;
 }
-
-.bottom-nav a i {
-  display: block;
-  font-size: 18px;
-  margin-bottom: 2px;
-  color: var(--action);
+.progress-ring{
+  position:relative;
+  width:80px;
+  height:80px;
 }
-
-.bottom-nav a.active i {
-  transform: scale(1.2);
-  text-shadow: 0 0 6px #00eaff;
+.progress-ring svg{
+  transform:rotate(-90deg);
+  width:80px;
+  height:80px;
 }
-
+.progress-ring circle{
+  fill:transparent;
+  stroke:var(--action);
+  stroke-width:6;
+  stroke-dasharray:251.2;
+  stroke-dashoffset:251.2;
+  transition:stroke-dashoffset 0.3s;
+}
+.progress-label{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:12px;
+  color:#fff;
+  text-align:center;
+}
 @media(max-width:480px){
-  .card { padding: 16px; }
-  .info-value { font-size: 18px; }
-  h1 { font-size: 20px; }
+  .card{padding:16px;}
+  .info-value{font-size:18px;}
+  h1{font-size:18px;}
+  .btn{padding:10px 0; font-size:14px;}
+  .status-box{font-size:13px; padding:6px 8px;}
 }
 </style>
 </head>
@@ -196,149 +196,136 @@ h1 {
 <div class="navbar">⚡ YANA Rider</div>
 
 <div class="container">
-  <div class="card">
-    <h1>Work Tracker</h1>
+<div class="card">
 
-    <div class="info-block">
-      <i class="fa-solid fa-clock"></i>
-      <div class="info-label">Working Hours</div>
-      <div class="info-value" id="workTimer">00:00:00</div>
-    </div>
+<h1>Work Tracker</h1>
 
-    <div class="info-block">
-      <i class="fa-solid fa-bed"></i>
-      <div class="info-label">Total Break Time</div>
-      <div class="info-value" id="breakTime">00h : 00m</div>
-    </div>
+<div class="info-block">
+<div class="progress-ring" id="workRing">
+  <svg>
+    <circle r="40" cx="40" cy="40"></circle>
+  </svg>
+  <div class="progress-label" id="workTimer">00:00:00</div>
+</div>
+<div class="info-label">Working Hours</div>
+</div>
 
-    <div class="info-block">
-      <i class="fa-solid fa-calendar-day"></i>
-      <div class="info-label">Assigned Shift</div>
-      <div class="info-value" id="shiftTiming">09:00 AM – 06:00 PM</div>
-    </div>
+<div class="info-block">
+<div class="progress-ring" id="breakRing">
+  <svg>
+    <circle r="40" cx="40" cy="40"></circle>
+  </svg>
+  <div class="progress-label" id="breakTime">00:00:00</div>
+</div>
+<div class="info-label">Total Break Time</div>
+</div>
 
-    <div class="btn-group">
-      <button class="btn" id="punchBtn">Punch In</button>
-      <button class="btn" id="breakBtn">Start Break</button>
-    </div>
+<div class="info-block">
+<div class="info-label">Assigned Shift</div>
+<div class="info-value" id="shiftTiming">09:00 AM – 06:00 PM</div>
+</div>
 
-    <div class="status">
-      <div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
-      <div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
-    </div>
-  </div>
+<div class="btn-group">
+<button class="btn" id="punchBtn">Punch In</button>
+<button class="btn" id="breakBtn">Start Break</button>
+</div>
+
+<div class="status">
+<div class="status-box">🛵 Scooty: <span id="currentScooty">Loading...</span></div>
+<div class="status-box">🔋 Battery: <span id="currentBattery">Loading...</span></div>
+</div>
+
+</div>
 </div>
 
 <div class="bottom-nav">
-  <a href="#" id="navHome" class="active"><i class="fa-solid fa-house"></i>Home</a>
-  <a href="#" id="navScanner"><i class="fa-solid fa-qrcode"></i>Scanner</a>
-  <a href="#" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
-  <a href="#" id="navAttendance"><i class="fa-solid fa-user-check"></i>Attendance</a>
-  <a href="#" id="navLogs"><i class="fa-solid fa-file-lines"></i>Logs</a>
+<a href="#" id="navHome" class="active"><i class="fa-solid fa-house"></i>Home</a>
+<a href="#" id="navScanner"><i class="fa-solid fa-qrcode"></i>Scanner</a>
+<a href="#" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i>Issues</a>
+<a href="#" id="navAttendance"><i class="fa-solid fa-user-check"></i>Attendance</a>
+<a href="#" id="navLogs"><i class="fa-solid fa-file-lines"></i>Logs</a>
 </div>
 
 <script>
+// URL email param
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
 if(!email){ alert("❌ Not signed in"); window.location.href="rider-signin.html"; }
-
-const navEmail = encodeURIComponent(email);
+const navEmail=encodeURIComponent(email);
 document.getElementById("navHome").onclick = ()=> window.location.href=`rider-dashboard.html?email=${navEmail}`;
 document.getElementById("navScanner").onclick = ()=> window.location.href=`scanner.html?email=${navEmail}`;
 document.getElementById("navIssues").onclick = ()=> window.location.href=`issue.html?email=${navEmail}`;
 document.getElementById("navAttendance").onclick = ()=> window.location.href=`attendance.html?email=${navEmail}`;
 document.getElementById("navLogs").onclick = ()=> window.location.href=`rider-logs.html?email=${navEmail}`;
 
-// --- Timer variables ---
+// Timers
 let punchedIn=false, onBreak=false, workSeconds=0, breakSeconds=0;
 let timerInterval, breakInterval;
+const punchBtn=document.getElementById("punchBtn");
+const breakBtn=document.getElementById("breakBtn");
+const timerDisplay=document.getElementById("workTimer");
+const breakDisplay=document.getElementById("breakTime");
+function secToHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function updateWorkTimer(){ timerDisplay.textContent=secToHMS(workSeconds); workSeconds++; updateRing('workRing', workSeconds); }
+function updateBreakTimer(){ breakDisplay.textContent=secToHMS(breakSeconds); breakSeconds++; updateRing('breakRing', breakSeconds); }
+function updateRing(id, seconds){ const c=document.querySelector(`#${id} circle`); const max=8*3600; const offset=251.2-((seconds/max)*251.2); c.style.strokeDashoffset=offset; }
 
-const punchBtn = document.getElementById("punchBtn");
-const breakBtn = document.getElementById("breakBtn");
-const timerDisplay = document.getElementById("workTimer");
-const breakDisplay = document.getElementById("breakTime");
+// Haversine
+function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c; }
 
-// --- Timer update functions ---
-function updateWorkTimer(){ 
-  workSeconds++;
-  const h = String(Math.floor(workSeconds/3600)).padStart(2,'0');
-  const m = String(Math.floor((workSeconds%3600)/60)).padStart(2,'0');
-  const s = String(workSeconds%60).padStart(2,'0');
-  timerDisplay.textContent = `${h}:${m}:${s}`;
-}
-function updateBreakTimer(){
-  breakSeconds++;
-  const h = String(Math.floor(breakSeconds/3600)).padStart(2,'0');
-  const m = String(Math.floor((breakSeconds%3600)/60)).padStart(2,'0');
-  breakDisplay.textContent = `${h}h : ${m}m`;
-}
-
-// --- Haversine formula ---
-function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2){
-  const R=6371;
-  const dLat=(lat2-lat1)*Math.PI/180;
-  const dLon=(lon2-lon1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  return R*c;
-}
-
-// --- Load Scooty/Battery ---
+// Load assignments
 async function loadAssignments(){
-  const s = await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  let scooty="None"; s.forEach(d=> scooty=d.id); document.getElementById("currentScooty").textContent=scooty;
-
-  const b = await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
-  let battery="None"; b.forEach(d=> battery=d.id); document.getElementById("currentBattery").textContent=battery;
+  const s=await db.collection("scooty_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+  let scooty="None"; s.forEach(d=>scooty=d.id); document.getElementById("currentScooty").textContent=scooty;
+  const b=await db.collection("battery_master").where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
+  let battery="None"; b.forEach(d=>battery=d.id); document.getElementById("currentBattery").textContent=battery;
 }
 loadAssignments();
 
-// --- Punch / Break handlers ---
-punchBtn.addEventListener("click",()=>{
-  if(!navigator.geolocation) { alert("❌ Geolocation not supported"); return; }
+// Restore timers
+async function restoreTimers(){
+  const att=await db.collection("attendance").where("rider","==",email).orderBy("timestamp","asc").get();
+  let lastPunchIn=null, lastBreakStart=null;
+  att.forEach(doc=>{
+    const d=doc.data();
+    if(d.type=="punch_in") lastPunchIn=d.timestamp?.toDate();
+    if(d.type=="punch_out" && lastPunchIn){ workSeconds+=Math.floor((d.timestamp.toDate()-lastPunchIn)/1000); lastPunchIn=null; }
+    if(d.type=="break_start") lastBreakStart=d.timestamp?.toDate();
+    if(d.type=="break_end" && lastBreakStart){ breakSeconds+=Math.floor((d.timestamp.toDate()-lastBreakStart)/1000); lastBreakStart=null; }
+  });
+  timerDisplay.textContent=secToHMS(workSeconds);
+  breakDisplay.textContent=secToHMS(breakSeconds);
+  if(lastPunchIn){ punchedIn=true; punchBtn.textContent="Punch Out"; timerInterval=setInterval(updateWorkTimer,1000); }
+  if(lastBreakStart){ onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000); }
+}
+restoreTimers();
+
+// Punch / Break
+punchBtn.addEventListener("click", ()=>{
+  if(!navigator.geolocation){ alert("❌ Geolocation not supported"); return; }
   navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    // Check if inside geofence
-    const locs = await db.collection("locations").get();
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    const locs=await db.collection("locations").get();
     let inside=null;
-    locs.forEach(doc=>{
-      const d = doc.data();
-      const distance = getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000;
-      if(distance<=d.radius) inside=d;
-    });
-
+    locs.forEach(doc=>{ const d=doc.data(); const distance=getDistanceFromLatLonInKm(lat,lng,d.lat,d.lng)*1000; if(distance<=d.radius) inside=d; });
     if(!inside){ alert("❌ You are outside allowed attendance zone"); return; }
-
     if(!punchedIn){
-      punchedIn=true;
-      punchBtn.textContent="Punch Out";
+      punchedIn=true; punchBtn.textContent="Punch Out"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000);
       await db.collection("attendance").add({rider:email,type:"punch_in",lat,lng,location:inside.name,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      clearInterval(breakInterval); // stop break if any
-      timerInterval=setInterval(updateWorkTimer,1000);
     } else {
-      punchedIn=false;
-      punchBtn.textContent="Punch In";
-      clearInterval(timerInterval);
+      punchedIn=false; punchBtn.textContent="Punch In"; clearInterval(timerInterval);
       await db.collection("attendance").add({rider:email,type:"punch_out",lat,lng,location:inside.name,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
     }
   }, err=> alert("❌ Location error: "+err.message));
 });
 
-breakBtn.addEventListener("click",()=>{
+breakBtn.addEventListener("click", ()=>{
   if(!punchedIn){ alert("⚠️ Punch in first"); return; }
   if(!onBreak){
-    onBreak=true;
-    breakBtn.textContent="End Break";
-    clearInterval(timerInterval);
-    breakInterval=setInterval(updateBreakTimer,60*1000);
+    onBreak=true; breakBtn.textContent="End Break"; clearInterval(timerInterval); breakInterval=setInterval(updateBreakTimer,1000);
     db.collection("attendance").add({rider:email,type:"break_start",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-  }else{
-    onBreak=false;
-    breakBtn.textContent="Start Break";
-    clearInterval(breakInterval);
-    timerInterval=setInterval(updateWorkTimer,1000);
+  } else {
+    onBreak=false; breakBtn.textContent="Start Break"; clearInterval(breakInterval); timerInterval=setInterval(updateWorkTimer,1000);
     db.collection("attendance").add({rider:email,type:"break_end",timestamp:firebase.firestore.FieldValue.serverTimestamp()});
   }
 });
