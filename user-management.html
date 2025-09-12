@@ -74,7 +74,7 @@
 
   <div class="container">
     <h2>User Management</h2>
-    <p class="muted">Change role or state of riders. Submit applies bulk updates.</p>
+    <p class="muted">Change role, state, or location of riders. Submit applies bulk updates.</p>
 
     <!-- Search bar -->
     <input type="text" id="searchBar" placeholder="Search by name, vendor, or partner">
@@ -94,6 +94,7 @@
   <script>
     const cardsContainer = document.getElementById("cardsContainer");
     let allUsers = [];
+    let allLocations = [];
 
     // Auth check
     auth.onAuthStateChanged(async user => {
@@ -106,10 +107,17 @@
         return location.href="index.html";
       }
 
-      loadUsers();
+      // Load locations first
+      loadLocations();
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+    async function loadLocations() {
+      const snap = await db.collection("locations").orderBy("name").get();
+      allLocations = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
+      loadUsers();
+    }
 
     // Load all users
     function loadUsers() {
@@ -130,6 +138,14 @@
       list.forEach(d => {
         const card = document.createElement("div");
         card.className = "card";
+
+        // Build location options dropdown
+        const locationOptions = allLocations.map(loc => {
+          const selected = d.locationId === loc.id ? "selected" : "";
+          return `<option value="${loc.id}" ${selected}>${loc.name}</option>`;
+        }).join("");
+        const locationSelect = `<select data-id="${d.id}" data-field="locationId">${locationOptions}</select>`;
+
         card.innerHTML = `
           <div class="card-left">
             <b>${d.name || ""}</b><br>
@@ -147,6 +163,7 @@
               <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
               <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
             </select>
+            ${locationSelect}
           </div>
         `;
         cardsContainer.appendChild(card);
