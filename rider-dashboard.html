@@ -1,595 +1,259 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>YANA — Rider Dashboard (Real-time, robust)</title>
-
-<!-- Firebase v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-<!-- Your firebase-config.js should call firebase.initializeApp(...) and set `db = firebase.firestore();` -->
-<script src="firebase-config.js"></script>
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-:root{
-  --bg:#071014; --card: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
-  --accent:#00eaff; --text:#eaf4f8; --r:16px;
-}
-*{box-sizing:border-box}
-body{
-  margin:0; font-family:Inter,system-ui,Arial; background:linear-gradient(180deg,#061014,#0d1720);
-  color:var(--text); min-height:100vh; display:flex; flex-direction:column;
-}
-.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
-.header h1{margin:0;font-size:1.05rem;color:var(--accent)}
-.container{padding:14px;display:flex;justify-content:center}
-.card{width:92vw;max-width:520px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
-border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,0.5)}
-.title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
-.riderName{font-size:1rem;margin-bottom:14px}
-.timerRow{display:flex;gap:12px;flex-wrap:wrap}
-.block{flex:1;min-width:140px;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
-.block .label{font-size:0.9rem;color:#bcd; margin-bottom:6px}
-.block .value{font-size:1.6rem;font-weight:700}
-.controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-.btn{flex:1;min-width:140px;padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent)}
-.info{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
-.info .pill{flex:1;min-width:140px;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
-.bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
-.navBtn{color:var(--text);text-align:center;font-size:0.9rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;background:var(--accent);color:#000;padding:10px 14px;border-radius:8px;display:none;z-index:50}
-.small{font-size:0.85rem;color:#bcd;margin-top:6px}
-@media(max-width:420px){.btn{min-width:120px;padding:10px}.block .value{font-size:1.3rem}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rider Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background: #f8f9fa;
+      display: flex; flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #0066cc;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.2rem;
+    }
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .card h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+    .timer { font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0; }
+    .btn {
+      display: inline-block;
+      padding: 0.8rem 1.2rem;
+      margin: 0.4rem;
+      font-size: 1rem;
+      border: none; border-radius: 8px;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-primary { background: #007bff; }
+    .btn-secondary { background: #28a745; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    nav {
+      display: flex;
+      justify-content: space-around;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 0.6rem 0;
+    }
+    nav button {
+      background: none; border: none;
+      font-size: 0.9rem; color: #333;
+      cursor: pointer;
+    }
+    .toast {
+      position: fixed;
+      bottom: 70px; left: 50%;
+      transform: translateX(-50%);
+      background: #333; color: #fff;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      display: none;
+    }
+  </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>⚡ YANA Rider</h1>
-  <div style="display:flex;align-items:center;gap:12px">
-    <div id="profilePic" style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center">R</div>
-    <button id="logoutBtn" class="btn secondary" style="padding:8px 10px;font-size:0.8rem">Logout</button>
-  </div>
-</div>
-
-<div class="container">
-  <div class="card" role="main">
-    <div class="title">Rider Dashboard</div>
-    <div id="riderName" class="riderName">Loading...</div>
-
-    <div class="timerRow">
-      <div class="block">
-        <div class="label">Working Hours</div>
-        <div id="workValue" class="value">00:00:00</div>
-        <div id="workSmall" class="small">--</div>
-      </div>
-      <div class="block">
-        <div class="label">Break Time</div>
-        <div id="breakValue" class="value">00:00:00</div>
-        <div id="breakSmall" class="small">--</div>
+  <header>Rider Dashboard</header>
+  <main>
+    <div class="card">
+      <h2>Working Hours</h2>
+      <div id="workTimer" class="timer">00:00:00</div>
+      <div>Total Break: <span id="breakTimer">00:00:00</span></div>
+      <div>Assigned Shift: 9 AM – 6 PM</div>
+      <div style="margin-top:1rem;">
+        <button id="punchBtn" class="btn btn-primary">Punch In</button>
+        <button id="breakBtn" class="btn btn-secondary">Start Break</button>
       </div>
     </div>
 
-    <div class="controls">
-      <button id="punchBtn" class="btn"><i class="fa-solid fa-clock"></i><span id="punchLabel">Punch In</span></button>
-      <button id="breakBtn" class="btn secondary"><i class="fa-solid fa-coffee"></i><span id="breakLabel">Start Break</span></button>
+    <div class="card">
+      <h2>Scooty & Battery</h2>
+      <p>Scooty ID: <span id="scootyId">—</span></p>
+      <p>Battery ID: <span id="batteryId">—</span></p>
     </div>
+  </main>
 
-    <div class="info">
-      <div class="pill">Scooty: <strong id="scooty">Loading...</strong></div>
-      <div class="pill">Battery: <strong id="battery">Loading...</strong></div>
-    </div>
+  <nav>
+    <button onclick="goPage('scanner.html')">Scanner</button>
+    <button onclick="goPage('issues.html')">Issues</button>
+    <button onclick="goPage('attendance.html')">Attendance</button>
+    <button onclick="goPage('logs.html')">Logs</button>
+  </nav>
 
-    <div class="small" style="margin-top:12px" id="statusLine">Status: --</div>
-  </div>
-</div>
+  <div id="toast" class="toast"></div>
 
-<div class="bottomNav">
-  <div class="navBtn" id="navScanner"><i class="fa-solid fa-qrcode"></i><div>Scanner</div></div>
-  <div class="navBtn" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i><div>Issues</div></div>
-  <div class="navBtn" id="navAttendance"><i class="fa-solid fa-user-check"></i><div>Attendance</div></div>
-  <div class="navBtn" id="navLogs"><i class="fa-solid fa-file-lines"></i><div>Logs</div></div>
-</div>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-<div id="toast" class="toast"></div>
+  <script>
+    // ✅ Firebase config (replace with your own)
+    var firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_APP.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-<script>
-/* =========================
-   Robust Real-time Dashboard
-   - optimistic UI, realtime listeners
-   - per-day events + per-day state doc
-   - offline persistence enabled
-   - localStorage fallback and last-write-wins
-   - geofence (uses Firestore locations collection)
-   - daily reset at 02:00
-   ========================= */
+    let processingPunch=false, processingBreak=false;
+    let localState = {
+      isWorking:false,
+      isOnBreak:false,
+      punchInTime:null,
+      breakStartTime:null,
+      totalBreakMs:0,
+      lastUpdated:0
+    };
 
-(async function init(){ 
-  // -- basic checks
-  if(typeof firebase === 'undefined' || typeof db === 'undefined'){
-    alert("Firebase not configured. Make sure firebase-config.js sets `db = firebase.firestore();`");
-    return;
-  }
+    let workTicker=null, breakTicker=null;
 
-  // Enable offline persistence (best-effort)
-  try { await firebase.firestore().enablePersistence(); } catch(e) { /* ignore if not supported */ }
+    function goPage(url){ window.location.href=url; }
 
-  // helpers
-  const toast = (msg)=>{ const t=document.getElementById('toast'); t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); };
-  const pad=(n)=>String(n).padStart(2,'0');
-  const format=(s)=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
+    function showToast(msg){
+      const t=document.getElementById("toast");
+      t.innerText=msg; t.style.display="block";
+      setTimeout(()=>t.style.display="none",2000);
+    }
 
-  // geolocation wrapped
-  function getCurrentPositionAsync(opts={enableHighAccuracy:true,timeout:10000}) {
-    return new Promise((res,rej)=>{
-      if(!navigator.geolocation) return rej(new Error("Geolocation not supported"));
-      navigator.geolocation.getCurrentPosition(res, rej, opts);
-    });
-  }
+    function fmt(ms){
+      let s=Math.floor(ms/1000);
+      let h=Math.floor(s/3600); s%=3600;
+      let m=Math.floor(s/60); s%=60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
 
-  // distance (meters) from lat/lon
-  function haversineMeters(lat1,lon1,lat2,lon2){
-    const R=6371e3;
-    const toRad=(v)=>v*Math.PI/180;
-    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    const c=2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R*c;
-  }
-
-  // identity & doc paths
-  const email = new URLSearchParams(window.location.search).get('email');
-  if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
-  const todayKey = ()=> new Date().toISOString().slice(0,10); // yyyy-mm-dd
-  let currentDay = todayKey();
-  const stateDocRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`);
-  const eventsColRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`).collection('events');
-
-  // state in-memory and localStorage key
-  const LS_KEY = `attendance_session_${email}_${currentDay}`;
-  let localState = {
-    // canonical fields:
-    punchedIn:false,
-    punchInTime:null,         // JS timestamp ms
-    workingSeconds:0,         // accumulated before open interval
-    onBreak:false,
-    breakStartTime:null,      // JS timestamp ms
-    totalBreakSeconds:0,      // accumulated break seconds
-    lastUpdated: null
-  };
-
-  // intervals & processing flags
-  let workTicker = null, breakTicker = null;
-  let processingPunch=false, processingBreak=false;
-  let unsubStateListener = null; // firestore listener
-
-  // UI refs
-  const workValue = document.getElementById('workValue');
-  const breakValue = document.getElementById('breakValue');
-  const punchBtn = document.getElementById('punchBtn');
-  const breakBtn = document.getElementById('breakBtn');
-  const punchLabel = document.getElementById('punchLabel') || null;
-  const breakLabel = document.getElementById('breakLabel') || null;
-  const riderNameEl = document.getElementById('riderName');
-  const scootyEl = document.getElementById('scooty');
-  const batteryEl = document.getElementById('battery');
-  const statusLine = document.getElementById('statusLine');
-
-  // ---------------------------------------
-  // Local storage helpers (store latest only)
-  // ---------------------------------------
-  function saveLocal(){
-    try{ localStorage.setItem(LS_KEY, JSON.stringify(localState)); }catch(e){}
-  }
-  function loadLocal(){
-    try{
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return;
-      const obj = JSON.parse(raw);
-      // basic validation
-      if(typeof obj === 'object' && obj !== null){
-        localState = {...localState, ...obj};
-      }
-    }catch(e){}
-  }
-  // on day change, drop LS key and reload
-  function rotateDayIfNeeded(){
-    const nowDay = todayKey();
-    if(nowDay !== currentDay){
-      // switch currentDay, clear timers and local state
-      currentDay = nowDay;
-      // copy old LS to new key? Not needed: daily reset. Clear old key
-      // reinitialize local state
-      localState = {
-        punchedIn:false,punchInTime:null,workingSeconds:0,
-        onBreak:false,breakStartTime:null,totalBreakSeconds:0,lastUpdated:null
-      };
-      saveLocal();
-      // reload listeners for new day
-      attachStateListener();
-      updateUI();
+    function startTickers(){
       stopTickers();
-    }
-  }
-  setInterval(rotateDayIfNeeded, 60*1000); // check minute-by-minute
-
-  // ---------------------------------------
-  // Realtime listener on state doc
-  // ---------------------------------------
-  async function attachStateListener(){
-    if(unsubStateListener) { unsubStateListener(); unsubStateListener=null; }
-    const ref = stateDocRef();
-    unsubStateListener = ref.onSnapshot(snap=>{
-      if(!snap.exists) return;
-      const data = snap.data();
-      // Map Firestore Timestamp to JS ms safely
-      const s = {};
-      s.punchedIn = !!data.punchedIn;
-      s.workingSeconds = Number(data.workingSeconds || 0);
-      s.onBreak = !!data.onBreak;
-      s.totalBreakSeconds = Number(data.totalBreakSeconds || 0);
-      s.lastUpdated = data.lastUpdated ? data.lastUpdated.toMillis() : Date.now();
-
-      s.punchInTime = data.punchInTime ? data.punchInTime.toMillis() : null;
-      s.breakStartTime = data.breakStartTime ? data.breakStartTime.toMillis() : null;
-
-      // Accept server truth but keep local optimistic if newer
-      // If localState.lastUpdated exists and is newer than server, keep local and push later
-      if(localState.lastUpdated && localState.lastUpdated > s.lastUpdated){
-        // keep local (we will sync pending local up soon)
-        // no UI overwrite
-        // console.log("Local newer than server — will sync local state soon");
-      } else {
-        localState = {...localState, ...s};
-        saveLocal();
-        startTickers();
-        updateUI();
+      if(localState.isWorking){
+        workTicker=setInterval(()=>{
+          let ms=Date.now()-localState.punchInTime-localState.totalBreakMs;
+          if(localState.isOnBreak) ms-=(Date.now()-localState.breakStartTime);
+          document.getElementById("workTimer").innerText=fmt(ms);
+        },1000);
       }
-    }, err=>{
-      console.warn("state listener error",err);
-    });
-  }
-
-  // ---------------------------------------
-  // Event logging (append-only)
-  // ---------------------------------------
-  async function logEvent(type, extra={}){
-    try{
-      const event = {
-        type,
-        rider: email,
-        clientTs: Date.now(),
-        serverTs: firebase.firestore.FieldValue.serverTimestamp(),
-        ...extra
-      };
-      await eventsColRef().add(event); // offline persistence will queue automatically
-    }catch(e){
-      console.error("logEvent failed",e);
-      // doesn't block UI — event will be lost only if offline and firestore can't persist, but usually offline persistence queues it
+      if(localState.isOnBreak){
+        breakTicker=setInterval(()=>{
+          let ms=localState.totalBreakMs+(Date.now()-localState.breakStartTime);
+          document.getElementById("breakTimer").innerText=fmt(ms);
+        },1000);
+      } else {
+        document.getElementById("breakTimer").innerText=fmt(localState.totalBreakMs);
+      }
     }
-  }
+    function stopTickers(){ if(workTicker)clearInterval(workTicker); if(breakTicker)clearInterval(breakTicker); }
 
-  // ---------------------------------------
-  // Update state doc (last-write-wins)
-  // We write the full current state with server timestamp
-  // ---------------------------------------
-  async function writeStateToServer(){
-    try{
-      const payload = {
-        punchedIn: !!localState.punchedIn,
-        workingSeconds: Number(localState.workingSeconds || 0),
-        onBreak: !!localState.onBreak,
-        totalBreakSeconds: Number(localState.totalBreakSeconds || 0),
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      if(localState.punchInTime) payload.punchInTime = firebase.firestore.Timestamp.fromMillis(localState.punchInTime);
-      else payload.punchInTime = null;
-      if(localState.breakStartTime) payload.breakStartTime = firebase.firestore.Timestamp.fromMillis(localState.breakStartTime);
-      else payload.breakStartTime = null;
-
-      await stateDocRef().set(payload, {merge: true});
-      // success: server value will reach listeners
-    }catch(e){
-      console.error("writeStateToServer failed:", e);
-      // leave localState intact, it will be retried next interval
+    async function writeStateToServer(){
+      await db.collection("attendance").doc("STATE_DOC").set(localState);
     }
-  }
-
-  // background sync: attempt to push latest localState to server every 6s if local newer than server
-  let bgSyncHandle = null;
-  function startBackgroundSync(){
-    if(bgSyncHandle) return;
-    bgSyncHandle = setInterval(async ()=>{
-      // write latest local everything (last-write-wins)
-      await writeStateToServer();
-    }, 6000);
-  }
-  function stopBackgroundSync(){ if(bgSyncHandle){ clearInterval(bgSyncHandle); bgSyncHandle=null; } }
-
-  // ---------------------------------------
-  // UI, tickers, and helpers
-  // ---------------------------------------
-  function updateUI(){
-    document.getElementById('workValue').innerText = formatWorking();
-    document.getElementById('breakValue').innerText = formatBreak();
-    document.getElementById('punchLabel').innerText = localState.punchedIn ? 'Punch Out' : 'Punch In';
-    document.getElementById('breakLabel').innerText = localState.onBreak ? 'Stop Break' : 'Start Break';
-    statusLine.innerText = `Status: ${localState.onBreak ? 'On Break' : (localState.punchedIn ? 'Working' : 'Idle')}`;
-  }
-
-  function formatWorking(){
-    // workingSeconds includes accumulated + active running time if punchedIn and not onBreak
-    return format(localState.workingSeconds);
-  }
-  function formatBreak(){
-    return format(localState.totalBreakSeconds);
-  }
-
-  function stopTickers(){
-    if(workTicker){ clearInterval(workTicker); workTicker=null; }
-    if(breakTicker){ clearInterval(breakTicker); breakTicker=null; }
-  }
-
-  function startTickers(){
-    stopTickers();
-    // Work ticker: if punched in and not on break, increment workingSeconds every sec
-    if(localState.punchedIn && !localState.onBreak){
-      workTicker = setInterval(()=>{
-        localState.workingSeconds += 1;
-        localState.lastUpdated = Date.now();
-        saveLocal();
-        document.getElementById('workValue').innerText = formatWorking();
-      },1000);
+    async function logEvent(type){
+      await db.collection("attendanceLogs").add({type,time:Date.now()});
     }
-    // Break ticker: if onBreak, increment totalBreakSeconds every sec
-    if(localState.onBreak){
-      breakTicker = setInterval(()=>{
-        localState.totalBreakSeconds += 1;
-        localState.lastUpdated = Date.now();
-        saveLocal();
-        document.getElementById('breakValue').innerText = formatBreak();
-      },1000);
+    function renderUI(){
+      document.getElementById("punchBtn").innerText = localState.isWorking ? "Punch Out":"Punch In";
+      document.getElementById("breakBtn").innerText = localState.isOnBreak ? "End Break":"Start Break";
+      startTickers();
     }
-  }
 
-  // On load: rebuild localState from events if possible (accurate)
-  async function rebuildFromEvents(){
-    try{
-      // fetch events for today ascending
-      const snap = await eventsColRef().orderBy('serverTs','asc').get();
-      if(snap.empty) return; // keep local
-      // reconstruct
-      let workSec=0, breakSec=0;
-      let punched=false, breakActive=false;
-      let punchAt=null, breakAt=null;
-      snap.forEach(d=>{
-        const e = d.data();
-        const t = e.serverTs ? e.serverTs.toMillis() : (e.clientTs || Date.now());
-        switch(e.type){
-          case 'punchIn':
-            punched=true; punchAt = t;
-            break;
-          case 'punchOut':
-            if(punched && punchAt){
-              const seg = Math.max(0, Math.floor((t - punchAt)/1000) - (breakActive && breakAt ? Math.floor((t-breakAt)/1000) : 0));
-              workSec += seg;
-            }
-            punched=false; punchAt=null; breakActive=false; breakAt=null;
-            break;
-          case 'startBreak':
-            if(punched && !breakActive){
-              breakActive=true; breakAt = t;
-            }
-            break;
-          case 'stopBreak':
-            if(breakActive && breakAt){
-              const segb = Math.floor((t - breakAt)/1000);
-              breakSec += segb;
-            }
-            breakActive=false; breakAt=null;
-            break;
-          default: break;
+    // --- Punch In/Out ---
+    async function doPunchToggle(){
+      if(processingPunch) return;
+      processingPunch=true;
+      try{
+        const btn=document.getElementById("punchBtn");
+        btn.disabled=true;
+        showToast(localState.isWorking?"Punching out...":"Punching in...");
+
+        // 📍 Only on Punch In
+        if(!localState.isWorking){
+          let pos = await getCurrentPositionAsync();
+          const locs = await db.collection("locations").get();
+          let inside=false;
+          locs.forEach(doc=>{
+            const loc=doc.data();
+            if(getDistance(pos.coords.latitude,pos.coords.longitude,loc.lat,loc.lng)<=loc.radius) inside=true;
+          });
+          if(!inside){ showToast("⛔ Outside geofence!"); return; }
         }
+
+        localState.isWorking=!localState.isWorking;
+        localState.isOnBreak=false;
+        if(localState.isWorking){ localState.punchInTime=Date.now(); }
+        else { localState.punchInTime=null; localState.breakStartTime=null; localState.totalBreakMs=0; }
+
+        stopTickers(); if(localState.isWorking) startTickers();
+
+        await Promise.all([writeStateToServer(), logEvent(localState.isWorking?"punchIn":"punchOut")]);
+        renderUI();
+        showToast(localState.isWorking?"✅ Punched In":"👋 Punched Out");
+      }catch(e){ console.error(e); showToast("⚠️ "+e.message);}
+      finally{ document.getElementById("punchBtn").disabled=false; processingPunch=false;}
+    }
+
+    // --- Break Start/End ---
+    async function doBreakToggle(){
+      if(processingBreak) return;
+      processingBreak=true;
+      try{
+        const btn=document.getElementById("breakBtn");
+        btn.disabled=true;
+        showToast(localState.isOnBreak?"Ending break...":"Starting break...");
+
+        if(!localState.isWorking){ showToast("⚠️ Punch in first!"); return; }
+
+        if(localState.isOnBreak){
+          localState.totalBreakMs+=Date.now()-localState.breakStartTime;
+          localState.breakStartTime=null; localState.isOnBreak=false;
+        }else{
+          localState.breakStartTime=Date.now(); localState.isOnBreak=true;
+        }
+
+        stopTickers(); startTickers();
+
+        await Promise.all([writeStateToServer(), logEvent(localState.isOnBreak?"startBreak":"endBreak")]);
+        renderUI();
+        showToast(localState.isOnBreak?"☕ Break Started":"💼 Break Ended");
+      }catch(e){ console.error(e); showToast("⚠️ "+e.message);}
+      finally{ document.getElementById("breakBtn").disabled=false; processingBreak=false;}
+    }
+
+    document.getElementById("punchBtn").onclick=doPunchToggle;
+    document.getElementById("breakBtn").onclick=doBreakToggle;
+
+    // --- Helpers ---
+    function getCurrentPositionAsync(){
+      return new Promise((res,rej)=>{
+        navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true});
       });
-      // if currently punched in (last event was punchIn without punchOut)
-      // attempt to compute running times using local state or server timestamps
-      // For safety, prefer state doc; listener will correct after attach
-      // but we can set localState basics:
-      localState.workingSeconds = workSec;
-      localState.totalBreakSeconds = breakSec;
-      // If last event indicates currently in break or working, leave those flags to state doc listener
-      saveLocal();
-    }catch(e){
-      console.warn("rebuildFromEvents failed",e);
     }
-  }
-
-  // ---------------------------------------
-  // Button handlers: optimistic + log event + set state doc
-  // ---------------------------------------
-  async function doPunchToggle(){
-    if(processingPunch) return;
-    processingPunch=true;
-    try{
-      // geofence check
-      let pos = null;
-      try{ pos = await getCurrentPositionAsync({enableHighAccuracy:true,timeout:10000}); }
-      catch(err){ toast("Location failed: "+(err.message||err)); processingPunch=false; return; }
-      const lat = pos.coords.latitude, lng = pos.coords.longitude;
-
-      // check against locations collection
-      const locs = await db.collection('locations').get();
-      let allowed=false;
-      locs.forEach(doc=>{ const d = doc.data(); if(haversineMeters(lat,lng,d.lat,d.lng) <= (d.radius || 0) + 8) allowed=true; });
-      if(!allowed){ toast("Outside allowed area"); processingPunch=false; return; }
-
-      // optimistic UI change
-      if(!localState.punchedIn){
-        // start working
-        localState.punchedIn = true;
-        localState.punchInTime = Date.now();
-        localState.lastUpdated = Date.now();
-        // keep workingSeconds as accumulated prior
-        startTickers();
-        updateUI();
-        saveLocal();
-        // log event (append-only)
-        await logEvent('punchIn', {lat, lng});
-        // update server-side state doc (last-write-wins)
-        await writeStateToServer();
-        toast("✅ Punched In");
-      } else {
-        // punch out: finalize current running work segment
-        // first stop tickers so workingSeconds is final
-        stopTickers();
-        // compute final workingSeconds (already incremented locally)
-        localState.punchedIn = false;
-        localState.punchInTime = null;
-        localState.onBreak = false;
-        localState.breakStartTime = null;
-        localState.lastUpdated = Date.now();
-        updateUI();
-        saveLocal();
-        await logEvent('punchOut', {lat, lng, workingSeconds: localState.workingSeconds});
-        await writeStateToServer();
-        toast("✅ Punched Out");
-      }
-    }catch(e){
-      console.error("doPunchToggle error", e);
-      toast("Action failed");
-    } finally {
-      processingPunch=false;
+    function getDistance(lat1,lon1,lat2,lon2){
+      function toRad(x){ return x*Math.PI/180; }
+      var R=6371e3; 
+      var φ1=toRad(lat1), φ2=toRad(lat2);
+      var Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
+      var a=Math.sin(Δφ/2)*Math.sin(Δφ/2)+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2);
+      var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      return R*c;
     }
-  }
 
-  async function doBreakToggle(){
-    if(breakProcessing) return;
-    breakProcessing=true;
-    try{
-      if(!localState.punchedIn){ toast("Punch in first"); breakProcessing=false; return; }
-      // geofence
-      let pos=null;
-      try{ pos = await getCurrentPositionAsync({enableHighAccuracy:true,timeout:10000}); } catch(err){ toast("Location failed"); breakProcessing=false; return; }
-      const lat = pos.coords.latitude, lng = pos.coords.longitude;
-      const locs = await db.collection('locations').get();
-      let allowed=false;
-      locs.forEach(doc=>{ const d=doc.data(); if(haversineMeters(lat,lng,d.lat,d.lng) <= (d.radius || 0) + 8) allowed=true; });
-      if(!allowed){ toast("Outside allowed area"); breakProcessing=false; return; }
-
-      if(!localState.onBreak){
-        // Start break: pause work ticker, start break ticker
-        stopTickers();
-        localState.onBreak = true;
-        localState.breakStartTime = Date.now();
-        localState.lastUpdated = Date.now();
-        startTickers();
-        updateUI();
-        saveLocal();
-        await logEvent('startBreak', {lat,lng});
-        await writeStateToServer();
-        toast("⏸ Break started");
-      } else {
-        // End break: compute break duration, add to totalBreakSeconds, resume work
-        // Stop break ticker to freeze totalBreakSeconds
-        stopTickers();
-        const breakStart = localState.breakStartTime || Date.now();
-        const dur = Math.floor((Date.now() - breakStart)/1000);
-        localState.totalBreakSeconds = Number(localState.totalBreakSeconds || 0) + dur;
-        localState.breakStartTime = null;
-        localState.onBreak = false;
-        localState.lastUpdated = Date.now();
-        // resume work ticker
-        startTickers();
-        updateUI();
-        saveLocal();
-        await logEvent('stopBreak', {lat,lng, breakSecondsAdded: dur});
-        await writeStateToServer();
-        toast("▶️ Break ended");
-      }
-    }catch(e){
-      console.error("doBreakToggle error", e);
-      toast("Action failed");
-    }finally{
-      breakProcessing=false;
-    }
-  }
-
-  // attach UI handlers
-  punchBtn.addEventListener('click', doPunchToggle);
-  breakBtn.addEventListener('click', doBreakToggle);
-
-  // navigation + logout
-  document.getElementById('navScanner').addEventListener('click', ()=> location.href = `scanner.html?email=${encodeURIComponent(email)}`);
-  document.getElementById('navIssues').addEventListener('click', ()=> location.href = `issue.html?email=${encodeURIComponent(email)}`);
-  document.getElementById('navAttendance').addEventListener('click', ()=> location.href = `rider-attendance.html?email=${encodeURIComponent(email)}`);
-  document.getElementById('navLogs').addEventListener('click', ()=> location.href = `rider-logs.html?email=${encodeURIComponent(email)}`);
-  document.getElementById('logoutBtn').addEventListener('click', ()=> firebase.auth().signOut().then(()=> location.href = "rider-signin.html"));
-
-  // ---------------------------------------
-  // initial load sequence:
-  // 1) load localState
-  // 2) rebuild from events (best-effort)
-  // 3) attach state snapshot listener (server truth)
-  // 4) start background sync + tickers
-  // ---------------------------------------
-  loadLocal();
-  await rebuildFromEvents();
-  attachStateListener();
-  startBackgroundSync();
-  startTickers();
-  updateUI();
-
-  // load rider profile + assignments (simple)
-  async function loadProfile(){
-    try{
-      const userDoc = await db.collection('users').doc(email).get();
-      if(userDoc.exists){
-        const d = userDoc.data();
-        riderNameEl.innerText = d.name || email;
-        scootyEl.innerText = d.currentScooty || (d.assignedScooty || "None");
-        batteryEl.innerText = d.currentBattery || (d.assignedBattery || "None");
-      } else {
-        riderNameEl.innerText = email;
-      }
-    }catch(e){ console.warn("loadProfile",e); }
-  }
-  loadProfile();
-
-  // daily reset at 02:00 local time: if current time is after 02:00 and lastUpdated is before today's 02:00, rotate day
-  function shouldResetFor2AM(){
-    const now = new Date();
-    const today02 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 2,0,0,0).getTime();
-    // if it's after 2am and localState.lastUpdated/day is before today02 then rotate
-    if(Date.now() >= today02){
-      const last = localState.lastUpdated || 0;
-      return last < today02;
-    }
-    return false;
-  }
-  setInterval(async ()=>{
-    if(shouldResetFor2AM()){
-      // finalize previous day's events (optionally log a day-reset event) and rotate
-      // we'll simply rotate day by reloading (the rotateDayIfNeeded interval handles it)
-      toast("Daily reset at 02:00 — starting new day");
-      // force rotate
-      currentDay = todayKey();
-      // clear local
-      localState = {punchedIn:false,punchInTime:null,workingSeconds:0,onBreak:false,breakStartTime:null,totalBreakSeconds:0,lastUpdated:Date.now()};
-      saveLocal();
-      await writeStateToServer();
-      updateUI();
-      stopTickers();
-    }
-  }, 60*1000);
-
-  // final message
-  toast("Dashboard ready — single-click buttons, real-time sync enabled");
-})(); // end init
-</script>
+    renderUI();
+  </script>
 </body>
 </html>
