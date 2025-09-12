@@ -214,6 +214,7 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     punchLabel.innerText = localState.punchedIn ? 'Punch Out' : 'Punch In';
     breakLabel.innerText = localState.onBreak ? 'Stop Break' : 'Start Break';
     statusLine.innerText = `Status: ${localState.onBreak ? 'On Break' : (localState.punchedIn ? 'Working' : 'Idle')}`;
+    if(assignedLocation) statusLine.innerText += ` | Location: ${assignedLocation.name}`;
   }
 
   function stopTickers(){ if(workTicker){ clearInterval(workTicker); workTicker=null; } if(breakTicker){ clearInterval(breakTicker); breakTicker=null; } }
@@ -223,12 +224,34 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     if(localState.onBreak){ breakTicker=setInterval(()=>{ localState.totalBreakSeconds+=1; localState.lastUpdated=Date.now(); saveLocal(); breakValue.innerText=format(localState.totalBreakSeconds); },1000); }
   }
 
+  // ===== Dynamic location =====
+  let assignedLocation = null;
+  function distanceMeters(lat1, lng1, lat2, lng2){
+    const R=6371000, toRad=(deg)=>deg*Math.PI/180;
+    const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
   async function doPunchToggle(){
     if(processingPunch) return; processingPunch=true;
     try{
       let pos=null;
       try{ pos=await getCurrentPositionAsync({enableHighAccuracy:true,timeout:10000}); }catch(err){ toast("Location failed: "+(err.message||err)); processingPunch=false; return; }
       const lat=pos.coords.latitude, lng=pos.coords.longitude;
+
+      if(!assignedLocation){
+        toast("No location assigned.");
+        processingPunch=false; return;
+      }
+
+      const dist = distanceMeters(lat,lng,assignedLocation.lat,assignedLocation.lng);
+      if(!localState.punchedIn && dist>assignedLocation.radius){
+        toast(`Outside location radius (${assignedLocation.radius} m)`);
+        processingPunch=false; return;
+      }
+
       if(!localState.punchedIn){
         localState.punchedIn=true; localState.punchInTime=Date.now(); localState.lastUpdated=Date.now();
         startTickers(); updateUI(); saveLocal();
@@ -249,6 +272,13 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     if(processingBreak) return; processingBreak=true;
     try{
       if(!localState.punchedIn){ toast("Punch in first"); processingBreak=false; return; }
+      let pos=null;
+      try{ pos=await getCurrentPositionAsync({enableHighAccuracy:true,timeout:10000}); }catch(err){ toast("Location failed: "+(err.message||err)); processingBreak=false; return; }
+      const lat=pos.coords.latitude, lng=pos.coords.longitude;
+      if(!assignedLocation){ toast("No location assigned."); processingBreak=false; return; }
+      const dist = distanceMeters(lat,lng,assignedLocation.lat,assignedLocation.lng);
+      if(dist>assignedLocation.radius){ toast(`Outside location radius (${assignedLocation.radius} m)`); processingBreak=false; return; }
+
       if(!localState.onBreak){
         stopTickers();
         localState.onBreak=true; localState.breakStartTime=Date.now(); localState.lastUpdated=Date.now();
@@ -274,7 +304,7 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   breakBtn.addEventListener('click', doBreakToggle);
   document.getElementById('logoutBtn').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); firebase.auth().signOut(); location.href='rider-signin.html'; });
 
-  // ==== Fetch rider info, scooty, battery ====
+  // ==== Fetch rider info, scooty, battery, location ====
   try{
     const userDoc = await db.collection('users').doc(email).get();
     if(userDoc.exists){
@@ -290,6 +320,25 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
         const batteryDoc = await db.collection('battery_master').doc(userData.batteryId).get();
         batteryEl.innerText = batteryDoc.exists ? batteryDoc.id : 'No battery assigned';
       } else batteryEl.innerText = 'No battery assigned';
+
+      if(userData.locationId){
+        const locDoc = await db.collection('locations').doc(userData.locationId).get();
+        if(locDoc.exists){
+          const loc = locDoc.data();
+          assignedLocation = {
+            id: locDoc.id,
+            name: loc.name,
+            lat: loc.lat,
+            lng: loc.lng,
+            radius: loc.radius
+          };
+          statusLine.innerText += ` | Location: ${loc.name}`;
+        } else {
+          statusLine.innerText += ' | Location: Unknown';
+        }
+      } else {
+        statusLine.innerText += ' | No location assigned';
+      }
     }
   }catch(e){ console.error("Fetching rider info failed:",e); }
 
@@ -298,8 +347,6 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   document.getElementById('navIssues').addEventListener('click',()=>{ location.href=`issues.html?email=${email}`; });
   document.getElementById('navAttendance').addEventListener('click',()=>{ location.href=`rider-dashboard.html?email=${email}`; });
   document.getElementById('navLogs').addEventListener('click',()=>{ location.href=`rider-logs.html?email=${email}`; });
-
-  // =============================================
 
   startBackgroundSync();
   loadLocal();
