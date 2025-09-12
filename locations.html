@@ -74,7 +74,7 @@
       document.getElementById("locationForm").reset();
     });
 
-    // Load locations list
+    // Load and render locations
     function loadLocations() {
       db.collection("locations").orderBy("createdAt","desc").onSnapshot(snap => {
         const list = document.getElementById("locationsList");
@@ -82,14 +82,22 @@
           list.innerHTML = "<p>No locations added yet.</p>";
           return;
         }
+
         list.innerHTML = snap.docs.map(doc => {
           const d = doc.data();
           return `
             <div class="chip" style="margin:0.3rem 0; display:flex; justify-content:space-between; align-items:center;">
               <span><b>${d.name}</b> — [${d.lat}, ${d.lng}] — ${d.radius}m</span>
-              <button onclick="deleteLocation('${doc.id}')" class="menu-btn" style="padding:0.2rem 0.5rem; font-size:0.8rem; background:#c0392b; color:white;">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div style="display:flex; gap:0.3rem;">
+                <button onclick="editLocation('${doc.id}', '${d.name}', ${d.lat}, ${d.lng}, ${d.radius})" 
+                        class="menu-btn" style="padding:0.2rem 0.5rem; font-size:0.8rem; background:#2980b9; color:white;">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteLocation('${doc.id}')" 
+                        class="menu-btn" style="padding:0.2rem 0.5rem; font-size:0.8rem; background:#c0392b; color:white;">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
           `;
         }).join("");
@@ -97,11 +105,34 @@
     }
     loadLocations();
 
-    // Delete location
+    // Delete a location
     async function deleteLocation(id) {
       if (confirm("Delete this location?")) {
         await db.collection("locations").doc(id).delete();
       }
+    }
+
+    // Edit a location
+    async function editLocation(id, name, lat, lng, radius) {
+      const newName = prompt("Location Name:", name);
+      if (!newName) return;
+
+      const newLat = parseFloat(prompt("Latitude:", lat));
+      if (isNaN(newLat)) return alert("Invalid latitude");
+
+      const newLng = parseFloat(prompt("Longitude:", lng));
+      if (isNaN(newLng)) return alert("Invalid longitude");
+
+      const newRadius = parseInt(prompt("Radius (meters):", radius));
+      if (isNaN(newRadius)) return alert("Invalid radius");
+
+      await db.collection("locations").doc(id).update({
+        name: newName,
+        lat: newLat,
+        lng: newLng,
+        radius: newRadius,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
   </script>
 </body>
