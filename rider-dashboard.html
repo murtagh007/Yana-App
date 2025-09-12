@@ -10,7 +10,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-<!-- Your firebase-config.js should call firebase.initializeApp(...) and set `db = firebase.firestore();` -->
 <script src="firebase-config.js"></script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -99,10 +98,6 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
 <div id="toast" class="toast"></div>
 
 <script>
-/* =========================
-   Robust Real-time Dashboard
-   ========================= */
-
 (async function init(){ 
   if(typeof firebase === 'undefined' || typeof db === 'undefined'){
     alert("Firebase not configured. Make sure firebase-config.js sets `db = firebase.firestore();`");
@@ -130,54 +125,46 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
 
   let processingPunch=false, processingBreak=false;
 
-  const punchBtn = document.getElementById('punchBtn');
-  const breakBtn = document.getElementById('breakBtn');
-
   // --------------------------
-  // Punch Toggle (geolocation required for punch IN only)
+  // Punch toggle (geolocation only for Punch IN)
   // --------------------------
   async function doPunchToggle(){
     if(processingPunch) return;
     processingPunch=true;
     try{
       if(!localState.punchedIn){
-        // ✅ Require geolocation on Punch In
         let pos=null;
-        try{ pos = await getCurrentPositionAsync(); }catch(err){ toast("Location failed"); processingPunch=false; return; }
+        try{ pos = await getCurrentPositionAsync(); } catch(err){ toast("Location failed"); processingPunch=false; return; }
         const lat=pos.coords.latitude,lng=pos.coords.longitude;
         const locs = await db.collection('locations').get();
         let allowed=false; locs.forEach(doc=>{ const d=doc.data(); if(haversineMeters(lat,lng,d.lat,d.lng)<= (d.radius||0)+8) allowed=true; });
         if(!allowed){ toast("Outside allowed area"); processingPunch=false; return; }
-
-        // Punch In logic ...
-        toast("✅ Punched In");
+        // proceed with punch in logic
       } else {
-        // Punch Out (no geolocation required)
-        toast("✅ Punched Out");
+        // punch out (no geolocation)
       }
     }finally{ processingPunch=false; }
   }
 
   // --------------------------
-  // Break Toggle (❌ no geolocation required)
+  // Break toggle (no geolocation)
   // --------------------------
   async function doBreakToggle(){
     if(processingBreak) return;
     processingBreak=true;
     try{
-      if(!localState.punchedIn){ toast("Punch in first"); processingBreak=false; return; }
+      if(!localState.punchedIn){ toast("Punch in first"); return; }
       if(!localState.onBreak){
-        // Start break
-        toast("⏸ Break started");
+        // start break logic
       } else {
-        // Stop break
-        toast("▶️ Break ended");
+        // stop break logic
       }
     }finally{ processingBreak=false; }
   }
 
-  punchBtn.addEventListener('click', doPunchToggle);
-  breakBtn.addEventListener('click', doBreakToggle);
+  // Attach buttons
+  document.getElementById('punchBtn').addEventListener('click', doPunchToggle);
+  document.getElementById('breakBtn').addEventListener('click', doBreakToggle);
 })();
 </script>
 </body>
