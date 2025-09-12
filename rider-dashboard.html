@@ -120,39 +120,6 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   const email = new URLSearchParams(window.location.search).get('email');
   if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
 
-  const workValue = document.getElementById('workValue');
-  const breakValue = document.getElementById('breakValue');
-  const punchBtn = document.getElementById('punchBtn');
-  const breakBtn = document.getElementById('breakBtn');
-  const punchLabel = document.getElementById('punchLabel');
-  const breakLabel = document.getElementById('breakLabel');
-  const riderNameEl = document.getElementById('riderName');
-  const scootyEl = document.getElementById('scooty');
-  const batteryEl = document.getElementById('battery');
-  const statusLine = document.getElementById('statusLine');
-
-  // Fetch rider profile info
-  try {
-    const riderSnap = await db.collection('riders').doc(email).get();
-    if(riderSnap.exists){
-      const d = riderSnap.data();
-      riderNameEl.innerText = d.name || email;
-      scootyEl.innerText = d.scooty || '--';
-      batteryEl.innerText = d.battery || '--';
-    } else {
-      riderNameEl.innerText = email;
-      scootyEl.innerText = '--';
-      batteryEl.innerText = '--';
-    }
-  } catch(e){ console.warn("Rider profile fetch failed", e); }
-
-  // Bottom nav button handlers
-  document.getElementById('navScanner').addEventListener('click', ()=>{ location.href=`scanner.html?email=${encodeURIComponent(email)}`; });
-  document.getElementById('navIssues').addEventListener('click', ()=>{ location.href=`issues.html?email=${encodeURIComponent(email)}`; });
-  document.getElementById('navAttendance').addEventListener('click', ()=>{ location.href=`attendance.html?email=${encodeURIComponent(email)}`; });
-  document.getElementById('navLogs').addEventListener('click', ()=>{ location.href=`logs.html?email=${encodeURIComponent(email)}`; });
-
-  // === YOUR EXISTING PUNCH/BREAK LOGIC ===
   const todayKey = ()=> new Date().toISOString().slice(0,10);
   let currentDay = todayKey();
   const stateDocRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`);
@@ -173,6 +140,17 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   let processingPunch=false, processingBreak=false;
   let unsubStateListener = null;
 
+  const workValue = document.getElementById('workValue');
+  const breakValue = document.getElementById('breakValue');
+  const punchBtn = document.getElementById('punchBtn');
+  const breakBtn = document.getElementById('breakBtn');
+  const punchLabel = document.getElementById('punchLabel') || null;
+  const breakLabel = document.getElementById('breakLabel') || null;
+  const riderNameEl = document.getElementById('riderName');
+  const scootyEl = document.getElementById('scooty');
+  const batteryEl = document.getElementById('battery');
+  const statusLine = document.getElementById('statusLine');
+
   function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(localState)); }catch(e){} }
   function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const obj = JSON.parse(raw); if(typeof obj === 'object' && obj!==null) localState = {...localState,...obj}; } }catch(e){} }
 
@@ -191,7 +169,8 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
 
   async function attachStateListener(){
     if(unsubStateListener) { unsubStateListener(); unsubStateListener=null; }
-    unsubStateListener = stateDocRef().onSnapshot(snap=>{
+    const ref = stateDocRef();
+    unsubStateListener = ref.onSnapshot(snap=>{
       if(!snap.exists) return;
       const data = snap.data();
       const s = {};
@@ -274,7 +253,8 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
         stopTickers();
         localState.onBreak=true; localState.breakStartTime=Date.now(); localState.lastUpdated=Date.now();
         startTickers(); updateUI(); saveLocal();
-        await logEvent('startBreak',{}); await writeStateToServer();
+        await logEvent('startBreak',{});
+        await writeStateToServer();
         toast("⏸ Break started");
       } else {
         stopTickers();
@@ -283,7 +263,8 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
         localState.totalBreakSeconds+=dur;
         localState.onBreak=false; localState.breakStartTime=null; localState.lastUpdated=Date.now();
         startTickers(); updateUI(); saveLocal();
-        await logEvent('stopBreak',{durationSec:dur}); await writeStateToServer();
+        await logEvent('stopBreak',{durationSec:dur});
+        await writeStateToServer();
         toast("▶ Break ended");
       }
     }catch(e){ console.error("doBreakToggle error",e); toast("Action failed"); } finally{ processingBreak=false; }
@@ -292,6 +273,33 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   punchBtn.addEventListener('click', doPunchToggle);
   breakBtn.addEventListener('click', doBreakToggle);
   document.getElementById('logoutBtn').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); firebase.auth().signOut(); location.href='rider-signin.html'; });
+
+  // ==== Fetch rider info, scooty, battery ====
+  try{
+    const userDoc = await db.collection('users').doc(email).get();
+    if(userDoc.exists){
+      const userData = userDoc.data();
+      riderNameEl.innerText = userData.name || 'Unknown Rider';
+
+      if(userData.scooterId){
+        const scootyDoc = await db.collection('scooty_master').doc(userData.scooterId).get();
+        scootyEl.innerText = scootyDoc.exists ? scootyDoc.id : 'Unknown';
+      } else scootyEl.innerText = 'No scooty assigned';
+
+      if(userData.batteryId){
+        const batteryDoc = await db.collection('battery_master').doc(userData.batteryId).get();
+        batteryEl.innerText = batteryDoc.exists ? batteryDoc.id : 'No battery assigned';
+      } else batteryEl.innerText = 'No battery assigned';
+    }
+  }catch(e){ console.error("Fetching rider info failed:",e); }
+
+  // ==== Bottom navigation ====
+  document.getElementById('navScanner').addEventListener('click',()=>{ location.href=`scanner.html?email=${email}`; });
+  document.getElementById('navIssues').addEventListener('click',()=>{ location.href=`issues.html?email=${email}`; });
+  document.getElementById('navAttendance').addEventListener('click',()=>{ location.href=`rider-dashboard.html?email=${email}`; });
+  document.getElementById('navLogs').addEventListener('click',()=>{ location.href=`rider-logs.html?email=${email}`; });
+
+  // =============================================
 
   startBackgroundSync();
   loadLocal();
