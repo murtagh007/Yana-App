@@ -117,17 +117,42 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     });
   }
 
-  function haversineMeters(lat1,lon1,lat2,lon2){
-    const R=6371e3;
-    const toRad=(v)=>v*Math.PI/180;
-    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    const c=2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R*c;
-  }
-
   const email = new URLSearchParams(window.location.search).get('email');
   if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
+
+  const workValue = document.getElementById('workValue');
+  const breakValue = document.getElementById('breakValue');
+  const punchBtn = document.getElementById('punchBtn');
+  const breakBtn = document.getElementById('breakBtn');
+  const punchLabel = document.getElementById('punchLabel');
+  const breakLabel = document.getElementById('breakLabel');
+  const riderNameEl = document.getElementById('riderName');
+  const scootyEl = document.getElementById('scooty');
+  const batteryEl = document.getElementById('battery');
+  const statusLine = document.getElementById('statusLine');
+
+  // Fetch rider profile info
+  try {
+    const riderSnap = await db.collection('riders').doc(email).get();
+    if(riderSnap.exists){
+      const d = riderSnap.data();
+      riderNameEl.innerText = d.name || email;
+      scootyEl.innerText = d.scooty || '--';
+      batteryEl.innerText = d.battery || '--';
+    } else {
+      riderNameEl.innerText = email;
+      scootyEl.innerText = '--';
+      batteryEl.innerText = '--';
+    }
+  } catch(e){ console.warn("Rider profile fetch failed", e); }
+
+  // Bottom nav button handlers
+  document.getElementById('navScanner').addEventListener('click', ()=>{ location.href=`scanner.html?email=${encodeURIComponent(email)}`; });
+  document.getElementById('navIssues').addEventListener('click', ()=>{ location.href=`issues.html?email=${encodeURIComponent(email)}`; });
+  document.getElementById('navAttendance').addEventListener('click', ()=>{ location.href=`attendance.html?email=${encodeURIComponent(email)}`; });
+  document.getElementById('navLogs').addEventListener('click', ()=>{ location.href=`logs.html?email=${encodeURIComponent(email)}`; });
+
+  // === YOUR EXISTING PUNCH/BREAK LOGIC ===
   const todayKey = ()=> new Date().toISOString().slice(0,10);
   let currentDay = todayKey();
   const stateDocRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`);
@@ -148,19 +173,9 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   let processingPunch=false, processingBreak=false;
   let unsubStateListener = null;
 
-  const workValue = document.getElementById('workValue');
-  const breakValue = document.getElementById('breakValue');
-  const punchBtn = document.getElementById('punchBtn');
-  const breakBtn = document.getElementById('breakBtn');
-  const punchLabel = document.getElementById('punchLabel') || null;
-  const breakLabel = document.getElementById('breakLabel') || null;
-  const riderNameEl = document.getElementById('riderName');
-  const scootyEl = document.getElementById('scooty');
-  const batteryEl = document.getElementById('battery');
-  const statusLine = document.getElementById('statusLine');
-
   function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(localState)); }catch(e){} }
   function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const obj = JSON.parse(raw); if(typeof obj === 'object' && obj!==null) localState = {...localState,...obj}; } }catch(e){} }
+
   function rotateDayIfNeeded(){
     const nowDay = todayKey();
     if(nowDay !== currentDay){
@@ -176,8 +191,7 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
 
   async function attachStateListener(){
     if(unsubStateListener) { unsubStateListener(); unsubStateListener=null; }
-    const ref = stateDocRef();
-    unsubStateListener = ref.onSnapshot(snap=>{
+    unsubStateListener = stateDocRef().onSnapshot(snap=>{
       if(!snap.exists) return;
       const data = snap.data();
       const s = {};
@@ -216,8 +230,8 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
   function stopBackgroundSync(){ if(bgSyncHandle){ clearInterval(bgSyncHandle); bgSyncHandle=null; } }
 
   function updateUI(){
-    document.getElementById('workValue').innerText = format(localState.workingSeconds);
-    document.getElementById('breakValue').innerText = format(localState.totalBreakSeconds);
+    workValue.innerText = format(localState.workingSeconds);
+    breakValue.innerText = format(localState.totalBreakSeconds);
     punchLabel.innerText = localState.punchedIn ? 'Punch Out' : 'Punch In';
     breakLabel.innerText = localState.onBreak ? 'Stop Break' : 'Start Break';
     statusLine.innerText = `Status: ${localState.onBreak ? 'On Break' : (localState.punchedIn ? 'Working' : 'Idle')}`;
@@ -228,25 +242,6 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     stopTickers();
     if(localState.punchedIn && !localState.onBreak){ workTicker=setInterval(()=>{ localState.workingSeconds+=1; localState.lastUpdated=Date.now(); saveLocal(); workValue.innerText=format(localState.workingSeconds); },1000); }
     if(localState.onBreak){ breakTicker=setInterval(()=>{ localState.totalBreakSeconds+=1; localState.lastUpdated=Date.now(); saveLocal(); breakValue.innerText=format(localState.totalBreakSeconds); },1000); }
-  }
-
-  async function rebuildFromEvents(){
-    try{
-      const snap = await eventsColRef().orderBy('serverTs','asc').get();
-      if(snap.empty) return;
-      let workSec=0, breakSec=0, punched=false, breakActive=false, punchAt=null, breakAt=null;
-      snap.forEach(d=>{
-        const e=d.data(); const t=e.serverTs ? e.serverTs.toMillis() : (e.clientTs||Date.now());
-        switch(e.type){
-          case 'punchIn': punched=true; punchAt=t; break;
-          case 'punchOut': if(punched && punchAt){ const seg=Math.max(0,Math.floor((t-punchAt)/1000)-(breakActive && breakAt ? Math.floor((t-breakAt)/1000):0)); workSec+=seg; } punched=false; punchAt=null; breakActive=false; breakAt=null; break;
-          case 'startBreak': if(punched && !breakActive){ breakActive=true; breakAt=t; } break;
-          case 'stopBreak': if(breakActive && breakAt){ breakSec+=Math.floor((t-breakAt)/1000); } breakActive=false; breakAt=null; break;
-        }
-      });
-      localState.workingSeconds=workSec; localState.totalBreakSeconds=breakSec;
-      saveLocal();
-    }catch(e){ console.warn("rebuildFromEvents failed",e); }
   }
 
   async function doPunchToggle(){
@@ -279,8 +274,7 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
         stopTickers();
         localState.onBreak=true; localState.breakStartTime=Date.now(); localState.lastUpdated=Date.now();
         startTickers(); updateUI(); saveLocal();
-        await logEvent('startBreak',{});
-        await writeStateToServer();
+        await logEvent('startBreak',{}); await writeStateToServer();
         toast("⏸ Break started");
       } else {
         stopTickers();
@@ -289,8 +283,7 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
         localState.totalBreakSeconds+=dur;
         localState.onBreak=false; localState.breakStartTime=null; localState.lastUpdated=Date.now();
         startTickers(); updateUI(); saveLocal();
-        await logEvent('stopBreak',{durationSec:dur});
-        await writeStateToServer();
+        await logEvent('stopBreak',{durationSec:dur}); await writeStateToServer();
         toast("▶ Break ended");
       }
     }catch(e){ console.error("doBreakToggle error",e); toast("Action failed"); } finally{ processingBreak=false; }
