@@ -104,68 +104,210 @@ border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 
     return;
   }
 
-  try { await firebase.firestore().enablePersistence(); } catch(e) {}
+  try { await firebase.firestore().enablePersistence(); } catch(e) { }
 
   const toast = (msg)=>{ const t=document.getElementById('toast'); t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); };
   const pad=(n)=>String(n).padStart(2,'0');
   const format=(s)=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
 
   function getCurrentPositionAsync(opts={enableHighAccuracy:true,timeout:10000}) {
-    return new Promise((res,rej)=>{ if(!navigator.geolocation) return rej(new Error("Geolocation not supported")); navigator.geolocation.getCurrentPosition(res, rej, opts); });
+    return new Promise((res,rej)=>{
+      if(!navigator.geolocation) return rej(new Error("Geolocation not supported"));
+      navigator.geolocation.getCurrentPosition(res, rej, opts);
+    });
   }
+
   function haversineMeters(lat1,lon1,lat2,lon2){
-    const R=6371e3,toRad=(v)=>v*Math.PI/180;
+    const R=6371e3;
+    const toRad=(v)=>v*Math.PI/180;
     const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
     const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    return 2*R*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const c=2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R*c;
   }
 
   const email = new URLSearchParams(window.location.search).get('email');
   if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
+  const todayKey = ()=> new Date().toISOString().slice(0,10);
+  let currentDay = todayKey();
+  const stateDocRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`);
+  const eventsColRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`).collection('events');
 
+  const LS_KEY = `attendance_session_${email}_${currentDay}`;
+  let localState = {
+    punchedIn:false,
+    punchInTime:null,
+    workingSeconds:0,
+    onBreak:false,
+    breakStartTime:null,
+    totalBreakSeconds:0,
+    lastUpdated: null
+  };
+
+  let workTicker = null, breakTicker = null;
   let processingPunch=false, processingBreak=false;
+  let unsubStateListener = null;
 
-  // --------------------------
-  // Punch toggle (geolocation only for Punch IN)
-  // --------------------------
+  const workValue = document.getElementById('workValue');
+  const breakValue = document.getElementById('breakValue');
+  const punchBtn = document.getElementById('punchBtn');
+  const breakBtn = document.getElementById('breakBtn');
+  const punchLabel = document.getElementById('punchLabel') || null;
+  const breakLabel = document.getElementById('breakLabel') || null;
+  const riderNameEl = document.getElementById('riderName');
+  const scootyEl = document.getElementById('scooty');
+  const batteryEl = document.getElementById('battery');
+  const statusLine = document.getElementById('statusLine');
+
+  function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(localState)); }catch(e){} }
+  function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const obj = JSON.parse(raw); if(typeof obj === 'object' && obj!==null) localState = {...localState,...obj}; } }catch(e){} }
+  function rotateDayIfNeeded(){
+    const nowDay = todayKey();
+    if(nowDay !== currentDay){
+      currentDay = nowDay;
+      localState = {punchedIn:false,punchInTime:null,workingSeconds:0,onBreak:false,breakStartTime:null,totalBreakSeconds:0,lastUpdated:null};
+      saveLocal();
+      attachStateListener();
+      updateUI();
+      stopTickers();
+    }
+  }
+  setInterval(rotateDayIfNeeded, 60*1000);
+
+  async function attachStateListener(){
+    if(unsubStateListener) { unsubStateListener(); unsubStateListener=null; }
+    const ref = stateDocRef();
+    unsubStateListener = ref.onSnapshot(snap=>{
+      if(!snap.exists) return;
+      const data = snap.data();
+      const s = {};
+      s.punchedIn = !!data.punchedIn;
+      s.workingSeconds = Number(data.workingSeconds || 0);
+      s.onBreak = !!data.onBreak;
+      s.totalBreakSeconds = Number(data.totalBreakSeconds || 0);
+      s.lastUpdated = data.lastUpdated ? data.lastUpdated.toMillis() : Date.now();
+      s.punchInTime = data.punchInTime ? data.punchInTime.toMillis() : null;
+      s.breakStartTime = data.breakStartTime ? data.breakStartTime.toMillis() : null;
+
+      if(localState.lastUpdated && localState.lastUpdated > s.lastUpdated){ } 
+      else { localState = {...localState, ...s}; saveLocal(); startTickers(); updateUI(); }
+    }, err=>{ console.warn("state listener error",err); });
+  }
+
+  async function logEvent(type, extra={}){ try{ const event = {type, rider: email, clientTs: Date.now(), serverTs: firebase.firestore.FieldValue.serverTimestamp(), ...extra}; await eventsColRef().add(event); }catch(e){ console.error("logEvent failed",e); } }
+
+  async function writeStateToServer(){
+    try{
+      const payload = {
+        punchedIn: !!localState.punchedIn,
+        workingSeconds: Number(localState.workingSeconds || 0),
+        onBreak: !!localState.onBreak,
+        totalBreakSeconds: Number(localState.totalBreakSeconds || 0),
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(localState.punchInTime) payload.punchInTime = firebase.firestore.Timestamp.fromMillis(localState.punchInTime); else payload.punchInTime = null;
+      if(localState.breakStartTime) payload.breakStartTime = firebase.firestore.Timestamp.fromMillis(localState.breakStartTime); else payload.breakStartTime = null;
+      await stateDocRef().set(payload, {merge:true});
+    }catch(e){ console.error("writeStateToServer failed:", e); }
+  }
+
+  let bgSyncHandle = null;
+  function startBackgroundSync(){ if(bgSyncHandle) return; bgSyncHandle = setInterval(async ()=>{ await writeStateToServer(); }, 6000); }
+  function stopBackgroundSync(){ if(bgSyncHandle){ clearInterval(bgSyncHandle); bgSyncHandle=null; } }
+
+  function updateUI(){
+    document.getElementById('workValue').innerText = format(localState.workingSeconds);
+    document.getElementById('breakValue').innerText = format(localState.totalBreakSeconds);
+    punchLabel.innerText = localState.punchedIn ? 'Punch Out' : 'Punch In';
+    breakLabel.innerText = localState.onBreak ? 'Stop Break' : 'Start Break';
+    statusLine.innerText = `Status: ${localState.onBreak ? 'On Break' : (localState.punchedIn ? 'Working' : 'Idle')}`;
+  }
+
+  function stopTickers(){ if(workTicker){ clearInterval(workTicker); workTicker=null; } if(breakTicker){ clearInterval(breakTicker); breakTicker=null; } }
+  function startTickers(){
+    stopTickers();
+    if(localState.punchedIn && !localState.onBreak){ workTicker=setInterval(()=>{ localState.workingSeconds+=1; localState.lastUpdated=Date.now(); saveLocal(); workValue.innerText=format(localState.workingSeconds); },1000); }
+    if(localState.onBreak){ breakTicker=setInterval(()=>{ localState.totalBreakSeconds+=1; localState.lastUpdated=Date.now(); saveLocal(); breakValue.innerText=format(localState.totalBreakSeconds); },1000); }
+  }
+
+  async function rebuildFromEvents(){
+    try{
+      const snap = await eventsColRef().orderBy('serverTs','asc').get();
+      if(snap.empty) return;
+      let workSec=0, breakSec=0, punched=false, breakActive=false, punchAt=null, breakAt=null;
+      snap.forEach(d=>{
+        const e=d.data(); const t=e.serverTs ? e.serverTs.toMillis() : (e.clientTs||Date.now());
+        switch(e.type){
+          case 'punchIn': punched=true; punchAt=t; break;
+          case 'punchOut': if(punched && punchAt){ const seg=Math.max(0,Math.floor((t-punchAt)/1000)-(breakActive && breakAt ? Math.floor((t-breakAt)/1000):0)); workSec+=seg; } punched=false; punchAt=null; breakActive=false; breakAt=null; break;
+          case 'startBreak': if(punched && !breakActive){ breakActive=true; breakAt=t; } break;
+          case 'stopBreak': if(breakActive && breakAt){ breakSec+=Math.floor((t-breakAt)/1000); } breakActive=false; breakAt=null; break;
+        }
+      });
+      localState.workingSeconds=workSec; localState.totalBreakSeconds=breakSec;
+      saveLocal();
+    }catch(e){ console.warn("rebuildFromEvents failed",e); }
+  }
+
   async function doPunchToggle(){
-    if(processingPunch) return;
-    processingPunch=true;
+    if(processingPunch) return; processingPunch=true;
     try{
+      let pos=null;
+      try{ pos=await getCurrentPositionAsync({enableHighAccuracy:true,timeout:10000}); }catch(err){ toast("Location failed: "+(err.message||err)); processingPunch=false; return; }
+      const lat=pos.coords.latitude, lng=pos.coords.longitude;
       if(!localState.punchedIn){
-        let pos=null;
-        try{ pos = await getCurrentPositionAsync(); } catch(err){ toast("Location failed"); processingPunch=false; return; }
-        const lat=pos.coords.latitude,lng=pos.coords.longitude;
-        const locs = await db.collection('locations').get();
-        let allowed=false; locs.forEach(doc=>{ const d=doc.data(); if(haversineMeters(lat,lng,d.lat,d.lng)<= (d.radius||0)+8) allowed=true; });
-        if(!allowed){ toast("Outside allowed area"); processingPunch=false; return; }
-        // proceed with punch in logic
+        localState.punchedIn=true; localState.punchInTime=Date.now(); localState.lastUpdated=Date.now();
+        startTickers(); updateUI(); saveLocal();
+        await logEvent('punchIn',{lat,lng});
+        await writeStateToServer();
+        toast("✅ Punched In");
       } else {
-        // punch out (no geolocation)
+        stopTickers(); localState.punchedIn=false; localState.punchInTime=null; localState.onBreak=false; localState.breakStartTime=null; localState.lastUpdated=Date.now();
+        updateUI(); saveLocal();
+        await logEvent('punchOut',{workingSeconds: localState.workingSeconds});
+        await writeStateToServer();
+        toast("✅ Punched Out");
       }
-    }finally{ processingPunch=false; }
+    }catch(e){ console.error("doPunchToggle error",e); toast("Action failed"); } finally{ processingPunch=false; }
   }
 
-  // --------------------------
-  // Break toggle (no geolocation)
-  // --------------------------
   async function doBreakToggle(){
-    if(processingBreak) return;
-    processingBreak=true;
+    if(processingBreak) return; processingBreak=true;
     try{
-      if(!localState.punchedIn){ toast("Punch in first"); return; }
+      if(!localState.punchedIn){ toast("Punch in first"); processingBreak=false; return; }
       if(!localState.onBreak){
-        // start break logic
+        stopTickers();
+        localState.onBreak=true; localState.breakStartTime=Date.now(); localState.lastUpdated=Date.now();
+        startTickers(); updateUI(); saveLocal();
+        await logEvent('startBreak',{});
+        await writeStateToServer();
+        toast("⏸ Break started");
       } else {
-        // stop break logic
+        stopTickers();
+        const breakStart=localState.breakStartTime||Date.now();
+        const dur=Math.floor((Date.now()-breakStart)/1000);
+        localState.totalBreakSeconds+=dur;
+        localState.onBreak=false; localState.breakStartTime=null; localState.lastUpdated=Date.now();
+        startTickers(); updateUI(); saveLocal();
+        await logEvent('stopBreak',{durationSec:dur});
+        await writeStateToServer();
+        toast("▶ Break ended");
       }
-    }finally{ processingBreak=false; }
+    }catch(e){ console.error("doBreakToggle error",e); toast("Action failed"); } finally{ processingBreak=false; }
   }
 
-  // Attach buttons
-  document.getElementById('punchBtn').addEventListener('click', doPunchToggle);
-  document.getElementById('breakBtn').addEventListener('click', doBreakToggle);
+  punchBtn.addEventListener('click', doPunchToggle);
+  breakBtn.addEventListener('click', doBreakToggle);
+  document.getElementById('logoutBtn').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); firebase.auth().signOut(); location.href='rider-signin.html'; });
+
+  startBackgroundSync();
+  loadLocal();
+  attachStateListener();
+  startTickers();
+  updateUI();
+
 })();
 </script>
+
 </body>
 </html>
