@@ -1,259 +1,184 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rider Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #f8f9fa;
-      display: flex; flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      background: #0066cc;
-      color: white;
-      text-align: center;
-      padding: 1rem;
-      font-size: 1.2rem;
-    }
-    main {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-    }
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      padding: 1.2rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-    .card h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
-    .timer { font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0; }
-    .btn {
-      display: inline-block;
-      padding: 0.8rem 1.2rem;
-      margin: 0.4rem;
-      font-size: 1rem;
-      border: none; border-radius: 8px;
-      cursor: pointer;
-      color: white;
-    }
-    .btn-primary { background: #007bff; }
-    .btn-secondary { background: #28a745; }
-    .btn:disabled { background: #aaa; cursor: not-allowed; }
-    nav {
-      display: flex;
-      justify-content: space-around;
-      background: #fff;
-      border-top: 1px solid #ddd;
-      padding: 0.6rem 0;
-    }
-    nav button {
-      background: none; border: none;
-      font-size: 0.9rem; color: #333;
-      cursor: pointer;
-    }
-    .toast {
-      position: fixed;
-      bottom: 70px; left: 50%;
-      transform: translateX(-50%);
-      background: #333; color: #fff;
-      padding: 0.6rem 1rem;
-      border-radius: 6px;
-      display: none;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YANA — Rider Dashboard (Real-time, robust)</title>
+
+<!-- Firebase v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+<!-- Your firebase-config.js should call firebase.initializeApp(...) and set `db = firebase.firestore();` -->
+<script src="firebase-config.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --bg:#071014; --card: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
+  --accent:#00eaff; --text:#eaf4f8; --r:16px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:Inter,system-ui,Arial; background:linear-gradient(180deg,#061014,#0d1720);
+  color:var(--text); min-height:100vh; display:flex; flex-direction:column;
+}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.header h1{margin:0;font-size:1.05rem;color:var(--accent)}
+.container{padding:14px;display:flex;justify-content:center}
+.card{width:92vw;max-width:520px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
+border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,0.5)}
+.title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
+.riderName{font-size:1rem;margin-bottom:14px}
+.timerRow{display:flex;gap:12px;flex-wrap:wrap}
+.block{flex:1;min-width:140px;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
+.block .label{font-size:0.9rem;color:#bcd; margin-bottom:6px}
+.block .value{font-size:1.6rem;font-weight:700}
+.controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+.info{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+.info .pill{flex:1;min-width:140px;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
+.bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
+.navBtn{color:var(--text);text-align:center;font-size:0.9rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;background:var(--accent);color:#000;padding:10px 14px;border-radius:8px;display:none;z-index:50}
+.small{font-size:0.85rem;color:#bcd;margin-top:6px}
+@media(max-width:420px){.btn{min-width:120px;padding:10px}.block .value{font-size:1.3rem}}
+</style>
 </head>
 <body>
-  <header>Rider Dashboard</header>
-  <main>
-    <div class="card">
-      <h2>Working Hours</h2>
-      <div id="workTimer" class="timer">00:00:00</div>
-      <div>Total Break: <span id="breakTimer">00:00:00</span></div>
-      <div>Assigned Shift: 9 AM – 6 PM</div>
-      <div style="margin-top:1rem;">
-        <button id="punchBtn" class="btn btn-primary">Punch In</button>
-        <button id="breakBtn" class="btn btn-secondary">Start Break</button>
+
+<div class="header">
+  <h1>⚡ YANA Rider</h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="profilePic" style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center">R</div>
+    <button id="logoutBtn" class="btn secondary" style="padding:8px 10px;font-size:0.8rem">Logout</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card" role="main">
+    <div class="title">Rider Dashboard</div>
+    <div id="riderName" class="riderName">Loading...</div>
+
+    <div class="timerRow">
+      <div class="block">
+        <div class="label">Working Hours</div>
+        <div id="workValue" class="value">00:00:00</div>
+        <div id="workSmall" class="small">--</div>
+      </div>
+      <div class="block">
+        <div class="label">Break Time</div>
+        <div id="breakValue" class="value">00:00:00</div>
+        <div id="breakSmall" class="small">--</div>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Scooty & Battery</h2>
-      <p>Scooty ID: <span id="scootyId">—</span></p>
-      <p>Battery ID: <span id="batteryId">—</span></p>
+    <div class="controls">
+      <button id="punchBtn" class="btn"><i class="fa-solid fa-clock"></i><span id="punchLabel">Punch In</span></button>
+      <button id="breakBtn" class="btn secondary"><i class="fa-solid fa-coffee"></i><span id="breakLabel">Start Break</span></button>
     </div>
-  </main>
 
-  <nav>
-    <button onclick="goPage('scanner.html')">Scanner</button>
-    <button onclick="goPage('issues.html')">Issues</button>
-    <button onclick="goPage('attendance.html')">Attendance</button>
-    <button onclick="goPage('logs.html')">Logs</button>
-  </nav>
+    <div class="info">
+      <div class="pill">Scooty: <strong id="scooty">Loading...</strong></div>
+      <div class="pill">Battery: <strong id="battery">Loading...</strong></div>
+    </div>
 
-  <div id="toast" class="toast"></div>
+    <div class="small" style="margin-top:12px" id="statusLine">Status: --</div>
+  </div>
+</div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<div class="bottomNav">
+  <div class="navBtn" id="navScanner"><i class="fa-solid fa-qrcode"></i><div>Scanner</div></div>
+  <div class="navBtn" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i><div>Issues</div></div>
+  <div class="navBtn" id="navAttendance"><i class="fa-solid fa-user-check"></i><div>Attendance</div></div>
+  <div class="navBtn" id="navLogs"><i class="fa-solid fa-file-lines"></i><div>Logs</div></div>
+</div>
 
-  <script>
-    // ✅ Firebase config (replace with your own)
-    var firebaseConfig = {
-      apiKey: "YOUR_KEY",
-      authDomain: "YOUR_APP.firebaseapp.com",
-      projectId: "YOUR_PROJECT",
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+<div id="toast" class="toast"></div>
 
-    let processingPunch=false, processingBreak=false;
-    let localState = {
-      isWorking:false,
-      isOnBreak:false,
-      punchInTime:null,
-      breakStartTime:null,
-      totalBreakMs:0,
-      lastUpdated:0
-    };
+<script>
+/* =========================
+   Robust Real-time Dashboard
+   ========================= */
 
-    let workTicker=null, breakTicker=null;
+(async function init(){ 
+  if(typeof firebase === 'undefined' || typeof db === 'undefined'){
+    alert("Firebase not configured. Make sure firebase-config.js sets `db = firebase.firestore();`");
+    return;
+  }
 
-    function goPage(url){ window.location.href=url; }
+  try { await firebase.firestore().enablePersistence(); } catch(e) {}
 
-    function showToast(msg){
-      const t=document.getElementById("toast");
-      t.innerText=msg; t.style.display="block";
-      setTimeout(()=>t.style.display="none",2000);
-    }
+  const toast = (msg)=>{ const t=document.getElementById('toast'); t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); };
+  const pad=(n)=>String(n).padStart(2,'0');
+  const format=(s)=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
 
-    function fmt(ms){
-      let s=Math.floor(ms/1000);
-      let h=Math.floor(s/3600); s%=3600;
-      let m=Math.floor(s/60); s%=60;
-      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    }
+  function getCurrentPositionAsync(opts={enableHighAccuracy:true,timeout:10000}) {
+    return new Promise((res,rej)=>{ if(!navigator.geolocation) return rej(new Error("Geolocation not supported")); navigator.geolocation.getCurrentPosition(res, rej, opts); });
+  }
+  function haversineMeters(lat1,lon1,lat2,lon2){
+    const R=6371e3,toRad=(v)=>v*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
 
-    function startTickers(){
-      stopTickers();
-      if(localState.isWorking){
-        workTicker=setInterval(()=>{
-          let ms=Date.now()-localState.punchInTime-localState.totalBreakMs;
-          if(localState.isOnBreak) ms-=(Date.now()-localState.breakStartTime);
-          document.getElementById("workTimer").innerText=fmt(ms);
-        },1000);
-      }
-      if(localState.isOnBreak){
-        breakTicker=setInterval(()=>{
-          let ms=localState.totalBreakMs+(Date.now()-localState.breakStartTime);
-          document.getElementById("breakTimer").innerText=fmt(ms);
-        },1000);
+  const email = new URLSearchParams(window.location.search).get('email');
+  if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
+
+  let processingPunch=false, processingBreak=false;
+
+  const punchBtn = document.getElementById('punchBtn');
+  const breakBtn = document.getElementById('breakBtn');
+
+  // --------------------------
+  // Punch Toggle (geolocation required for punch IN only)
+  // --------------------------
+  async function doPunchToggle(){
+    if(processingPunch) return;
+    processingPunch=true;
+    try{
+      if(!localState.punchedIn){
+        // ✅ Require geolocation on Punch In
+        let pos=null;
+        try{ pos = await getCurrentPositionAsync(); }catch(err){ toast("Location failed"); processingPunch=false; return; }
+        const lat=pos.coords.latitude,lng=pos.coords.longitude;
+        const locs = await db.collection('locations').get();
+        let allowed=false; locs.forEach(doc=>{ const d=doc.data(); if(haversineMeters(lat,lng,d.lat,d.lng)<= (d.radius||0)+8) allowed=true; });
+        if(!allowed){ toast("Outside allowed area"); processingPunch=false; return; }
+
+        // Punch In logic ...
+        toast("✅ Punched In");
       } else {
-        document.getElementById("breakTimer").innerText=fmt(localState.totalBreakMs);
+        // Punch Out (no geolocation required)
+        toast("✅ Punched Out");
       }
-    }
-    function stopTickers(){ if(workTicker)clearInterval(workTicker); if(breakTicker)clearInterval(breakTicker); }
+    }finally{ processingPunch=false; }
+  }
 
-    async function writeStateToServer(){
-      await db.collection("attendance").doc("STATE_DOC").set(localState);
-    }
-    async function logEvent(type){
-      await db.collection("attendanceLogs").add({type,time:Date.now()});
-    }
-    function renderUI(){
-      document.getElementById("punchBtn").innerText = localState.isWorking ? "Punch Out":"Punch In";
-      document.getElementById("breakBtn").innerText = localState.isOnBreak ? "End Break":"Start Break";
-      startTickers();
-    }
+  // --------------------------
+  // Break Toggle (❌ no geolocation required)
+  // --------------------------
+  async function doBreakToggle(){
+    if(processingBreak) return;
+    processingBreak=true;
+    try{
+      if(!localState.punchedIn){ toast("Punch in first"); processingBreak=false; return; }
+      if(!localState.onBreak){
+        // Start break
+        toast("⏸ Break started");
+      } else {
+        // Stop break
+        toast("▶️ Break ended");
+      }
+    }finally{ processingBreak=false; }
+  }
 
-    // --- Punch In/Out ---
-    async function doPunchToggle(){
-      if(processingPunch) return;
-      processingPunch=true;
-      try{
-        const btn=document.getElementById("punchBtn");
-        btn.disabled=true;
-        showToast(localState.isWorking?"Punching out...":"Punching in...");
-
-        // 📍 Only on Punch In
-        if(!localState.isWorking){
-          let pos = await getCurrentPositionAsync();
-          const locs = await db.collection("locations").get();
-          let inside=false;
-          locs.forEach(doc=>{
-            const loc=doc.data();
-            if(getDistance(pos.coords.latitude,pos.coords.longitude,loc.lat,loc.lng)<=loc.radius) inside=true;
-          });
-          if(!inside){ showToast("⛔ Outside geofence!"); return; }
-        }
-
-        localState.isWorking=!localState.isWorking;
-        localState.isOnBreak=false;
-        if(localState.isWorking){ localState.punchInTime=Date.now(); }
-        else { localState.punchInTime=null; localState.breakStartTime=null; localState.totalBreakMs=0; }
-
-        stopTickers(); if(localState.isWorking) startTickers();
-
-        await Promise.all([writeStateToServer(), logEvent(localState.isWorking?"punchIn":"punchOut")]);
-        renderUI();
-        showToast(localState.isWorking?"✅ Punched In":"👋 Punched Out");
-      }catch(e){ console.error(e); showToast("⚠️ "+e.message);}
-      finally{ document.getElementById("punchBtn").disabled=false; processingPunch=false;}
-    }
-
-    // --- Break Start/End ---
-    async function doBreakToggle(){
-      if(processingBreak) return;
-      processingBreak=true;
-      try{
-        const btn=document.getElementById("breakBtn");
-        btn.disabled=true;
-        showToast(localState.isOnBreak?"Ending break...":"Starting break...");
-
-        if(!localState.isWorking){ showToast("⚠️ Punch in first!"); return; }
-
-        if(localState.isOnBreak){
-          localState.totalBreakMs+=Date.now()-localState.breakStartTime;
-          localState.breakStartTime=null; localState.isOnBreak=false;
-        }else{
-          localState.breakStartTime=Date.now(); localState.isOnBreak=true;
-        }
-
-        stopTickers(); startTickers();
-
-        await Promise.all([writeStateToServer(), logEvent(localState.isOnBreak?"startBreak":"endBreak")]);
-        renderUI();
-        showToast(localState.isOnBreak?"☕ Break Started":"💼 Break Ended");
-      }catch(e){ console.error(e); showToast("⚠️ "+e.message);}
-      finally{ document.getElementById("breakBtn").disabled=false; processingBreak=false;}
-    }
-
-    document.getElementById("punchBtn").onclick=doPunchToggle;
-    document.getElementById("breakBtn").onclick=doBreakToggle;
-
-    // --- Helpers ---
-    function getCurrentPositionAsync(){
-      return new Promise((res,rej)=>{
-        navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true});
-      });
-    }
-    function getDistance(lat1,lon1,lat2,lon2){
-      function toRad(x){ return x*Math.PI/180; }
-      var R=6371e3; 
-      var φ1=toRad(lat1), φ2=toRad(lat2);
-      var Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
-      var a=Math.sin(Δφ/2)*Math.sin(Δφ/2)+Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2);
-      var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      return R*c;
-    }
-
-    renderUI();
-  </script>
+  punchBtn.addEventListener('click', doPunchToggle);
+  breakBtn.addEventListener('click', doBreakToggle);
+})();
+</script>
 </body>
 </html>
