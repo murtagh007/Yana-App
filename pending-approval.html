@@ -100,8 +100,9 @@
       document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
+      // ✅ Allow both Admins and Captains
+      if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
+        alert("❌ Access denied. Only Admins or Captains allowed.");
         return location.href="index.html";
       }
 
