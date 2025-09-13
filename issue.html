@@ -263,14 +263,24 @@
         .where("assignedTo","==",email).where("status","==","assigned").limit(1).get();
       b.forEach(d => battery = d.id);
 
-      if(scooty){ const opt = document.createElement("option"); opt.value=scooty; opt.textContent="Scooty: "+scooty; assetSelect.appendChild(opt);}
-      if(battery){ const opt = document.createElement("option"); opt.value=battery; opt.textContent="Battery: "+battery; assetSelect.appendChild(opt);}
+      if(scooty){
+        const opt = document.createElement("option");
+        opt.value = JSON.stringify({ id: scooty, type: "scooty" });
+        opt.textContent = "Scooty: " + scooty;
+        assetSelect.appendChild(opt);
+      }
+      if(battery){
+        const opt = document.createElement("option");
+        opt.value = JSON.stringify({ id: battery, type: "battery" });
+        opt.textContent = "Battery: " + battery;
+        assetSelect.appendChild(opt);
+      }
     }
 
     assetSelect.addEventListener("change", ()=>{
       issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
       if(!assetSelect.value) return;
-      const type = assetSelect.options[assetSelect.selectedIndex].text.startsWith("Scooty") ? "scooty":"battery";
+      const { type } = JSON.parse(assetSelect.value);
       issueTypes[type].forEach(issue=>{
         const opt = document.createElement("option");
         opt.value = issue;
@@ -281,11 +291,38 @@
 
     document.getElementById("issueForm").addEventListener("submit", async e=>{
       e.preventDefault();
-      const assetId = assetSelect.value;
+      if(!assetSelect.value || !issueTypeSelect.value){
+        toast("⚠️ Please select an asset and an issue type.");
+        return;
+      }
+
+      const { id: assetId, type } = JSON.parse(assetSelect.value);
       const issue = issueTypeSelect.value;
       const additionalDetails = document.getElementById("issueText").value.trim();
-      if(!assetId || !issue){ toast("⚠️ Please select an asset and an issue type."); return;}
-      await db.collection("issues").add({email,assetId,issue,additionalDetails,status:"open",createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+
+      // 🔹 Fetch captainInCharge from respective collection
+      let captainInCharge = null;
+      try {
+        const docRef = db.collection(type === "scooty" ? "scooty_master" : "battery_master").doc(assetId);
+        const doc = await docRef.get();
+        if(doc.exists) {
+          captainInCharge = doc.data().captainInCharge || null;
+        }
+      } catch(err) {
+        console.error("Error fetching captainInCharge:", err);
+      }
+
+      await db.collection("issues").add({
+        email,
+        assetId,
+        type,
+        issue,
+        additionalDetails,
+        captainInCharge,
+        status: "open",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
       toast("✅ Issue submitted successfully!");
       document.getElementById("issueForm").reset();
       issueTypeSelect.innerHTML = '<option value="">-- Select Issue --</option>';
