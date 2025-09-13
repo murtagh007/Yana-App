@@ -86,7 +86,13 @@
     auth.onAuthStateChanged(async user=>{
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role!=="admin"){ alert("❌ Not an admin."); return location.href="index.html"; }
+      
+      // ✅ Allow both Admins and Captains
+      if(!doc.exists || !["admin","captain"].includes(doc.data().role)){ 
+        alert("❌ Access denied. Only Admins or Captains allowed."); 
+        return location.href="index.html"; 
+      }
+      
       document.getElementById("adminInitial").innerText = (doc.data().name||user.email[0]).charAt(0).toUpperCase();
     });
 
