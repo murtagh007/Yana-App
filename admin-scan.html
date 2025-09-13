@@ -86,10 +86,11 @@
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin."); 
-        return location.href="index.html";
-      }
+      if (!doc.exists || !["admin", "captain"].includes(doc.data().role)) {
+  alert("❌ Not authorized."); 
+  return location.href="index.html";
+}
+
       document.getElementById("adminEmail").innerText = "👤 " + user.email;
       document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
     });
