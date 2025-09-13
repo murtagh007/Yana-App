@@ -23,11 +23,6 @@
   .pagination { display:flex; gap:6px; margin-top:12px; align-items:center; }
   .pagination button { padding:4px 10px; border-radius: var(--radius); border:1px solid var(--border); background: var(--bg2); color: var(--text); cursor:pointer; }
   .pagination button.active { background: var(--action); color:#fff; }
-
-  /* Highlight rows */
-  .highlight-issue-created { background: rgba(255,0,0,0.2); }
-  .highlight-issue-resolved { background: rgba(0,255,0,0.2); }
-  .highlight-state-change { background: rgba(0,0,255,0.2); }
 </style>
 </head>
 <body>
@@ -41,12 +36,11 @@
   <p class="muted">View all issues and their resolutions.</p>
 
   <div class="filters">
-    <label>Filter Action:</label>
+    <label>Status:</label>
     <select id="issueFilter">
       <option value="all">All</option>
-      <option value="issue-created">Issue Created</option>
-      <option value="issue-resolved">Issue Resolved</option>
-      <option value="state-change">State Change</option>
+      <option value="open">Open</option>
+      <option value="resolved">Resolved</option>
     </select>
 
     <label>Search by Asset ID:</label>
@@ -65,10 +59,11 @@
       <tr>
         <th>Time</th>
         <th>User</th>
-        <th>Action Type</th>
-        <th>Item Type</th>
-        <th>Item ID</th>
-        <th>Details</th>
+        <th>Status</th>
+        <th>Type</th>
+        <th>Asset ID</th>
+        <th>Issue</th>
+        <th>Captain</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -93,19 +88,6 @@ function normalizeName(name) {
   return name ? name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : "-";
 }
 
-function formatAction(log) {
-  if(log.action === "state-change") return { type: "State-Change", details: log.newState };
-  if(log.action === "issue-created") return { type: "Issue-Created", details: log.issue };
-  if(log.action === "issue-resolved") return { type: "Issue-Resolved", details: log.issue };
-  return { type: log.action, details: "" };
-}
-
-function getItemType(log) {
-  if(log.action.startsWith("issue")) return "Scooty/Battery";
-  if(log.type) return log.type === "scooty_master" ? "Scooty" : "Battery";
-  return "-";
-}
-
 function filterLogs() {
   const filter = document.getElementById("issueFilter").value;
   const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
@@ -113,11 +95,11 @@ function filterLogs() {
   const end = document.getElementById("endDate").value ? new Date(document.getElementById("endDate").value) : null;
 
   return allLogs.filter(log => {
-    if(userRole === "captain" && log.captainInCharge !== userEmail) return false; // only captain's assets
-    if(filter !== "all" && filter !== log.action) return false;
-    if(searchText && !(log.itemId||"").toLowerCase().includes(searchText)) return false;
-    if(start && log.timestamp?.toDate() < start) return false;
-    if(end && log.timestamp?.toDate() > end) return false;
+    if(userRole === "captain" && log.captainInCharge !== userEmail) return false;
+    if(filter !== "all" && filter !== log.status) return false;
+    if(searchText && !(log.assetId||"").toLowerCase().includes(searchText)) return false;
+    if(start && log.createdAt?.toDate() < start) return false;
+    if(end && log.createdAt?.toDate() > end) return false;
     return true;
   });
 }
@@ -130,24 +112,15 @@ function renderLogsPage(page=1) {
 
   tbody.innerHTML = "";
   pageItems.forEach(log => {
-    let userName = log.admin || log.user || log.email || "-";
-    userName = normalizeName(userName);
-
-    const act = formatAction(log);
-    const itemType = getItemType(log);
-
     const tr = document.createElement("tr");
-    if(act.type === "Issue-Created") tr.classList.add("highlight-issue-created");
-    if(act.type === "Issue-Resolved") tr.classList.add("highlight-issue-resolved");
-    if(act.type === "State-Change") tr.classList.add("highlight-state-change");
-
     tr.innerHTML = `
-      <td>${log.timestamp?.toDate().toLocaleString() || "-"}</td>
-      <td>${userName}</td>
-      <td>${act.type}</td>
-      <td>${itemType}</td>
-      <td>${log.itemId || "-"}</td>
-      <td>${act.details}</td>
+      <td>${log.createdAt?.toDate().toLocaleString() || "-"}</td>
+      <td>${normalizeName(log.email)}</td>
+      <td>${log.status || "-"}</td>
+      <td>${log.type || "-"}</td>
+      <td>${log.assetId || "-"}</td>
+      <td>${log.issue || "-"}</td>
+      <td>${log.captainInCharge || "-"}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -175,14 +148,16 @@ document.getElementById("endDate").addEventListener("change", () => renderLogsPa
 document.getElementById("exportBtn").addEventListener("click", () => {
   const logs = filterLogs();
   if(!logs.length){ alert("⚠️ No issues to export."); return; }
-  const headers = ["Time","User","Action Type","Item Type","Item ID","Details"];
-  const rows = logs.map(log => {
-    let userName = log.admin || log.user || log.email || "-";
-    userName = normalizeName(userName);
-    const act = formatAction(log);
-    const itemType = getItemType(log);
-    return [log.timestamp?.toDate().toLocaleString()||"-", userName, act.type, itemType, log.itemId||"-", act.details];
-  });
+  const headers = ["Time","User","Status","Type","Asset ID","Issue","Captain"];
+  const rows = logs.map(log => [
+    log.createdAt?.toDate().toLocaleString()||"-",
+    normalizeName(log.email),
+    log.status||"-",
+    log.type||"-",
+    log.assetId||"-",
+    log.issue||"-",
+    log.captainInCharge||"-"
+  ]);
   let csvContent = "data:text/csv;charset=utf-8," 
     + headers.join(",") + "\n"
     + rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
@@ -194,7 +169,6 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   document.body.removeChild(link);
 });
 
-// Firebase Auth & Load
 auth.onAuthStateChanged(async user=>{
   if(!user) { location.href="admin-signin.html"; return; }
   const doc = await db.collection("users").doc(user.email).get();
@@ -204,7 +178,7 @@ auth.onAuthStateChanged(async user=>{
   userEmail = user.email;
   document.querySelector(".profile-pic").innerText = (doc.data().name ? doc.data().name[0] : user.email[0]).toUpperCase();
 
-  db.collection("issues").orderBy("timestamp","desc").onSnapshot(snapshot=>{
+  db.collection("issues").orderBy("createdAt","desc").onSnapshot(snapshot=>{
     allLogs = snapshot.docs.map(d=>({ id:d.id, ...d.data() }));
     renderLogsPage(1);
   });
@@ -212,3 +186,4 @@ auth.onAuthStateChanged(async user=>{
 </script>
 </body>
 </html>
+
