@@ -1,10 +1,9 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Admin Sign In</title>
+  <title>YANA — Sign In</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     body {
@@ -18,7 +17,6 @@
       margin: 0;
       padding: 0 12px;
     }
-
     .card {
       background: rgba(0, 0, 0, 0.6);
       border: 1px solid rgba(0, 234, 255, 0.3);
@@ -31,25 +29,21 @@
       backdrop-filter: blur(10px);
       transition: 0.3s ease;
     }
-
     .logo {
       width: 120px;
       height: 120px;
       margin-bottom: 16px;
     }
-
     .card h1 {
       color: #00eaff;
       margin-bottom: 12px;
       font-size: 1.8rem;
     }
-
     .muted {
       color: #aaa;
       margin-bottom: 24px;
       font-size: 0.9rem;
     }
-
     .btn {
       display: block;
       width: 100%;
@@ -64,55 +58,28 @@
       cursor: pointer;
       transition: 0.2s ease;
     }
-
-    .btn:hover {
-      background: #00c8e0;
-    }
-
+    .btn:hover { background: #00c8e0; }
     .btn.secondary {
       background: transparent;
       color: #00eaff;
       border: 2px solid #00eaff;
     }
-
-    .btn.secondary:hover {
-      background: rgba(0,234,255,0.1);
-    }
-
+    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
     @media(max-width: 500px){
-      .card {
-        padding: 20px;
-        border-radius: 12px;
-      }
-
-      .btn {
-        font-size: 0.95rem;
-        padding: 10px;
-      }
-
-      .card h1 {
-        font-size: 1.5rem;
-      }
-
-      .logo {
-        width: 50px;
-        height: 50px;
-        margin-bottom: 12px;
-      }
+      .card { padding: 20px; border-radius: 12px; }
+      .btn { font-size: 0.95rem; padding: 10px; }
+      .card h1 { font-size: 1.5rem; }
+      .logo { width: 50px; height: 50px; margin-bottom: 12px; }
     }
   </style>
 </head>
 <body>
   <div class="card">
-   
-    <!-- Logo -->
     <img src="yana-logo.png" alt="YANA Logo" class="logo">
+    <h1>Sign In</h1>
+    <div class="muted">Admins and Captains can sign in here</div>
 
-    <h1>Admin Sign In</h1>
-    <div class="muted">Only admins can sign in here</div>
-
-    <button class="btn" id="googleAdminSignin">Sign in with Google</button>
-  
+    <button class="btn" id="googleSignin">Sign in with Google</button>
     <button class="btn secondary" onclick="window.location.href='index.html'">⬅ Back</button>
   </div>
 
@@ -125,7 +92,7 @@
   <script>
     const provider = new firebase.auth.GoogleAuthProvider();
 
-    document.getElementById("googleAdminSignin").addEventListener("click", async () => {
+    document.getElementById("googleSignin").addEventListener("click", async () => {
       try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
@@ -135,20 +102,24 @@
 
         if (!snap.exists) {
           alert("No user record found. Contact system admin.");
+          await auth.signOut();
           return;
         }
 
         const data = snap.data();
+
+        // Redirect based on role
         if (data.role === "admin") {
-          window.location.href = "admin-dashboard.html?email=" + encodeURIComponent(user.email);
           window.location.href = "admin-dashboard.html";
+        } else if (data.role === "captain") {
+          window.location.href = "captain-dashboard.html";
         } else {
-          alert("❌ Access denied. You are not an admin.");
+          alert("❌ Access denied. Contact admin.");
           await auth.signOut();
         }
 
       } catch (err) {
-        console.error("Admin sign in failed:", err);
+        console.error("Sign in failed:", err);
         alert("Sign in failed: " + err.message);
       }
     });
