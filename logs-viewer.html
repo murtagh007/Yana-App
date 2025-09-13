@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>YANA — Logs Viewer</title>
+<title>YANA — Issues Viewer</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
@@ -32,26 +32,25 @@
 </head>
 <body>
 <div class="navbar">
-  <h2>⚡ YANA Logs Viewer</h2>
+  <h2>⚡ YANA Issues Viewer</h2>
   <div class="profile"><div class="profile-pic">A</div></div>
 </div>
 
 <div class="container">
-  <h1>📜 Logs Viewer</h1>
-  <p class="muted">View all state changes, status changes, and issue resolutions.</p>
+  <h1>🛠 Issues Viewer</h1>
+  <p class="muted">View all issues and their resolutions.</p>
 
   <div class="filters">
     <label>Filter Action:</label>
-    <select id="logFilter">
+    <select id="issueFilter">
       <option value="all">All</option>
-      <option value="state-change">State Change</option>
-      <option value="status-change">Status Change</option>
       <option value="issue-created">Issue Created</option>
       <option value="issue-resolved">Issue Resolved</option>
+      <option value="state-change">State Change</option>
     </select>
 
     <label>Search by Asset ID:</label>
-    <input type="text" id="searchInput" placeholder="e.g. SCOOTY002">
+    <input type="text" id="searchInput" placeholder="e.g. SCOOTY001">
 
     <label>Start Date:</label>
     <input type="date" id="startDate">
@@ -61,7 +60,7 @@
     <button id="exportBtn">⬇ Export CSV</button>
   </div>
 
-  <table id="logsTable">
+  <table id="issuesTable">
     <thead>
       <tr>
         <th>Time</th>
@@ -84,19 +83,18 @@
 <script src="firebase-config.js"></script>
 
 <script>
-const tbody = document.querySelector("#logsTable tbody");
+const tbody = document.querySelector("#issuesTable tbody");
 const paginationEl = document.getElementById("pagination");
 let allLogs = [], userRole = "", userEmail = "";
 const itemsPerPage = 10;
 let currentPage = 1;
 
 function normalizeName(name) {
-  return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return name ? name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : "-";
 }
 
 function formatAction(log) {
   if(log.action === "state-change") return { type: "State-Change", details: log.newState };
-  if(log.action === "assigned" || log.action === "returned") return { type: "Status-Change", details: log.status || log.action };
   if(log.action === "issue-created") return { type: "Issue-Created", details: log.issue };
   if(log.action === "issue-resolved") return { type: "Issue-Resolved", details: log.issue };
   return { type: log.action, details: "" };
@@ -104,25 +102,19 @@ function formatAction(log) {
 
 function getItemType(log) {
   if(log.action.startsWith("issue")) return "Scooty/Battery";
-  if(log.itemType) return normalizeName(log.itemType);
   if(log.type) return log.type === "scooty_master" ? "Scooty" : "Battery";
   return "-";
 }
 
 function filterLogs() {
-  const filter = document.getElementById("logFilter").value;
+  const filter = document.getElementById("issueFilter").value;
   const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
   const start = document.getElementById("startDate").value ? new Date(document.getElementById("startDate").value) : null;
   const end = document.getElementById("endDate").value ? new Date(document.getElementById("endDate").value) : null;
 
   return allLogs.filter(log => {
-    if(userRole === "captain" && log.captain !== userEmail) return false; // only their assets
-    if(filter !== "all") {
-      if(filter === "state-change" && log.action !== "state-change") return false;
-      if(filter === "status-change" && !["assigned","returned"].includes(log.action)) return false;
-      if(filter === "issue-created" && log.action !== "issue-created") return false;
-      if(filter === "issue-resolved" && log.action !== "issue-resolved") return false;
-    }
+    if(userRole === "captain" && log.captainInCharge !== userEmail) return false; // only captain's assets
+    if(filter !== "all" && filter !== log.action) return false;
     if(searchText && !(log.itemId||"").toLowerCase().includes(searchText)) return false;
     if(start && log.timestamp?.toDate() < start) return false;
     if(end && log.timestamp?.toDate() > end) return false;
@@ -138,14 +130,13 @@ function renderLogsPage(page=1) {
 
   tbody.innerHTML = "";
   pageItems.forEach(log => {
-    let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
+    let userName = log.admin || log.user || log.email || "-";
     userName = normalizeName(userName);
 
     const act = formatAction(log);
     const itemType = getItemType(log);
 
     const tr = document.createElement("tr");
-    // Highlight rows
     if(act.type === "Issue-Created") tr.classList.add("highlight-issue-created");
     if(act.type === "Issue-Resolved") tr.classList.add("highlight-issue-resolved");
     if(act.type === "State-Change") tr.classList.add("highlight-state-change");
@@ -155,7 +146,7 @@ function renderLogsPage(page=1) {
       <td>${userName}</td>
       <td>${act.type}</td>
       <td>${itemType}</td>
-      <td>${log.itemId || log.assetId || "-"}</td>
+      <td>${log.itemId || "-"}</td>
       <td>${act.details}</td>
     `;
     tbody.appendChild(tr);
@@ -176,28 +167,28 @@ function renderPagination(totalItems) {
   }
 }
 
-document.getElementById("logFilter").addEventListener("change", () => renderLogsPage(1));
+document.getElementById("issueFilter").addEventListener("change", () => renderLogsPage(1));
 document.getElementById("searchInput").addEventListener("input", () => renderLogsPage(1));
 document.getElementById("startDate").addEventListener("change", () => renderLogsPage(1));
 document.getElementById("endDate").addEventListener("change", () => renderLogsPage(1));
 
 document.getElementById("exportBtn").addEventListener("click", () => {
   const logs = filterLogs();
-  if(!logs.length){ alert("⚠️ No logs to export."); return; }
+  if(!logs.length){ alert("⚠️ No issues to export."); return; }
   const headers = ["Time","User","Action Type","Item Type","Item ID","Details"];
   const rows = logs.map(log => {
-    let userName = log.userName || log.name || log.email?.split("@")[0] || log.admin?.split("@")[0] || "-";
+    let userName = log.admin || log.user || log.email || "-";
     userName = normalizeName(userName);
     const act = formatAction(log);
     const itemType = getItemType(log);
-    return [log.timestamp?.toDate().toLocaleString()||"-", userName, act.type, itemType, log.itemId||log.assetId||"-", act.details];
+    return [log.timestamp?.toDate().toLocaleString()||"-", userName, act.type, itemType, log.itemId||"-", act.details];
   });
   let csvContent = "data:text/csv;charset=utf-8," 
     + headers.join(",") + "\n"
     + rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
   const link = document.createElement("a");
   link.setAttribute("href", encodeURI(csvContent));
-  link.setAttribute("download","logs_export.csv");
+  link.setAttribute("download","issues_export.csv");
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -213,7 +204,7 @@ auth.onAuthStateChanged(async user=>{
   userEmail = user.email;
   document.querySelector(".profile-pic").innerText = (doc.data().name ? doc.data().name[0] : user.email[0]).toUpperCase();
 
-  db.collection("logs").orderBy("timestamp","desc").onSnapshot(snapshot=>{
+  db.collection("issues").orderBy("timestamp","desc").onSnapshot(snapshot=>{
     allLogs = snapshot.docs.map(d=>({ id:d.id, ...d.data() }));
     renderLogsPage(1);
   });
