@@ -74,7 +74,7 @@
 
   <div class="container">
     <h2>User Management</h2>
-    <p class="muted">Change role, state, or location of riders. Submit applies bulk updates.</p>
+    <p class="muted">Change role, state, location, or assign riders under captains. Submit applies bulk updates.</p>
 
     <!-- Search bar -->
     <input type="text" id="searchBar" placeholder="Search by name, vendor, or partner">
@@ -95,20 +95,27 @@
     const cardsContainer = document.getElementById("cardsContainer");
     let allUsers = [];
     let allLocations = [];
+    let allCaptains = [];
+    let currentUser = null;
+    let currentUserRole = null;
 
     // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
+      currentUser = user;
       document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") {
-        alert("❌ Not an admin.");
+      if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
+        alert("❌ Access denied.");
         return location.href="index.html";
       }
+      currentUserRole = doc.data().role;
 
-      // Load locations first
-      loadLocations();
+      // Load locations and captains
+      await loadLocations();
+      await loadCaptains();
+      loadUsers();
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
@@ -116,7 +123,11 @@
     async function loadLocations() {
       const snap = await db.collection("locations").orderBy("name").get();
       allLocations = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
-      loadUsers();
+    }
+
+    async function loadCaptains() {
+      const snap = await db.collection("users").where("role","==","captain").get();
+      allCaptains = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
     }
 
     // Load all users
@@ -129,22 +140,41 @@
           d.id = doc.id;
           allUsers.push(d);
         });
-        renderCards(allUsers);
+        renderCards();
       });
     }
 
-    function renderCards(list) {
+    function renderCards() {
       cardsContainer.innerHTML = "";
-      list.forEach(d => {
+      let visibleUsers = [];
+
+      if(currentUserRole === "admin") {
+        visibleUsers = allUsers;
+      } else if(currentUserRole === "captain") {
+        // Captains see only riders assigned to them
+        visibleUsers = allUsers.filter(u => u.role === "rider" && u.captainId === currentUser.email);
+      }
+
+      visibleUsers.forEach(d => {
         const card = document.createElement("div");
         card.className = "card";
 
-        // Build location options dropdown
+        // Location options
         const locationOptions = allLocations.map(loc => {
           const selected = d.locationId === loc.id ? "selected" : "";
           return `<option value="${loc.id}" ${selected}>${loc.name}</option>`;
         }).join("");
         const locationSelect = `<select data-id="${d.id}" data-field="locationId">${locationOptions}</select>`;
+
+        // Captain assignment options
+        const captainOptions = allCaptains.map(c => {
+          const selected = d.captainId === c.id ? "selected" : "";
+          return `<option value="${c.id}" ${selected}>${c.name}</option>`;
+        }).join("");
+        const captainSelect = `<select data-id="${d.id}" data-field="captainId">
+                                  <option value="">--Assign Captain--</option>
+                                  ${captainOptions}
+                               </select>`;
 
         card.innerHTML = `
           <div class="card-left">
@@ -164,6 +194,7 @@
               <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
             </select>
             ${locationSelect}
+            ${captainSelect}
           </div>
         `;
         cardsContainer.appendChild(card);
@@ -173,11 +204,13 @@
     // Search filter
     document.getElementById("searchBar").addEventListener("input", e => {
       const term = e.target.value.toLowerCase();
-      renderCards(allUsers.filter(d => 
+      const filteredUsers = allUsers.filter(d => 
         (d.name||"").toLowerCase().includes(term) ||
         (d.vendor||"").toLowerCase().includes(term) ||
         (d.partners||[]).join(", ").toLowerCase().includes(term)
-      ));
+      );
+      allUsers = filteredUsers;
+      renderCards();
     });
 
     // Submit updates
