@@ -65,7 +65,7 @@
     }
 
     /* Card container */
-    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
+    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 16px; }
     .card {
       background: rgba(255,255,255,0.1);
       padding: 12px;
@@ -75,13 +75,28 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 120px;
+      min-height: 150px;
       transition: var(--transition);
     }
     .card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
     .card-header { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: var(--action); }
     .card-row { font-size: 14px; margin: 2px 0; }
-    h2 { margin-top: 24px; }
+    select {
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      margin-right: 6px;
+    }
+    button.assignBtn {
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--action);
+      color: #000;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -111,7 +126,7 @@
     <!-- Scooties Tab -->
     <div class="tab-content active" id="scootiesTab">
       <div class="search-container">
-        <input id="scootySearch" type="text" placeholder="Search by ID or Assigned Person">
+        <input id="scootySearch" type="text" placeholder="Search by ID, Rider, or Captain">
       </div>
       <div id="scootyCards" class="card-container"></div>
     </div>
@@ -119,7 +134,7 @@
     <!-- Batteries Tab -->
     <div class="tab-content" id="batteriesTab">
       <div class="search-container">
-        <input id="batterySearch" type="text" placeholder="Search by ID or Assigned Person">
+        <input id="batterySearch" type="text" placeholder="Search by ID, Rider, or Captain">
       </div>
       <div id="batteryCards" class="card-container"></div>
     </div>
@@ -132,16 +147,26 @@
   <script src="firebase-config.js"></script>
 
   <script>
+    let captains = [];
+
     // Auth check
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href="admin-signin.html";
-      document.getElementById("profilePic").innerText = (user.email[0] || "A").toUpperCase();
+      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
 
       const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || doc.data().role !== "admin") { 
-        alert("❌ Not an admin."); 
+      if (!doc.exists || (doc.data().role !== "admin" && doc.data().role !== "captain")) { 
+        alert("❌ Not authorized."); 
         location.href="index.html"; 
       }
+
+      // fetch captains
+      const capSnap = await db.collection("users").where("role","==","captain").get();
+      captains = capSnap.docs.map(d => ({ email: d.id, name: d.data().name || d.id }));
+      
+      // now load assets
+      renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
+      renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
     });
 
     document.getElementById("logoutBtn").onclick = () => auth.signOut();
@@ -168,44 +193,77 @@
         for (const doc of snapshot.docs) {
           const data = doc.data();
           let assignedName = "-";
+          let captainName = "-";
+
           if (data.assignedTo) {
             const userDoc = await db.collection("users").doc(data.assignedTo).get();
             if (userDoc.exists) assignedName = userDoc.data().name || "-";
           }
-          tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName });
+          if (data.captainInCharge) {
+            const capDoc = await db.collection("users").doc(data.captainInCharge).get();
+            if (capDoc.exists) captainName = capDoc.data().name || "-";
+          }
+
+          tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName, captainName, captainInCharge: data.captainInCharge });
         }
         if (collection === "scooty_master") scootyData = tempData;
         else batteryData = tempData;
 
-        displayCards(tempData, container, searchInput.value);
+        displayCards(tempData, container, searchInput.value, collection);
       });
     }
 
-    function displayCards(dataArray, container, filter) {
+    function displayCards(dataArray, container, filter, collection) {
       container.innerHTML = "";
       const filterLower = filter.trim().toLowerCase();
-      dataArray.filter(d => d.id.toLowerCase().includes(filterLower) || d.assignedName.toLowerCase().includes(filterLower))
-        .forEach(d => {
+      dataArray.filter(d => 
+        d.id.toLowerCase().includes(filterLower) ||
+        d.assignedName.toLowerCase().includes(filterLower) ||
+        d.captainName.toLowerCase().includes(filterLower)
+      ).forEach(d => {
           const card = document.createElement("div");
           card.classList.add("card");
+
+          // captain dropdown
+          let captainOptions = `<option value="">-- Select Captain --</option>`;
+          captains.forEach(c => {
+            captainOptions += `<option value="${c.email}" ${d.captainInCharge===c.email ? "selected" : ""}>${c.name}</option>`;
+          });
+
           card.innerHTML = `
             <div class="card-header" style="color: var(--action)">${d.id}</div>
-            <div class="card-row">Assigned To: ${d.assignedName}</div>
+            <div class="card-row">Assigned To (Rider): ${d.assignedName}</div>
+            <div class="card-row">Captain In Charge: ${d.captainName}</div>
             <div class="card-row">State: ${d.state}</div>
             <div class="card-row">Status: ${d.status}</div>
+            <div class="card-row">
+              <select id="cap-${collection}-${d.id}">${captainOptions}</select>
+              <button class="assignBtn" onclick="assignCaptain('${collection}','${d.id}')">Save</button>
+            </div>
           `;
           container.appendChild(card);
-        });
+      });
     }
 
-    renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
-    renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
+    async function assignCaptain(collection, assetId) {
+      const sel = document.getElementById(`cap-${collection}-${assetId}`);
+      const chosen = sel.value;
+      try {
+        await db.collection(collection).doc(assetId).update({
+          captainInCharge: chosen || null,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("✅ Captain assignment updated");
+      } catch (e) {
+        alert("❌ Failed to update: " + e.message);
+      }
+    }
 
     document.getElementById("scootySearch").addEventListener("input", e => {
-      displayCards(scootyData, scootyContainer, e.target.value);
+      displayCards(scootyData, scootyContainer, e.target.value, "scooty_master");
     });
     document.getElementById("batterySearch").addEventListener("input", e => {
-      displayCards(batteryData, batteryContainer, e.target.value);
+      displayCards(batteryData, batteryContainer, e.target.value, "battery_master");
     });
   </script>
 </body>
