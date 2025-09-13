@@ -24,7 +24,6 @@
     th, td { padding:8px; font-size:14px; border-bottom:1px solid rgba(0,234,255,0.2); word-break:break-word; }
     th { background:#00eaff; color:#000; }
     tbody tr:hover { background: rgba(0,234,255,0.1); }
-    tbody tr.overdue { background: rgba(255,0,0,0.2); }
 
     .pagination { display:flex; justify-content:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
     .page-btn { padding:6px 10px; border-radius:4px; border:none; background:#00eaff; color:#000; cursor:pointer; transition:0.2s; }
@@ -80,6 +79,7 @@
     const rowsPerPage = 10;
     let currentPage = 1;
 
+    // Normalize names
     function normalizeName(name) {
       return name.split(" ").map(n => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ");
     }
@@ -89,14 +89,20 @@
       const start = (currentPage-1)*rowsPerPage;
       const pageItems = filteredVehicles.slice(start,start+rowsPerPage);
       const today = new Date();
+
       pageItems.forEach(v=>{
         const tr = document.createElement("tr");
-        if(v.nextMaintenance && v.nextMaintenance < today) tr.classList.add("overdue");
+        // Highlight overdue
+        if(v.nextMaintenance < today){
+          tr.style.backgroundColor = "rgba(255,0,0,0.2)";
+          tr.style.color = "#ff0000";
+          tr.style.fontWeight = "bold";
+        }
         tr.innerHTML = `
           <td>${v.id}</td>
           <td>${normalizeName(v.assignedName||"-")}</td>
           <td>${v.daysUsed}</td>
-          <td>${v.nextMaintenance ? v.nextMaintenance.toLocaleDateString() : "-"}</td>
+          <td>${v.nextMaintenance.toLocaleDateString()}</td>
         `;
         tableBody.appendChild(tr);
       });
@@ -117,17 +123,20 @@
 
     function filterAndRender() {
       const term = searchInput.value.toLowerCase();
-      filteredVehicles = allVehicles.filter(v=> v.id.toLowerCase().includes(term) || (v.assignedName||"").toLowerCase().includes(term));
+      filteredVehicles = allVehicles.filter(v=> 
+        v.id.toLowerCase().includes(term) || (v.assignedName||"").toLowerCase().includes(term)
+      );
       currentPage = 1;
       renderTable();
     }
 
     searchInput.addEventListener("input", filterAndRender);
 
+    // CSV export
     exportBtn.addEventListener("click",()=>{
       if(!filteredVehicles.length){ alert("No data to export"); return; }
       const headers = ["Vehicle ID","Assigned To","Days Used","Next Maintenance Day"];
-      const rows = filteredVehicles.map(v=>[v.id,normalizeName(v.assignedName||"-"),v.daysUsed,v.nextMaintenance ? v.nextMaintenance.toLocaleDateString() : "-"]);
+      const rows = filteredVehicles.map(v=>[v.id,normalizeName(v.assignedName||"-"),v.daysUsed,v.nextMaintenance.toLocaleDateString()]);
       let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
       const link = document.createElement("a");
       link.href = encodeURI(csvContent);
@@ -137,13 +146,21 @@
       document.body.removeChild(link);
     });
 
+    // Firebase fetch
     auth.onAuthStateChanged(async user=>{
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if(!doc.exists || doc.data().role!=="admin"){ alert("Not admin"); return location.href="index.html"; }
+      if(!doc.exists || (doc.data().role!=="admin" && doc.data().role!=="captain")){ 
+        alert("Not authorized"); 
+        return location.href="index.html"; 
+      }
+      const userRole = doc.data().role;
+      let captainsAssets = [];
 
+      // Fetch vehicles
       const scootySnap = await db.collection("scooty_master").get();
       const batterySnap = await db.collection("battery_master").get();
+
       allVehicles = [];
 
       function calculateNextMaintenance(firstAssign,lastReturn,lastMaintenance){
@@ -152,6 +169,7 @@
         return {daysUsed,nextMaintenance};
       }
 
+      // Process Scooties
       for(const doc of scootySnap.docs){
         const data = doc.data();
         if(!data.firstAssign || !data.lastReturn) continue;
@@ -162,11 +180,13 @@
             id: doc.id,
             assignedName: data.assignedName||"-",
             daysUsed,
-            nextMaintenance
+            nextMaintenance,
+            captainInCharge: data.captainInCharge || null
           });
         }
       }
 
+      // Process Batteries
       for(const doc of batterySnap.docs){
         const data = doc.data();
         if(!data.firstAssign || !data.lastReturn) continue;
@@ -177,12 +197,19 @@
             id: doc.id,
             assignedName: data.assignedName||"-",
             daysUsed,
-            nextMaintenance
+            nextMaintenance,
+            captainInCharge: data.captainInCharge || null
           });
         }
       }
 
-      filteredVehicles = [...allVehicles];
+      // If user is captain, filter assets assigned to them
+      if(userRole === "captain"){
+        filteredVehicles = allVehicles.filter(v => v.captainInCharge === user.email);
+      } else {
+        filteredVehicles = [...allVehicles];
+      }
+
       renderTable();
     });
   </script>
