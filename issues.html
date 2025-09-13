@@ -71,6 +71,15 @@
       background: var(--action);
       color: #000;
     }
+    .btn {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--action);
+      color: #000;
+      cursor: pointer;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -100,7 +109,7 @@
 
     <div class="pagination" id="pagination"></div>
 
-    <button id="resolveBtn" class="btn" style="margin-top:10px;">Mark Selected as Resolved</button>
+    <button id="resolveBtn" class="btn">Mark Selected as Resolved</button>
   </div>
 
   <!-- Firebase -->
@@ -117,7 +126,10 @@
     const ITEMS_PER_PAGE = 10;
 
     let issuesData = [];
+    let stateChangeAssets = new Set(); // Assets that had a state change
     let currentPage = 1;
+    let userRole = "captain"; // default
+    let userEmail = "";
 
     function normalizeText(str) {
       if (!str) return "-";
@@ -156,7 +168,7 @@
         `;
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.disabled = i.status.toLowerCase() === "resolved";
+        checkbox.disabled = i.status.toLowerCase() === "resolved" || !stateChangeAssets.has(i.assetId);
         tr.children[6].appendChild(checkbox);
         tableBody.appendChild(tr);
       });
@@ -172,13 +184,26 @@
       }
     }
 
-    function loadIssues() {
+    async function loadIssuesAndStateChanges() {
+      // Load state-change logs first
+      const stateSnap = await db.collection("logs").where("action","==","state-change").get();
+      stateChangeAssets.clear();
+      stateSnap.forEach(doc => {
+        const log = doc.data();
+        if(log.itemId) stateChangeAssets.add(log.itemId);
+      });
+
+      // Load issues
       db.collection("issues").orderBy("createdAt","desc").onSnapshot(snapshot => {
         issuesData = [];
         snapshot.forEach(doc => {
           const d = doc.data();
+          // Role-based filtering
+          if(userRole === "captain" && d.assignedTo !== userEmail) return;
+
           issuesData.push({
-            riderName: d.email, // Will replace with actual name later if available
+            docId: doc.id,
+            riderName: d.riderName || d.email || "-",
             assetId: d.assetId,
             issue: d.issue,
             details: d.additionalDetails || "-",
@@ -197,27 +222,31 @@
       const updates = [];
       rows.forEach((tr,i)=>{
         const checkbox = tr.children[6].querySelector("input");
-        if(checkbox.checked && issuesData[i].status.toLowerCase()!=="resolved"){
-          updates.push(db.collection("issues").doc(snapshot.docs[i].id).update({status:"resolved"}));
+        if(checkbox.checked){
+          const issue = issuesData[i];
+          updates.push(db.collection("issues").doc(issue.docId).update({status:"resolved"}));
         }
       });
       if(updates.length){
         await Promise.all(updates);
         alert("Selected issues marked as resolved!");
       } else {
-        alert("No issues selected.");
+        alert("No eligible issues selected.");
       }
     });
 
-    // Auth check
     auth.onAuthStateChanged(async user=>{
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
-      if(doc.exists) {
-        const name = doc.data().name || user.email.split("@")[0];
-        document.getElementById("profileInitial").innerText = name.charAt(0).toUpperCase();
-      }
-      loadIssues();
+      if(!doc.exists) return location.href="index.html";
+
+      userRole = doc.data().role;
+      userEmail = user.email;
+
+      const name = doc.data().name || user.email.split("@")[0];
+      document.getElementById("profileInitial").innerText = name.charAt(0).toUpperCase();
+
+      loadIssuesAndStateChanges();
     });
   </script>
 </body>
