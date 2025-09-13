@@ -109,9 +109,8 @@
         const data = snap.data();
 
         // Redirect based on role
-        if (data.role === "admin") {
-          window.location.href = "admin-dashboard.html";
-        } else if (data.role === "captain") {
+        if (data.role === "admin" || data.role === "captain") {
+          // Both roles go to admin-dashboard.html
           window.location.href = "admin-dashboard.html";
         } else {
           alert("❌ Access denied. Contact admin.");
