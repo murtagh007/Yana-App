@@ -112,159 +112,173 @@
   </div>
 </div>
 
+<div class="container">
+  <h1> Scooty & Battery Masterlist </h1>
+  <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
 
-  <div class="container">
-    <h1> Scooty & Battery Masterlist </h1>
-    <p class="muted">Read-only view of all assets. Use the search bar to filter.</p>
-
-    <!-- Tabs -->
-    <div class="tabs">
-      <div class="tab-btn active" data-tab="scootiesTab">Scooties</div>
-      <div class="tab-btn" data-tab="batteriesTab">Batteries</div>
-    </div>
-
-    <!-- Scooties Tab -->
-    <div class="tab-content active" id="scootiesTab">
-      <div class="search-container">
-        <input id="scootySearch" type="text" placeholder="Search by ID, Rider, or Captain">
-      </div>
-      <div id="scootyCards" class="card-container"></div>
-    </div>
-
-    <!-- Batteries Tab -->
-    <div class="tab-content" id="batteriesTab">
-      <div class="search-container">
-        <input id="batterySearch" type="text" placeholder="Search by ID, Rider, or Captain">
-      </div>
-      <div id="batteryCards" class="card-container"></div>
-    </div>
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab-btn active" data-tab="scootiesTab">Scooties</div>
+    <div class="tab-btn" data-tab="batteriesTab">Batteries</div>
   </div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
+  <!-- Scooties Tab -->
+  <div class="tab-content active" id="scootiesTab">
+    <div class="search-container">
+      <input id="scootySearch" type="text" placeholder="Search by ID, Rider, or Captain">
+    </div>
+    <div id="scootyCards" class="card-container"></div>
+  </div>
 
-  <script>
-    let captains = [];
+  <!-- Batteries Tab -->
+  <div class="tab-content" id="batteriesTab">
+    <div class="search-container">
+      <input id="batterySearch" type="text" placeholder="Search by ID, Rider, or Captain">
+    </div>
+    <div id="batteryCards" class="card-container"></div>
+  </div>
+</div>
 
-    // Auth check
-    auth.onAuthStateChanged(async user => {
-      if (!user) return location.href="admin-signin.html";
-      document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
 
-      const doc = await db.collection("users").doc(user.email).get();
-      if (!doc.exists || (doc.data().role !== "admin" && doc.data().role !== "captain")) { 
-        alert("❌ Not authorized."); 
-        location.href="index.html"; 
+<script>
+let captains = [];
+let currentUserRole = "";
+let currentUserEmail = "";
+
+const scootyContainer = document.getElementById("scootyCards");
+const batteryContainer = document.getElementById("batteryCards");
+let scootyData = [], batteryData = [];
+
+auth.onAuthStateChanged(async user => {
+  if (!user) return location.href="admin-signin.html";
+  currentUserEmail = user.email;
+  document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
+
+  const doc = await db.collection("users").doc(user.email).get();
+  if (!doc.exists || (doc.data().role !== "admin" && doc.data().role !== "captain")) { 
+    alert("❌ Not authorized."); 
+    location.href="index.html"; 
+  }
+  currentUserRole = doc.data().role;
+
+  // fetch captains
+  const capSnap = await db.collection("users").where("role","==","captain").get();
+  captains = capSnap.docs.map(d => ({ email: d.id, name: d.data().name || d.id }));
+
+  // now load assets
+  renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
+  renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
+});
+
+document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+// Tab switching
+const tabButtons = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+tabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    tabButtons.forEach(b => b.classList.remove("active"));
+    tabContents.forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
+
+async function renderCards(collection, container, searchInput) {
+  db.collection(collection).onSnapshot(async snapshot => {
+    const tempData = [];
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      let assignedName = "-";
+      let captainName = "-";
+      const captainEmail = data.captainInCharge || null;
+
+      if (data.assignedTo) {
+        const userDoc = await db.collection("users").doc(data.assignedTo).get();
+        if (userDoc.exists) assignedName = userDoc.data().name || "-";
+      }
+      if (captainEmail) {
+        const capDoc = await db.collection("users").doc(captainEmail).get();
+        if (capDoc.exists) captainName = capDoc.data().name || "-";
       }
 
-      // fetch captains
-      const capSnap = await db.collection("users").where("role","==","captain").get();
-      captains = capSnap.docs.map(d => ({ email: d.id, name: d.data().name || d.id }));
-      
-      // now load assets
-      renderCards("scooty_master", scootyContainer, document.getElementById("scootySearch"));
-      renderCards("battery_master", batteryContainer, document.getElementById("batterySearch"));
-    });
+      // Captains see only their own assets
+      if (currentUserRole === "captain" && captainEmail !== currentUserEmail) continue;
 
-    document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-    // Tab switching
-    const tabButtons = document.querySelectorAll(".tab-btn");
-    const tabContents = document.querySelectorAll(".tab-content");
-    tabButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        tabButtons.forEach(b => b.classList.remove("active"));
-        tabContents.forEach(c => c.classList.remove("active"));
-        btn.classList.add("active");
-        document.getElementById(btn.dataset.tab).classList.add("active");
-      });
-    });
-
-    const scootyContainer = document.getElementById("scootyCards");
-    const batteryContainer = document.getElementById("batteryCards");
-    let scootyData = [], batteryData = [];
-
-    async function renderCards(collection, container, searchInput) {
-      db.collection(collection).onSnapshot(async snapshot => {
-        const tempData = [];
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          let assignedName = "-";
-          let captainName = "-";
-
-          if (data.assignedTo) {
-            const userDoc = await db.collection("users").doc(data.assignedTo).get();
-            if (userDoc.exists) assignedName = userDoc.data().name || "-";
-          }
-          if (data.captainInCharge) {
-            const capDoc = await db.collection("users").doc(data.captainInCharge).get();
-            if (capDoc.exists) captainName = capDoc.data().name || "-";
-          }
-
-          tempData.push({ id: doc.id, state: data.state, status: data.status, assignedName, captainName, captainInCharge: data.captainInCharge });
-        }
-        if (collection === "scooty_master") scootyData = tempData;
-        else batteryData = tempData;
-
-        displayCards(tempData, container, searchInput.value, collection);
+      tempData.push({ 
+        id: doc.id, state: data.state, status: data.status, 
+        assignedName, captainName, captainInCharge: captainEmail 
       });
     }
+    if (collection === "scooty_master") scootyData = tempData;
+    else batteryData = tempData;
 
-    function displayCards(dataArray, container, filter, collection) {
-      container.innerHTML = "";
-      const filterLower = filter.trim().toLowerCase();
-      dataArray.filter(d => 
-        d.id.toLowerCase().includes(filterLower) ||
-        d.assignedName.toLowerCase().includes(filterLower) ||
-        d.captainName.toLowerCase().includes(filterLower)
-      ).forEach(d => {
-          const card = document.createElement("div");
-          card.classList.add("card");
+    displayCards(tempData, container, searchInput.value, collection);
+  });
+}
 
-          // captain dropdown
-          let captainOptions = `<option value="">-- Select Captain --</option>`;
-          captains.forEach(c => {
-            captainOptions += `<option value="${c.email}" ${d.captainInCharge===c.email ? "selected" : ""}>${c.name}</option>`;
-          });
+function displayCards(dataArray, container, filter, collection) {
+  container.innerHTML = "";
+  const filterLower = filter.trim().toLowerCase();
+  dataArray.filter(d => 
+    d.id.toLowerCase().includes(filterLower) ||
+    d.assignedName.toLowerCase().includes(filterLower) ||
+    d.captainName.toLowerCase().includes(filterLower)
+  ).forEach(d => {
+      const card = document.createElement("div");
+      card.classList.add("card");
 
-          card.innerHTML = `
-            <div class="card-header" style="color: var(--action)">${d.id}</div>
-            <div class="card-row">Assigned To (Rider): ${d.assignedName}</div>
-            <div class="card-row">Captain In Charge: ${d.captainName}</div>
-            <div class="card-row">State: ${d.state}</div>
-            <div class="card-row">Status: ${d.status}</div>
-            <div class="card-row">
-              <select id="cap-${collection}-${d.id}">${captainOptions}</select>
-              <button class="assignBtn" onclick="assignCaptain('${collection}','${d.id}')">Save</button>
-            </div>
-          `;
-          container.appendChild(card);
-      });
-    }
-
-    async function assignCaptain(collection, assetId) {
-      const sel = document.getElementById(`cap-${collection}-${assetId}`);
-      const chosen = sel.value;
-      try {
-        await db.collection(collection).doc(assetId).update({
-          captainInCharge: chosen || null,
-          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      // Only admins see assign captain controls
+      let captainOptionsHTML = "";
+      let saveButtonHTML = "";
+      if (currentUserRole === "admin") {
+        let captainOptions = `<option value="">-- Select Captain --</option>`;
+        captains.forEach(c => {
+          captainOptions += `<option value="${c.email}" ${d.captainInCharge===c.email ? "selected" : ""}>${c.name}</option>`;
         });
-        alert("✅ Captain assignment updated");
-      } catch (e) {
-        alert("❌ Failed to update: " + e.message);
+        captainOptionsHTML = `<select id="cap-${collection}-${d.id}">${captainOptions}</select>`;
+        saveButtonHTML = `<button class="assignBtn" onclick="assignCaptain('${collection}','${d.id}')">Save</button>`;
       }
-    }
 
-    document.getElementById("scootySearch").addEventListener("input", e => {
-      displayCards(scootyData, scootyContainer, e.target.value, "scooty_master");
+      card.innerHTML = `
+        <div class="card-header" style="color: var(--action)">${d.id}</div>
+        <div class="card-row">Assigned To (Rider): ${d.assignedName}</div>
+        <div class="card-row">Captain In Charge: ${d.captainName}</div>
+        <div class="card-row">State: ${d.state}</div>
+        <div class="card-row">Status: ${d.status}</div>
+        <div class="card-row">
+          ${captainOptionsHTML} ${saveButtonHTML}
+        </div>
+      `;
+      container.appendChild(card);
+  });
+}
+
+async function assignCaptain(collection, assetId) {
+  const sel = document.getElementById(`cap-${collection}-${assetId}`);
+  const chosen = sel.value;
+  try {
+    await db.collection(collection).doc(assetId).update({
+      captainInCharge: chosen || null,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
-    document.getElementById("batterySearch").addEventListener("input", e => {
-      displayCards(batteryData, batteryContainer, e.target.value, "battery_master");
-    });
-  </script>
+    alert("✅ Captain assignment updated");
+  } catch (e) {
+    alert("❌ Failed to update: " + e.message);
+  }
+}
+
+document.getElementById("scootySearch").addEventListener("input", e => {
+  displayCards(scootyData, scootyContainer, e.target.value, "scooty_master");
+});
+document.getElementById("batterySearch").addEventListener("input", e => {
+  displayCards(batteryData, batteryContainer, e.target.value, "battery_master");
+});
+</script>
 </body>
 </html>
