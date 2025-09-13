@@ -24,6 +24,7 @@
     th, td { padding:8px; font-size:14px; border-bottom:1px solid rgba(0,234,255,0.2); word-break:break-word; }
     th { background:#00eaff; color:#000; }
     tbody tr:hover { background: rgba(0,234,255,0.1); }
+    tbody tr.overdue { background: rgba(255,0,0,0.2); }
 
     .pagination { display:flex; justify-content:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
     .page-btn { padding:6px 10px; border-radius:4px; border:none; background:#00eaff; color:#000; cursor:pointer; transition:0.2s; }
@@ -74,12 +75,11 @@
     const paginationDiv = document.getElementById("pagination");
     const exportBtn = document.getElementById("exportBtn");
 
-    let allVehicles = []; // vehicles due for maintenance
+    let allVehicles = [];
     let filteredVehicles = [];
     const rowsPerPage = 10;
     let currentPage = 1;
 
-    // Utility to normalize names
     function normalizeName(name) {
       return name.split(" ").map(n => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ");
     }
@@ -88,13 +88,15 @@
       tableBody.innerHTML = "";
       const start = (currentPage-1)*rowsPerPage;
       const pageItems = filteredVehicles.slice(start,start+rowsPerPage);
+      const today = new Date();
       pageItems.forEach(v=>{
         const tr = document.createElement("tr");
+        if(v.nextMaintenance && v.nextMaintenance < today) tr.classList.add("overdue");
         tr.innerHTML = `
           <td>${v.id}</td>
           <td>${normalizeName(v.assignedName||"-")}</td>
           <td>${v.daysUsed}</td>
-          <td>${v.nextMaintenance.toLocaleDateString()}</td>
+          <td>${v.nextMaintenance ? v.nextMaintenance.toLocaleDateString() : "-"}</td>
         `;
         tableBody.appendChild(tr);
       });
@@ -122,11 +124,10 @@
 
     searchInput.addEventListener("input", filterAndRender);
 
-    // CSV export
     exportBtn.addEventListener("click",()=>{
       if(!filteredVehicles.length){ alert("No data to export"); return; }
       const headers = ["Vehicle ID","Assigned To","Days Used","Next Maintenance Day"];
-      const rows = filteredVehicles.map(v=>[v.id,normalizeName(v.assignedName||"-"),v.daysUsed,v.nextMaintenance.toLocaleDateString()]);
+      const rows = filteredVehicles.map(v=>[v.id,normalizeName(v.assignedName||"-"),v.daysUsed,v.nextMaintenance ? v.nextMaintenance.toLocaleDateString() : "-"]);
       let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
       const link = document.createElement("a");
       link.href = encodeURI(csvContent);
@@ -136,16 +137,13 @@
       document.body.removeChild(link);
     });
 
-    // Firebase fetch
     auth.onAuthStateChanged(async user=>{
       if(!user) return location.href="admin-signin.html";
       const doc = await db.collection("users").doc(user.email).get();
       if(!doc.exists || doc.data().role!=="admin"){ alert("Not admin"); return location.href="index.html"; }
 
-      // Fetch vehicles
       const scootySnap = await db.collection("scooty_master").get();
       const batterySnap = await db.collection("battery_master").get();
-
       allVehicles = [];
 
       function calculateNextMaintenance(firstAssign,lastReturn,lastMaintenance){
@@ -154,7 +152,6 @@
         return {daysUsed,nextMaintenance};
       }
 
-      // Process Scooties
       for(const doc of scootySnap.docs){
         const data = doc.data();
         if(!data.firstAssign || !data.lastReturn) continue;
@@ -170,7 +167,6 @@
         }
       }
 
-      // Process Batteries
       for(const doc of batterySnap.docs){
         const data = doc.data();
         if(!data.firstAssign || !data.lastReturn) continue;
@@ -192,4 +188,3 @@
   </script>
 </body>
 </html>
-
