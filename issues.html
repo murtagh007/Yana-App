@@ -64,6 +64,7 @@
         <th>Asset ID</th>
         <th>Issue</th>
         <th>Captain</th>
+        <th>Actions</th> <!-- ✅ Added -->
       </tr>
     </thead>
     <tbody></tbody>
@@ -121,6 +122,9 @@ function renderLogsPage(page=1) {
       <td>${log.assetId || "-"}</td>
       <td>${log.issue || "-"}</td>
       <td>${log.captainInCharge || "-"}</td>
+      <td>
+        ${log.status === "open" ? `<button onclick="resolveIssue('${log.id}','${log.assetId}')">Resolve</button>` : "-"}
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -137,6 +141,34 @@ function renderPagination(totalItems) {
     if(i===currentPage) btn.classList.add("active");
     btn.onclick = () => renderLogsPage(i);
     paginationEl.appendChild(btn);
+  }
+}
+
+// ✅ Resolve issue only if asset state != "active"
+async function resolveIssue(issueId, assetId) {
+  try {
+    const scootyRef = db.collection("scooty_master").doc(assetId);
+    const scootyDoc = await scootyRef.get();
+    if (!scootyDoc.exists) {
+      alert("⚠️ Asset not found.");
+      return;
+    }
+
+    const state = scootyDoc.data().state;
+    if (state === "active") {
+      alert("⚠️ Cannot resolve issue while the scooty is ACTIVE. Change its state first.");
+      return;
+    }
+
+    await db.collection("issues").doc(issueId).update({
+      status: "resolved",
+      resolvedAt: new Date(),
+      resolvedBy: userEmail
+    });
+    alert("✅ Issue resolved successfully.");
+  } catch (err) {
+    console.error("Error resolving issue:", err);
+    alert("❌ Failed to resolve issue.");
   }
 }
 
@@ -186,4 +218,3 @@ auth.onAuthStateChanged(async user=>{
 </script>
 </body>
 </html>
-
