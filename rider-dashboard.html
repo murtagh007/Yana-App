@@ -1,284 +1,203 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Rider Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YANA — Rider Dashboard</title>
 
-  <!-- Firebase v8 SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<!-- Firebase v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-  <!-- Your Firebase config -->
-  <script src="firebase-config.js"></script>
+<script src="firebase-config.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --bg:#071014; --card: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
+  --accent:#00eaff; --text:#eaf4f8; --r:16px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:Inter,system-ui,Arial; background:linear-gradient(180deg,#061014,#0d1720);
+  color:var(--text); min-height:100vh; display:flex; flex-direction:column;
+}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.header h1{margin:0;font-size:1.05rem;color:var(--accent)}
+.container{padding:14px;display:flex;justify-content:center}
+.card{width:92vw;max-width:520px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
+border-radius:var(--r);padding:18px;border:1px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,0.5)}
+.title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
+.riderName{font-size:1rem;margin-bottom:14px}
+.timerRow{display:flex;gap:12px;flex-wrap:wrap}
+.block{flex:1;min-width:140px;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
+.block .label{font-size:0.9rem;color:#bcd; margin-bottom:6px}
+.block .value{font-size:1.6rem;font-weight:700}
+.controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+.info{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+.info .pill{flex:1;min-width:140px;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
+.bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
+.navBtn{color:var(--text);text-align:center;font-size:0.9rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;background:var(--accent);color:#000;padding:10px 14px;border-radius:8px;display:none;z-index:50}
+.small{font-size:0.85rem;color:#bcd;margin-top:6px}
+@media(max-width:420px){.btn{min-width:120px;padding:10px}.block .value{font-size:1.3rem}}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>🚴 Rider Dashboard</h1>
 
-    <!-- Rider Info -->
-    <div id="riderInfo" class="muted"></div>
-
-    <!-- Current assignment -->
-    <div class="status">
-      <h2>Current Assignment</h2>
-      <p>Scooty: <span id="currentScooty">Loading...</span></p>
-      <p>Battery: <span id="currentBattery">Loading...</span></p>
-    </div>
-
-    <!-- Timer section -->
-    <div class="timers">
-      <h2>Work Timer</h2>
-      <p><span id="workValue">00:00:00</span></p>
-      <h2>Break Timer</h2>
-      <p><span id="breakValue">00:00:00</span></p>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions">
-      <button class="btn" id="scanBtn">📷 Scan QR</button>
-      <button class="btn" id="logsBtn">📜 Rider Logs</button>
-      <button class="btn" id="issueBtn">⚠️ Raise Issue</button>
-      <button class="btn" id="punchBtn">👊 Punch In</button>
-      <button class="btn" id="breakBtn">☕ Start Break</button>
-      <button class="btn secondary" id="logoutBtn">🚪 Logout</button>
-    </div>
+<div class="header">
+  <h1>⚡ YANA Rider</h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="profilePic" style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center">R</div>
+    <button id="logoutBtn" class="btn secondary" style="padding:8px 10px;font-size:0.8rem">Logout</button>
   </div>
+</div>
 
-  <div id="toast" class="toast"></div>
+<div class="container">
+  <div class="card" role="main">
+    <div class="title">Rider Dashboard</div>
+    <div id="riderName" class="riderName">Loading...</div>
 
-  <script>
-  (async function init(){ 
-    if(typeof firebase === 'undefined' || typeof db === 'undefined'){
-      alert("Firebase not configured. Make sure firebase-config.js sets `db = firebase.firestore();`");
-      return;
+    <div class="timerRow">
+      <div class="block">
+        <div class="label">Working Hours</div>
+        <div id="workValue" class="value">00:00:00</div>
+        <div id="workSmall" class="small">--</div>
+      </div>
+      <div class="block">
+        <div class="label">Break Time</div>
+        <div id="breakValue" class="value">00:00:00</div>
+        <div id="breakSmall" class="small">--</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="punchBtn" class="btn"><i class="fa-solid fa-clock"></i><span id="punchLabel">Punch In</span></button>
+      <button id="breakBtn" class="btn secondary"><i class="fa-solid fa-coffee"></i><span id="breakLabel">Start Break</span></button>
+    </div>
+
+    <div class="info">
+      <div class="pill">Scooty: <strong id="scooty">Loading...</strong></div>
+      <div class="pill">Battery: <strong id="battery">Loading...</strong></div>
+    </div>
+
+    <div class="small" style="margin-top:12px" id="statusLine">Status: --</div>
+  </div>
+</div>
+
+<div class="bottomNav">
+  <div class="navBtn" id="navScanner"><i class="fa-solid fa-qrcode"></i><div>Scanner</div></div>
+  <div class="navBtn" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i><div>Issues</div></div>
+  <div class="navBtn" id="navAttendance"><i class="fa-solid fa-user-check"></i><div>Attendance</div></div>
+  <div class="navBtn" id="navLogs"><i class="fa-solid fa-file-lines"></i><div>Logs</div></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(async function init(){ 
+  if(typeof firebase === 'undefined' || typeof db === 'undefined'){
+    alert("Firebase not configured. Make sure firebase-config.js sets `db = firebase.firestore();`");
+    return;
+  }
+
+  const toast = (msg)=>{ const t=document.getElementById('toast'); t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); };
+  const pad=(n)=>String(n).padStart(2,'0');
+  const format=(s)=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
+
+  const email = new URLSearchParams(window.location.search).get('email');
+  if(!email){ toast("Not signed in"); setTimeout(()=>location.href='rider-signin.html',800); return; }
+
+  const todayKey = ()=> new Date().toISOString().slice(0,10);
+  let currentDay = todayKey();
+  const stateDocRef = ()=> db.collection('attendance').doc(`${email}_${currentDay}_state`);
+
+  const LS_KEY = `attendance_session_${email}_${currentDay}`;
+  let localState = {
+    punchedIn:false,
+    punchInTime:null,
+    workingSeconds:0,
+    onBreak:false,
+    breakStartTime:null,
+    totalBreakSeconds:0,
+    lastUpdated: null
+  };
+
+  const workValue = document.getElementById('workValue');
+  const breakValue = document.getElementById('breakValue');
+  const punchBtn = document.getElementById('punchBtn');
+  const breakBtn = document.getElementById('breakBtn');
+  const punchLabel = document.getElementById('punchLabel');
+  const breakLabel = document.getElementById('breakLabel');
+  const riderNameEl = document.getElementById('riderName');
+  const scootyEl = document.getElementById('scooty');
+  const batteryEl = document.getElementById('battery');
+  const statusLine = document.getElementById('statusLine');
+
+  function saveLocal(){ localStorage.setItem(LS_KEY, JSON.stringify(localState)); }
+  function loadLocal(){ const raw=localStorage.getItem(LS_KEY); if(raw){ try{ localState=JSON.parse(raw); }catch{} } }
+
+  function catchUpTime(){
+    if(!localState.lastUpdated) return;
+    const now=Date.now();
+    const diffSec=Math.floor((now-localState.lastUpdated)/1000);
+    if(diffSec>0){
+      if(localState.punchedIn && !localState.onBreak) localState.workingSeconds+=diffSec;
+      if(localState.onBreak) localState.totalBreakSeconds+=diffSec;
+      localState.lastUpdated=now;
+      saveLocal();
     }
+  }
 
-    try { await firebase.firestore().enablePersistence(); } catch(e) { }
+  function updateUI(){
+    workValue.innerText = format(localState.workingSeconds);
+    breakValue.innerText = format(localState.totalBreakSeconds);
+    punchLabel.innerText = localState.punchedIn ? 'Punch Out' : 'Punch In';
+    breakLabel.innerText = localState.onBreak ? 'Stop Break' : 'Start Break';
+    statusLine.innerText = `Status: ${localState.onBreak ? 'On Break' : (localState.punchedIn ? 'Working' : 'Idle')}`;
+  }
 
-    const toast = (msg)=>{ const t=document.getElementById('toast'); t.innerText=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); };
-    const pad=(n)=>String(n).padStart(2,'0');
-    const format=(s)=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
-
-    const params = new URLSearchParams(window.location.search);
-    const email = params.get("email");
-    if(!email){
-      alert("Not signed in!");
-      window.location.href="rider-signin.html";
-      return;
+  punchBtn.addEventListener('click',async()=>{
+    if(!localState.punchedIn){
+      localState.punchedIn=true; localState.punchInTime=Date.now(); localState.lastUpdated=Date.now();
+      toast("✅ Punched In");
+    } else {
+      localState.punchedIn=false; localState.punchInTime=null; localState.onBreak=false;
+      toast("✅ Punched Out");
     }
+    saveLocal(); updateUI();
+    await stateDocRef().set(localState,{merge:true});
+  });
 
-    const riderInfoDiv = document.getElementById("riderInfo");
-    const workValue = document.getElementById("workValue");
-    const breakValue = document.getElementById("breakValue");
-    const punchBtn = document.getElementById("punchBtn");
-    const breakBtn = document.getElementById("breakBtn");
-
-    let currentScooty = null;
-    let currentBattery = null;
-
-    let workTicker=null, breakTicker=null, unsubStateListener=null;
-    let localState = { punchedIn:false, workingSeconds:0, onBreak:false, totalBreakSeconds:0, punchInTime:null, breakStartTime:null };
-
-    const stateDocRef = ()=>db.collection("attendance").doc(email);
-
-    function saveLocal(){
-      localStorage.setItem("attendance_"+email, JSON.stringify(localState));
+  breakBtn.addEventListener('click',async()=>{
+    if(!localState.punchedIn){ toast("Punch in first"); return; }
+    if(!localState.onBreak){
+      localState.onBreak=true; localState.breakStartTime=Date.now();
+      toast("⏸ Break started");
+    } else {
+      localState.onBreak=false; localState.breakStartTime=null;
+      toast("▶ Break ended");
     }
+    localState.lastUpdated=Date.now();
+    saveLocal(); updateUI();
+    await stateDocRef().set(localState,{merge:true});
+  });
 
-    function loadLocal(){
-      try{
-        const d = JSON.parse(localStorage.getItem("attendance_"+email));
-        if(d) localState = d;
-      }catch(e){}
-    }
-    loadLocal();
+  document.getElementById('logoutBtn').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); firebase.auth().signOut(); location.href='rider-signin.html'; });
 
-    function stopTickers(){ 
-      if(workTicker){ clearInterval(workTicker); workTicker=null; } 
-      if(breakTicker){ clearInterval(breakTicker); breakTicker=null; } 
-    }
+  // load and catch up
+  loadLocal();
+  catchUpTime();
+  updateUI();
 
-    // ✅ Recalculate timers based on timestamps
-    function startTickers(){
-      stopTickers();
-      if(localState.punchedIn && localState.punchInTime){
-        workTicker = setInterval(()=>{
-          let elapsed = Math.floor((Date.now() - localState.punchInTime)/1000);
-          let work = elapsed - (localState.totalBreakSeconds||0);
-          workValue.innerText = format(Math.max(work,0));
-        },1000);
-      } else {
-        workValue.innerText = format(localState.workingSeconds||0);
-      }
+  // catch-up every minute in case of long pauses
+  setInterval(()=>{ catchUpTime(); updateUI(); },60000);
 
-      if(localState.onBreak && localState.breakStartTime){
-        breakTicker = setInterval(()=>{
-          let elapsed = Math.floor((Date.now() - localState.breakStartTime)/1000);
-          let b = (localState.totalBreakSeconds||0) + elapsed;
-          breakValue.innerText = format(Math.max(b,0));
-        },1000);
-      } else {
-        breakValue.innerText = format(localState.totalBreakSeconds||0);
-      }
-    }
+})();
+</script>
 
-    async function attachStateListener(){
-      if(unsubStateListener) { unsubStateListener(); unsubStateListener=null; }
-      const ref = stateDocRef();
-      unsubStateListener = ref.onSnapshot(async snap=>{
-        if(!snap.exists) return;
-        const data = snap.data();
-        localState.punchedIn = !!data.punchedIn;
-        localState.workingSeconds = Number(data.workingSeconds || 0);
-        localState.onBreak = !!data.onBreak;
-        localState.totalBreakSeconds = Number(data.totalBreakSeconds || 0);
-        localState.punchInTime = data.punchInTime ? data.punchInTime.toMillis() : null;
-        localState.breakStartTime = data.breakStartTime ? data.breakStartTime.toMillis() : null;
-        saveLocal();
-
-        // ✅ Auto punch-out at 2 AM
-        if(localState.punchedIn && localState.punchInTime){
-          const punchDate = new Date(localState.punchInTime);
-          const resetTime = new Date(punchDate);
-          resetTime.setHours(2,0,0,0); 
-          if(Date.now() > resetTime.getTime()){
-            await ref.set({
-              punchedIn:false,
-              onBreak:false,
-              punchInTime:null,
-              breakStartTime:null,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, {merge:true});
-            toast("⏰ Auto Punch-Out at 2 AM");
-            return;
-          }
-        }
-
-        startTickers();
-        updateUI();
-      }, err=>{ console.warn("state listener error",err); });
-    }
-
-    function updateUI(){
-      if(localState.punchedIn){
-        punchBtn.innerText = "🔚 Punch Out";
-        breakBtn.style.display = "inline-block";
-        breakBtn.innerText = localState.onBreak? "🔄 End Break" : "☕ Start Break";
-      } else {
-        punchBtn.innerText = "👊 Punch In";
-        breakBtn.style.display = "none";
-      }
-    }
-
-    async function punchToggle(){
-      const ref = stateDocRef();
-      if(!localState.punchedIn){
-        await ref.set({
-          punchedIn:true,
-          onBreak:false,
-          workingSeconds:0,
-          totalBreakSeconds:0,
-          punchInTime: firebase.firestore.Timestamp.now(),
-          breakStartTime:null,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, {merge:true});
-        toast("Punched In");
-      } else {
-        await ref.set({
-          punchedIn:false,
-          onBreak:false,
-          punchInTime:null,
-          breakStartTime:null,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, {merge:true});
-        toast("Punched Out");
-      }
-    }
-
-    async function breakToggle(){
-      const ref = stateDocRef();
-      if(!localState.onBreak){
-        await ref.set({
-          onBreak:true,
-          breakStartTime: firebase.firestore.Timestamp.now(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, {merge:true});
-        toast("Break Started");
-      } else {
-        let add = Math.floor((Date.now() - localState.breakStartTime)/1000);
-        await ref.set({
-          onBreak:false,
-          breakStartTime:null,
-          totalBreakSeconds:(localState.totalBreakSeconds||0)+add,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, {merge:true});
-        toast("Break Ended");
-      }
-    }
-
-    punchBtn.addEventListener("click", punchToggle);
-    breakBtn.addEventListener("click", breakToggle);
-
-    document.getElementById("scanBtn").addEventListener("click", () => {
-      window.location.href = `scanner.html?email=${email}`;
-    });
-    document.getElementById("logsBtn").addEventListener("click", () => {
-      window.location.href = `rider-logs.html?email=${email}`;
-    });
-    document.getElementById("issueBtn").addEventListener("click", () => {
-      window.location.href = `issue.html?email=${email}`;
-    });
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      firebase.auth().signOut().then(()=>{
-        window.location.href="rider-signin.html";
-      });
-    });
-
-    async function loadRider(){
-      const doc = await db.collection("users").doc(email).get();
-      if(!doc.exists){
-        alert("Rider not found.");
-        window.location.href="rider-signup.html";
-        return;
-      }
-      const data = doc.data();
-      riderInfoDiv.innerHTML = `<b>${data.name}</b> (${email}) — Status: ${data.status}`;
-      if(data.status !== "approved"){
-        alert("Your account is not approved.");
-        window.location.href="rider-signin.html";
-        return;
-      }
-      loadMyAssignments();
-    }
-
-    async function loadMyAssignments(){
-      currentScooty = null;
-      currentBattery = null;
-
-      const s = await db.collection("scooty_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      s.forEach(d => currentScooty = d.id);
-
-      const b = await db.collection("battery_master")
-        .where("assignedTo", "==", email)
-        .where("status", "==", "assigned")
-        .limit(1).get();
-      b.forEach(d => currentBattery = d.id);
-
-      document.getElementById("currentScooty").innerText = currentScooty || "None";
-      document.getElementById("currentBattery").innerText = currentBattery || "None";
-    }
-
-    loadRider();
-    attachStateListener();
-    updateUI();
-
-  })();
-  </script>
 </body>
 </html>
