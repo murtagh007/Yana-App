@@ -100,19 +100,23 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
 
   function updateUI(){
-    workValue.innerText=fmt(state.workingSeconds);
-    breakValue.innerText=fmt(state.totalBreakSeconds);
+    let now=Date.now();
+
+    let workSecs=state.workingSeconds;
+    if(state.punchedIn && !state.onBreak && state.punchInTime){
+      workSecs += Math.floor((now - state.punchInTime)/1000);
+    }
+
+    let breakSecs=state.totalBreakSeconds;
+    if(state.onBreak && state.breakStartTime){
+      breakSecs += Math.floor((now - state.breakStartTime)/1000);
+    }
+
+    workValue.innerText=fmt(workSecs);
+    breakValue.innerText=fmt(breakSecs);
     punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
     breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
     statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
-  }
-
-  function startTickers(){
-    setInterval(()=>{
-      if(state.punchedIn && !state.onBreak) state.workingSeconds++;
-      if(state.onBreak) state.totalBreakSeconds++;
-      updateUI();
-    },1000);
   }
 
   async function syncToServer(){
@@ -127,28 +131,44 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     },{merge:true});
   }
 
-  async function loadState(){
-    const snap=await stateRef().get();
-    if(snap.exists){
-      const d=snap.data();
-      state.punchedIn=d.punchedIn; state.onBreak=d.onBreak;
-      state.workingSeconds=d.workingSeconds||0; state.totalBreakSeconds=d.totalBreakSeconds||0;
-      state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
-      state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
-    }
+  function applySnapshot(d){
+    state.punchedIn=d.punchedIn;
+    state.onBreak=d.onBreak;
+    state.workingSeconds=d.workingSeconds||0;
+    state.totalBreakSeconds=d.totalBreakSeconds||0;
+    state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
+    state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
     updateUI();
   }
 
+  async function loadState(){
+    const snap=await stateRef().get();
+    if(snap.exists){ applySnapshot(snap.data()); }
+  }
+
   document.getElementById("punchBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); }
-    else { state.punchedIn=false; state.punchInTime=null; }
+    if(!state.punchedIn){ 
+      state.punchedIn=true; 
+      state.punchInTime=Date.now(); 
+    } else { 
+      // calculate worked duration till now
+      if(state.punchInTime) state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      state.punchedIn=false; 
+      state.punchInTime=null; 
+    }
     await syncToServer(); updateUI();
   });
 
   document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
-    if(!state.onBreak){ state.onBreak=true; state.breakStartTime=Date.now(); }
-    else { state.onBreak=false; state.breakStartTime=null; }
+    if(!state.onBreak){ 
+      state.onBreak=true; 
+      state.breakStartTime=Date.now(); 
+    } else { 
+      if(state.breakStartTime) state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+      state.onBreak=false; 
+      state.breakStartTime=null; 
+    }
     await syncToServer(); updateUI();
   });
 
@@ -169,9 +189,20 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
   document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
 
+  // Initial load
   await loadState();
-  startTickers();
-  setInterval(syncToServer,30000); // background sync every 30s
+  updateUI();
+
+  // update every second for smooth UI
+  setInterval(updateUI,1000);
+
+  // 🔥 Real-time sync
+  stateRef().onSnapshot(snap=>{
+    if(snap.exists){ applySnapshot(snap.data()); }
+  });
+
+  // Background sync every 30s
+  setInterval(syncToServer,30000);
 })();
 </script>
 
