@@ -20,6 +20,7 @@
 body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
 .header h1{margin:0;font-size:1rem;color:var(--accent)}
+.header #logoutBtn{padding:6px 10px;font-size:0.8rem;flex-shrink:0;}
 .container{padding:14px;display:flex;justify-content:center}
 .card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
@@ -29,7 +30,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .block .value{font-size:1.6rem;font-weight:700}
 .controls{display:flex;gap:10px;margin-top:14px}
 .btn{flex:1;padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;gap:6px}
-.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent);padding:6px 10px;font-size:0.8rem;}
+.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent)}
 .info{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
 .info .pill{flex:1;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
 .bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
@@ -86,10 +87,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const email = new URLSearchParams(window.location.search).get('email');
   if(!email){ location.href="rider-signin.html"; return; }
 
-  const todayKey = ()=> new Date().toISOString().slice(0,10);
-  let currentDay = todayKey();
-  const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
-
+  const stateRef = ()=> db.collection("attendance").doc(`${email}_${new Date().toISOString().slice(0,10)}_state`);
   let state = { punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0 };
 
   const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
@@ -107,11 +105,19 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
   }
 
-  function startTickers(){
-    setInterval(async ()=>{
-      if(state.punchedIn && !state.onBreak) state.workingSeconds++;
-      if(state.onBreak) state.totalBreakSeconds++;
+  function recalcTimers(){
+    const now=Date.now();
+    if(state.punchedIn && state.punchInTime){
+      state.workingSeconds = Math.floor((now - state.punchInTime)/1000) - (state.totalBreakSeconds||0);
+    }
+    if(state.onBreak && state.breakStartTime){
+      state.totalBreakSeconds = Math.floor((now - state.breakStartTime)/1000) + (state.totalBreakSeconds||0);
+    }
+  }
 
+  function startTickers(){
+    setInterval(()=>{
+      recalcTimers();
       updateUI();
     },1000);
   }
@@ -135,6 +141,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     state.totalBreakSeconds=d.totalBreakSeconds||0;
     state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
     state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
+    recalcTimers();
     updateUI();
   }
 
@@ -156,14 +163,28 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     await syncToServer(); updateUI();
   });
 
-  // Load rider info + current scooty/battery
+  document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
+
+  // Load rider info + assigned scooty/battery
   const u=await db.collection("users").doc(email).get();
   if(u.exists){
     const d=u.data();
     document.getElementById("riderName").innerText=d.name+" ("+email+")";
-    const scootyId = d.scooterId||"--";
-    const batteryId = d.batteryId||"--";
+
+    // Scooty
+    let scootyId = d.scooterId || "--";
+    if(d.scooterId){
+      const s = await db.collection("scooty_master").doc(d.scooterId).get();
+      if(s.exists) scootyId = s.data().assignedTo===email ? s.id : "--";
+    }
     document.getElementById("scooty").innerText = scootyId;
+
+    // Battery
+    let batteryId = d.batteryId || "--";
+    if(d.batteryId){
+      const b = await db.collection("battery_master").doc(d.batteryId).get();
+      if(b.exists) batteryId = b.data().assignedTo===email ? b.id : "--";
+    }
     document.getElementById("battery").innerText = batteryId;
   }
 
@@ -172,8 +193,6 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
   document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
   document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
-
-  document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
   // Initial load
   await loadState();
