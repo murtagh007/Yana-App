@@ -262,32 +262,36 @@
       const data=(await ref.get()).data()||{};
       if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-      // ---------- RULE CHECKS USING MASTER TABLES ----------
-      const scootyAssignedQuery = await db.collection("scooty_master")
-        .where("assignedTo", "==", email).get();
-      const batteryAssignedQuery = await db.collection("battery_master")
-        .where("assignedTo", "==", email).get();
+      // ---------- RULE CHECKS ----------
+      // Fetch rider's current assignments
+      const riderDoc = await db.collection("users").doc(email).get();
+      const riderData = riderDoc.exists ? riderDoc.data() : {};
+      const currentScooty = riderData.scooterId || null;
+      const currentBattery = riderData.batteryId || null;
 
-      const currentScooty = !scootyAssignedQuery.empty ? scootyAssignedQuery.docs[0].id : null;
-      const currentBattery = !batteryAssignedQuery.empty ? batteryAssignedQuery.docs[0].id : null;
-
-      if(type==="scooty"){
-        if(currentScooty) { alert("You already have a Scooty assigned."); return; }
-        if(data.status!=="returned"){ alert(`Scooty ${id} is not available for assignment.`); return; }
+      let action = null;
+      if(data.status==="assigned" && data.assignedTo===email){
+        action = "return";
+      } else if(data.status==="returned"){
+        action = "assign";
+      } else {
+        alert(`${type} ${id} is not eligible for you.`);
+        return;
       }
 
-      if(type==="battery"){
-        if(!currentScooty) { alert("You must take a Scooty first before taking a Battery."); return; }
-        if(currentBattery) { alert("You already have a Battery assigned."); return; }
-        if(data.status!=="returned"){ alert(`Battery ${id} is not available for assignment.`); return; }
+      // Only block "assign" if rider already has another one
+      if(action==="assign"){
+        if(type==="scooty" && currentScooty){
+          alert("You already have a Scooty assigned."); return;
+        }
+        if(type==="battery"){
+          if(!currentScooty){ alert("You must take a Scooty first."); return; }
+          if(currentBattery){ alert("You already have a Battery assigned."); return; }
+        }
       }
 
-      let action=null;
-      if(data.status==="returned") action="assign";
-      else if(data.status==="assigned" && data.assignedTo===email) action="return";
-      else { alert(`${type} ${id} is not eligible for you.`); return; }
-
-      if(action==="return" && type==="scooty" && currentBattery) {
+      // Prevent returning Scooty if Battery is still assigned
+      if(action==="return" && type==="scooty" && currentBattery){
         alert("Return the Battery first before returning the Scooty."); return;
       }
 
@@ -297,7 +301,7 @@
       document.getElementById("locationSection").style.display=action==="return"?"block":"none";
     }
 
-    document.getElementById("confirmBtn").addEventListener("click", async ()=> {
+    document.getElementById("confirmBtn").addEventListener("click", async ()=>{
       if(!pendingAction) return;
       const {action,id,type,ref}=pendingAction;
 
