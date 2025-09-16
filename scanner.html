@@ -262,12 +262,14 @@
       const data=(await ref.get()).data()||{};
       if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-      // ---------- RULE CHECKS ----------
-      // Fetch rider's current assignments
-      const riderDoc = await db.collection("users").doc(email).get();
-      const riderData = riderDoc.exists ? riderDoc.data() : {};
-      const currentScooty = riderData.scooterId || null;
-      const currentBattery = riderData.batteryId || null;
+      // ---------- RULE CHECKS USING MASTER TABLES ----------
+      const scootyAssignedQuery = await db.collection("scooty_master")
+        .where("assignedTo", "==", email).get();
+      const batteryAssignedQuery = await db.collection("battery_master")
+        .where("assignedTo", "==", email).get();
+
+      const currentScooty = !scootyAssignedQuery.empty ? scootyAssignedQuery.docs[0].id : null;
+      const currentBattery = !batteryAssignedQuery.empty ? batteryAssignedQuery.docs[0].id : null;
 
       if(type==="scooty"){
         if(currentScooty) { alert("You already have a Scooty assigned."); return; }
@@ -280,11 +282,11 @@
         if(data.status!=="returned"){ alert(`Battery ${id} is not available for assignment.`); return; }
       }
 
+      let action=null;
       if(data.status==="returned") action="assign";
       else if(data.status==="assigned" && data.assignedTo===email) action="return";
       else { alert(`${type} ${id} is not eligible for you.`); return; }
 
-      // Return rules
       if(action==="return" && type==="scooty" && currentBattery) {
         alert("Return the Battery first before returning the Scooty."); return;
       }
@@ -295,7 +297,7 @@
       document.getElementById("locationSection").style.display=action==="return"?"block":"none";
     }
 
-    document.getElementById("confirmBtn").addEventListener("click", async ()=>{
+    document.getElementById("confirmBtn").addEventListener("click", async ()=> {
       if(!pendingAction) return;
       const {action,id,type,ref}=pendingAction;
 
