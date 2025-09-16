@@ -100,23 +100,31 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
 
   function updateUI(){
-    let now=Date.now();
-
-    let workSecs=state.workingSeconds;
-    if(state.punchedIn && !state.onBreak && state.punchInTime){
-      workSecs += Math.floor((now - state.punchInTime)/1000);
-    }
-
-    let breakSecs=state.totalBreakSeconds;
-    if(state.onBreak && state.breakStartTime){
-      breakSecs += Math.floor((now - state.breakStartTime)/1000);
-    }
-
-    workValue.innerText=fmt(workSecs);
-    breakValue.innerText=fmt(breakSecs);
+    workValue.innerText=fmt(state.workingSeconds);
+    breakValue.innerText=fmt(state.totalBreakSeconds);
     punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
     breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
     statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
+  }
+
+  function startTickers(){
+    setInterval(async ()=>{
+      if(state.punchedIn && !state.onBreak) state.workingSeconds++;
+      if(state.onBreak) state.totalBreakSeconds++;
+
+      // ⏰ Hard Punchout at 2 AM (server-time)
+      const now = new Date();
+      if(now.getHours()===2 && now.getMinutes()===0 && state.punchedIn){
+        state.punchedIn=false;
+        state.punchInTime=null;
+        state.onBreak=false;
+        state.breakStartTime=null;
+        await syncToServer();
+        updateUI();
+      }
+
+      updateUI();
+    },1000);
   }
 
   async function syncToServer(){
@@ -147,28 +155,15 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   }
 
   document.getElementById("punchBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn){ 
-      state.punchedIn=true; 
-      state.punchInTime=Date.now(); 
-    } else { 
-      // calculate worked duration till now
-      if(state.punchInTime) state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
-      state.punchedIn=false; 
-      state.punchInTime=null; 
-    }
+    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); }
+    else { state.punchedIn=false; state.punchInTime=null; }
     await syncToServer(); updateUI();
   });
 
   document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
-    if(!state.onBreak){ 
-      state.onBreak=true; 
-      state.breakStartTime=Date.now(); 
-    } else { 
-      if(state.breakStartTime) state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
-      state.onBreak=false; 
-      state.breakStartTime=null; 
-    }
+    if(!state.onBreak){ state.onBreak=true; state.breakStartTime=Date.now(); }
+    else { state.onBreak=false; state.breakStartTime=null; }
     await syncToServer(); updateUI();
   });
 
@@ -191,10 +186,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   // Initial load
   await loadState();
-  updateUI();
-
-  // update every second for smooth UI
-  setInterval(updateUI,1000);
+  startTickers();
 
   // 🔥 Real-time sync
   stateRef().onSnapshot(snap=>{
