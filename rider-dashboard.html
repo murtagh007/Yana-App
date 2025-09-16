@@ -20,6 +20,7 @@
 body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
 .header h1{margin:0;font-size:1rem;color:var(--accent)}
+.header button{padding:4px 8px;font-size:0.75rem;} /* Compact logout */
 .container{padding:14px;display:flex;justify-content:center}
 .card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
@@ -40,7 +41,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
 <div class="header">
   <h1>⚡ YANA Rider</h1>
-  <button id="logoutBtn" class="btn secondary" style="padding:6px 10px;font-size:0.8rem">Logout</button>
+  <button id="logoutBtn" class="btn secondary">Logout</button>
 </div>
 
 <div class="container">
@@ -109,18 +110,24 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   function startTickers(){
     setInterval(async ()=>{
-      if(state.punchedIn && !state.onBreak) state.workingSeconds++;
-      if(state.onBreak) state.totalBreakSeconds++;
+      const now=Date.now();
+      // recalc workingSeconds based on punchInTime
+      if(state.punchedIn && state.punchInTime && !state.onBreak){
+        state.workingSeconds=Math.floor((now-state.punchInTime)/1000);
+      }
+      // recalc totalBreakSeconds based on breakStartTime
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds=Math.floor((now-state.breakStartTime)/1000);
+      }
 
-      // ⏰ Hard Punchout at 2 AM (server-time)
-      const now = new Date();
-      if(now.getHours()===2 && now.getMinutes()===0 && state.punchedIn){
+      // Hard Punchout at 2 AM
+      const date=new Date();
+      if(date.getHours()===2 && date.getMinutes()===0 && state.punchedIn){
         state.punchedIn=false;
         state.punchInTime=null;
         state.onBreak=false;
         state.breakStartTime=null;
         await syncToServer();
-        updateUI();
       }
 
       updateUI();
@@ -142,8 +149,10 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   function applySnapshot(d){
     state.punchedIn=d.punchedIn;
     state.onBreak=d.onBreak;
-    state.workingSeconds=d.workingSeconds||0;
-    state.totalBreakSeconds=d.totalBreakSeconds||0;
+    // recalc timers
+    const now=Date.now();
+    state.workingSeconds=d.punchInTime ? Math.floor((now-d.punchInTime.toMillis())/1000) : 0;
+    state.totalBreakSeconds=d.breakStartTime ? Math.floor((now-d.breakStartTime.toMillis())/1000) : 0;
     state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
     state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
     updateUI();
@@ -155,27 +164,31 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   }
 
   document.getElementById("punchBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); }
-    else { state.punchedIn=false; state.punchInTime=null; }
+    const now=Date.now();
+    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=now; state.workingSeconds=0; }
+    else { state.punchedIn=false; state.punchInTime=null; state.workingSeconds=0; state.onBreak=false; state.breakStartTime=null; state.totalBreakSeconds=0; }
     await syncToServer(); updateUI();
   });
 
   document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
-    if(!state.onBreak){ state.onBreak=true; state.breakStartTime=Date.now(); }
-    else { state.onBreak=false; state.breakStartTime=null; }
+    const now=Date.now();
+    if(!state.onBreak){ state.onBreak=true; state.breakStartTime=now; state.totalBreakSeconds=0; }
+    else { state.onBreak=false; state.breakStartTime=null; state.totalBreakSeconds=0; }
     await syncToServer(); updateUI();
   });
 
   document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
-  // Load rider info
-  const u=await db.collection("users").doc(email).get();
-  if(u.exists){
-    const d=u.data();
-    document.getElementById("riderName").innerText=d.name+" ("+email+")";
-    document.getElementById("scooty").innerText=d.scooterId||"--";
-    document.getElementById("battery").innerText=d.batteryId||"--";
+  // Load rider info + assigned Scooty/Battery
+  async function loadRider(){
+    const u=await db.collection("users").doc(email).get();
+    if(u.exists){
+      const d=u.data();
+      document.getElementById("riderName").innerText=d.name+" ("+email+")";
+      document.getElementById("scooty").innerText=d.scooterId||"--";
+      document.getElementById("battery").innerText=d.batteryId||"--";
+    }
   }
 
   // Navigation
@@ -186,6 +199,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   // Initial load
   await loadState();
+  await loadRider();
   startTickers();
 
   // 🔥 Real-time sync
