@@ -262,10 +262,32 @@
       const data=(await ref.get()).data()||{};
       if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-      let action=null;
+      // ---------- RULE CHECKS ----------
+      // Fetch rider's current assignments
+      const riderDoc = await db.collection("users").doc(email).get();
+      const riderData = riderDoc.exists ? riderDoc.data() : {};
+      const currentScooty = riderData.scooterId || null;
+      const currentBattery = riderData.batteryId || null;
+
+      if(type==="scooty"){
+        if(currentScooty) { alert("You already have a Scooty assigned."); return; }
+        if(data.status!=="returned"){ alert(`Scooty ${id} is not available for assignment.`); return; }
+      }
+
+      if(type==="battery"){
+        if(!currentScooty) { alert("You must take a Scooty first before taking a Battery."); return; }
+        if(currentBattery) { alert("You already have a Battery assigned."); return; }
+        if(data.status!=="returned"){ alert(`Battery ${id} is not available for assignment.`); return; }
+      }
+
       if(data.status==="returned") action="assign";
       else if(data.status==="assigned" && data.assignedTo===email) action="return";
       else { alert(`${type} ${id} is not eligible for you.`); return; }
+
+      // Return rules
+      if(action==="return" && type==="scooty" && currentBattery) {
+        alert("Return the Battery first before returning the Scooty."); return;
+      }
 
       pendingAction={action,id,type,ref};
       document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
