@@ -133,6 +133,16 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     },{merge:true});
   }
 
+  // 🔥 Add attendance event log
+  async function logEvent(type){
+    await db.collection("attendance").add({
+      email,
+      type, // "PunchIn", "PunchOut", "BreakStart", "BreakEnd"
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      day: currentDay
+    });
+  }
+
   function applySnapshot(d){
     state.punchedIn=d.punchedIn;
     state.onBreak=d.onBreak;
@@ -148,16 +158,63 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     if(snap.exists){ applySnapshot(snap.data()); }
   }
 
+  // 📍 Haversine
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371e3, toRad=x=>x*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+
+  async function checkGeofence(){
+    const u=await db.collection("users").doc(email).get();
+    if(!u.exists) return true;
+    const locationId=u.data().locationId;
+    if(!locationId) return true;
+    const loc=await db.collection("locations").doc(locationId).get();
+    if(!loc.exists) return true;
+    const {lat,lng,radius}=loc.data();
+
+    return new Promise((resolve)=>{
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const d=haversine(pos.coords.latitude,pos.coords.longitude,lat,lng);
+        resolve(d<=radius);
+      },()=>resolve(false));
+    });
+  }
+
+  // 👊 Punch In / Out
   document.getElementById("punchBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); }
-    else { state.punchedIn=false; state.punchInTime=null; }
+    if(!state.punchedIn){
+      const inside=await checkGeofence();
+      if(!inside){ alert("❌ You are outside your geofence."); return; }
+      state.punchedIn=true; state.punchInTime=Date.now();
+      await logEvent("PunchIn");
+    } else {
+      // Hard stop break if active
+      if(state.onBreak && state.breakStartTime){
+        const extra=Math.floor((Date.now()-state.breakStartTime)/1000);
+        state.totalBreakSeconds+=extra;
+        state.onBreak=false; state.breakStartTime=null;
+      }
+      state.punchedIn=false; state.punchInTime=null;
+      await logEvent("PunchOut");
+    }
     await syncToServer(); updateUI();
   });
 
+  // ☕ Break Start / End
   document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
-    if(!state.onBreak){ state.onBreak=true; state.breakStartTime=Date.now(); }
-    else { state.onBreak=false; state.breakStartTime=null; }
+    if(!state.onBreak){
+      state.onBreak=true; state.breakStartTime=Date.now();
+      await logEvent("BreakStart");
+    } else {
+      const extra=Math.floor((Date.now()-state.breakStartTime)/1000);
+      state.totalBreakSeconds+=extra;
+      state.onBreak=false; state.breakStartTime=null;
+      await logEvent("BreakEnd");
+    }
     await syncToServer(); updateUI();
   });
 
