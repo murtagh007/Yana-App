@@ -6,177 +6,136 @@
 <title>YANA — Scooty Maintenance & Usage</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  table { border-collapse: collapse; width: 100%; margin-top:12px;}
-  th, td { border:1px solid var(--border); padding:6px 8px; text-align:left; }
-  th { background: var(--card); color: var(--action); }
-  tr:hover { background: rgba(255,255,255,0.05);}
-  #controls { margin-bottom: 12px;}
-  button { padding:6px 12px; border-radius: var(--radius); border:none; background:var(--action); color:#000; cursor:pointer; margin-right:6px;}
+body { font-family: sans-serif; background:#0a0f12; color:#eaf4f8; }
+table { width:100%; border-collapse: collapse; margin-top: 12px; }
+th, td { border:1px solid #333; padding:6px 8px; text-align:center; }
+th { background: #111; color:#00eaff; }
+.muted { font-size: 13px; color:#888; margin-top:4px; }
+.container { max-width:1200px; margin:auto; padding:12px; }
+button { padding:6px 12px; border-radius:4px; border:none; background:#00eaff; color:#000; cursor:pointer; }
 </style>
 </head>
 <body>
-<div class="navbar">
-  <h2>⚡ YANA Admin</h2>
-  <div class="profile">
-    <div class="profile-pic">A</div>
-    <div class="dropdown">
-      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-      <button id="logoutBtn">Logout</button>
-    </div>
-  </div>
-</div>
 
 <div class="container">
-  <h1> Scooty — Maintenance & Usage </h1>
-  <div id="controls">
-    <button id="refreshBtn">Refresh</button>
-    <button id="saveBtn">Save Computed Dates</button>
+  <h1>⚡ Scooty — Maintenance & Usage</h1>
+  <div>
+    <button id="refreshBtn">🔄 Refresh</button>
   </div>
-  <table id="scootyTable">
+  <table>
     <thead>
       <tr>
         <th>ID</th>
-        <th>Assigned To</th>
+        <th>Assigned Rider</th>
         <th>Days Used</th>
         <th>Last Maintenance</th>
         <th>Next Maintenance</th>
         <th>Assigned Captain</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="scootyTableBody">
       <tr><td colspan="6">Loading…</td></tr>
     </tbody>
   </table>
   <p class="muted">
-    Notes: Calculations use logs (action="state-change") if available. Fallbacks: createdAt / updatedAt from scooty_master. "Days Used" counts days between the first assignment after the last maintenance (or first assignment ever) and last return (or today if currently assigned).
+    Notes: Calculations use <code>logs</code> (action="state-change") if available. Fallbacks: <code>createdAt</code> / <code>updatedAt</code> from <code>scooty_master</code>. "Days Used" counts days between the first assignment after the last maintenance (or first assignment ever) and the last return (or today if currently assigned).
   </p>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 
 <script>
-let currentUserEmail = "";
+const tableBody = document.getElementById("scootyTableBody");
+
 let currentUserRole = "";
-let scootyData = [];
-let logsData = {};
+let currentUserEmail = "";
 
+// Auth check
 auth.onAuthStateChanged(async user => {
-  if(!user) return location.href="admin-signin.html";
+  if (!user) return location.href="admin-signin.html";
   currentUserEmail = user.email;
-  document.querySelector(".profile-pic").innerText = (user.email[0] || "A").toUpperCase();
-
-  const userDoc = await db.collection("users").doc(user.email).get();
-  if(!userDoc.exists || !["admin","captain"].includes(userDoc.data().role)){
-    alert("❌ Not authorized"); location.href="index.html";
+  const doc = await db.collection("users").doc(user.email).get();
+  if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
+    alert("❌ Not authorized."); 
+    return location.href="index.html";
   }
-  currentUserRole = userDoc.data().role;
+  currentUserRole = doc.data().role;
   loadScooties();
 });
 
-document.getElementById("logoutBtn").onclick = () => auth.signOut();
-document.getElementById("refreshBtn").onclick = () => loadScooties();
-document.getElementById("saveBtn").onclick = () => saveComputedDates();
+document.getElementById("refreshBtn").addEventListener("click", loadScooties);
 
-async function loadScooties(){
-  const tableBody = document.querySelector("#scootyTable tbody");
-  tableBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
+async function loadScooties() {
+  tableBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
 
-  // Fetch all scooties
-  const scootySnap = await db.collection("scooty_master").get();
-  scootyData = scootySnap.docs.map(d => ({ id:d.id, ...d.data() }));
+  try {
+    const scootySnap = await db.collection("scooty_master").get();
+    const logsSnap = await db.collection("logs")
+      .where("action","==","state-change")
+      .orderBy("timestamp")
+      .get();
 
-  // Fetch all logs (state-change)
-  const logsSnap = await db.collection("logs").where("action","==","state-change").orderBy("timestamp").get();
-  logsData = {};
-  logsSnap.docs.forEach(doc => {
-    const log = doc.data();
-    if(!logsData[log.itemId]) logsData[log.itemId] = [];
-    logsData[log.itemId].push(log);
-  });
-
-  renderTable();
-}
-
-function renderTable(){
-  const tbody = document.querySelector("#scootyTable tbody");
-  tbody.innerHTML = "";
-
-  if(scootyData.length===0){
-    tbody.innerHTML = "<tr><td colspan='6'>No scooties found</td></tr>";
-    return;
-  }
-
-  const today = new Date();
-
-  scootyData.forEach(d => {
-    const scootyId = d.id;
-
-    // Only captains see their own scooties
-    if(currentUserRole==="captain" && d.captainInCharge!==currentUserEmail) return;
-
-    // Assigned To
-    let assignedName = "-";
-    if(d.assignedTo){
-      assignedName = d.assignedTo; // fallback, you can fetch user name if needed
-    }
-
-    // Assigned Captain
-    let captainName = d.captainInCharge || "-";
-
-    // Logs for this scooty
-    const logs = logsData[scootyId] || [];
-
-    // Last Maintenance / Last Repair
-    const maintenanceLogs = logs.filter(l=>l.newState==="maintenance" || l.newState==="repair");
-    let lastMaintenanceDate = maintenanceLogs.length>0 ? maintenanceLogs[maintenanceLogs.length-1].timestamp.toDate() : (d.createdAt ? d.createdAt.toDate() : null);
-    let nextMaintenanceDate = lastMaintenanceDate ? new Date(lastMaintenanceDate.getTime()+15*24*60*60*1000) : null;
-
-    // Days Used calculation
-    // First assignment after last maintenance
-    const assignmentLogs = logs.filter(l=>l.newState==="active");
-    let firstAssignmentAfterMaintenance = assignmentLogs.find(l => lastMaintenanceDate ? l.timestamp.toDate() > lastMaintenanceDate : true);
-    let startDate = firstAssignmentAfterMaintenance ? firstAssignmentAfterMaintenance.timestamp.toDate() : (d.createdAt ? d.createdAt.toDate() : today);
-
-    // Last return date
-    const returnLogs = logs.filter(l=>l.newState==="returned");
-    let lastReturnDate = returnLogs.length>0 ? returnLogs[returnLogs.length-1].timestamp.toDate() : today;
-
-    const diffTime = Math.max(lastReturnDate - startDate, 0);
-    const daysUsed = Math.ceil(diffTime/(1000*60*60*24));
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${scootyId}</td>
-      <td>${assignedName}</td>
-      <td>${daysUsed}</td>
-      <td>${lastMaintenanceDate ? lastMaintenanceDate.toLocaleDateString():"-"}</td>
-      <td>${nextMaintenanceDate ? nextMaintenanceDate.toLocaleDateString():"-"}</td>
-      <td>${captainName}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  if(tbody.innerHTML==="") tbody.innerHTML = "<tr><td colspan='6'>No scooties found</td></tr>";
-}
-
-async function saveComputedDates(){
-  for(const d of scootyData){
-    const scootyId = d.id;
-    const logs = logsData[scootyId] || [];
-    const maintenanceLogs = logs.filter(l=>l.newState==="maintenance" || l.newState==="repair");
-    let lastMaintenanceDate = maintenanceLogs.length>0 ? maintenanceLogs[maintenanceLogs.length-1].timestamp.toDate() : (d.createdAt ? d.createdAt.toDate() : null);
-    let nextMaintenanceDate = lastMaintenanceDate ? new Date(lastMaintenanceDate.getTime()+15*24*60*60*1000) : null;
-
-    await db.collection("scooty_master").doc(scootyId).update({
-      lastMaintenance: lastMaintenanceDate ? firebase.firestore.Timestamp.fromDate(lastMaintenanceDate):null,
-      nextMaintenance: nextMaintenanceDate ? firebase.firestore.Timestamp.fromDate(nextMaintenanceDate):null
+    const logsMap = {};
+    logsSnap.docs.forEach(doc => {
+      const log = doc.data();
+      const ts = log.timestamp ? log.timestamp.toDate() : new Date();
+      if(!logsMap[log.itemId]) logsMap[log.itemId] = [];
+      logsMap[log.itemId].push({...log, timestamp: ts});
     });
+
+    const rows = [];
+
+    scootySnap.docs.forEach(doc => {
+      const data = doc.data();
+      if(currentUserRole==="captain" && data.captainInCharge!==currentUserEmail) return;
+
+      const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
+      const updatedAt = data.updatedAt ? data.updatedAt.toDate() : createdAt;
+      const assignedRider = data.assignedTo || "-";
+      const captain = data.captainInCharge || "-";
+
+      const logs = logsMap[doc.id] || [];
+
+      // Filter maintenance/repair logs
+      const maintLogs = logs.filter(l => l.newState==="maintenance" || l.newState==="repair");
+      const lastMaint = maintLogs.length>0 ? maintLogs[maintLogs.length-1].timestamp : null;
+      const lastMaintDisplay = lastMaint ? lastMaint.toLocaleDateString() : "-";
+
+      const nextMaint = lastMaint ? new Date(lastMaint.getTime() + 15*24*60*60*1000) : 
+                        (createdAt ? new Date(createdAt.getTime() + 15*24*60*60*1000) : "-");
+      const nextMaintDisplay = nextMaint instanceof Date ? nextMaint.toLocaleDateString() : "-";
+
+      // Days Used calculation
+      let firstAssignDate = createdAt;
+      const postMaintLogs = logs.filter(l => l.newState==="active" && l.timestamp > (lastMaint||createdAt));
+      if(postMaintLogs.length>0) firstAssignDate = postMaintLogs[0].timestamp;
+
+      // Find last return
+      const returnLogs = logs.filter(l => l.newState==="returned");
+      const lastReturn = returnLogs.length>0 ? returnLogs[returnLogs.length-1].timestamp : new Date();
+
+      const daysUsed = Math.ceil((lastReturn-firstAssignDate)/(1000*60*60*24));
+
+      rows.push(`
+        <tr>
+          <td>${doc.id}</td>
+          <td>${assignedRider}</td>
+          <td>${daysUsed}</td>
+          <td>${lastMaintDisplay}</td>
+          <td>${nextMaintDisplay}</td>
+          <td>${captain}</td>
+        </tr>
+      `);
+    });
+
+    tableBody.innerHTML = rows.length>0 ? rows.join("") : `<tr><td colspan="6">No scooties found</td></tr>`;
+  } catch(e) {
+    console.error(e);
+    tableBody.innerHTML = `<tr><td colspan="6">Error loading scooties</td></tr>`;
   }
-  alert("✅ Computed dates saved to DB");
 }
 </script>
 </body>
