@@ -1,44 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YANA — Scooty Maintenance & Usage</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-body { font-family: sans-serif; background:#0a0f12; color:#eaf4f8; }
-table { width:100%; border-collapse: collapse; margin-top: 12px; }
-th, td { border:1px solid #333; padding:6px 8px; text-align:center; }
-th { background: #111; color:#00eaff; }
-.muted { font-size: 13px; color:#888; margin-top:4px; }
-.container { max-width:1200px; margin:auto; padding:12px; }
-button { padding:6px 12px; border-radius:4px; border:none; background:#00eaff; color:#000; cursor:pointer; }
+body { font-family: Arial, sans-serif; background:#111; color:#eaf4f8; margin:0; padding:0; }
+.navbar { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#1a1a1a; }
+.navbar h2 { margin:0; color:#00eaff; }
+.navbar .profile { display:flex; align-items:center; gap:8px; }
+.profile-pic { width:32px;height:32px;border-radius:50%;background:#00eaff;color:#000;display:flex;align-items:center;justify-content:center;font-weight:bold; }
+.dropdown button { margin-left:4px;padding:4px 8px;border-radius:5px;border:none;background:#222;color:#eaf4f8;cursor:pointer; }
+.container { padding:12px; }
+table { width:100%; border-collapse:collapse; margin-top:12px; }
+th, td { border:1px solid #555; padding:8px; text-align:left; }
+th { background:#00eaff; color:#000; }
+button { padding:6px 12px; border:none; border-radius:5px; background:#00eaff; color:#000; cursor:pointer; margin-right:6px; }
+.muted { font-size:12px; color:#888; margin-top:6px; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h1>⚡ Scooty — Maintenance & Usage</h1>
-  <div>
-    <button id="refreshBtn">🔄 Refresh</button>
+<div class="navbar">
+  <h2>⚡ YANA Scooty Maintenance</h2>
+  <div class="profile">
+    <div class="profile-pic" id="profilePic">A</div>
+    <div class="dropdown">
+      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+      <button id="logoutBtn">Logout</button>
+    </div>
   </div>
+</div>
+
+<div class="container">
+  <button id="refreshBtn">Refresh</button>
+  <button id="saveBtn">Save Computed Dates to DB</button>
+
   <table>
     <thead>
       <tr>
         <th>ID</th>
-        <th>Assigned Rider</th>
+        <th>Assigned To</th>
         <th>Days Used</th>
         <th>Last Maintenance</th>
         <th>Next Maintenance</th>
         <th>Assigned Captain</th>
       </tr>
     </thead>
-    <tbody id="scootyTableBody">
+    <tbody id="scootyTable">
       <tr><td colspan="6">Loading…</td></tr>
     </tbody>
   </table>
+
   <p class="muted">
-    Notes: Calculations use <code>logs</code> (action="state-change") if available. Fallbacks: <code>createdAt</code> / <code>updatedAt</code> from <code>scooty_master</code>. "Days Used" counts days between the first assignment after the last maintenance (or first assignment ever) and the last return (or today if currently assigned).
+    Notes: Calculations use <code>logs</code> (action="state-change") if available. Fallbacks: <code>createdAt</code> / <code>updatedAt</code> from scooty_master. "Days Used" counts days between the first assignment after the last maintenance (or first assignment ever) and the last return (or today if currently assigned).
   </p>
 </div>
 
@@ -48,95 +64,94 @@ button { padding:6px 12px; border-radius:4px; border:none; background:#00eaff; c
 <script src="firebase-config.js"></script>
 
 <script>
-const tableBody = document.getElementById("scootyTableBody");
+const tableBody = document.getElementById("scootyTable");
+let scootyList = [];
 
-let currentUserRole = "";
-let currentUserEmail = "";
-
-// Auth check
 auth.onAuthStateChanged(async user => {
-  if (!user) return location.href="admin-signin.html";
-  currentUserEmail = user.email;
-  const doc = await db.collection("users").doc(user.email).get();
-  if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
-    alert("❌ Not authorized."); 
-    return location.href="index.html";
-  }
-  currentUserRole = doc.data().role;
+  if (!user) location.href="admin-signin.html";
+  document.getElementById("profilePic").innerText = user.email[0].toUpperCase();
   loadScooties();
 });
 
-document.getElementById("refreshBtn").addEventListener("click", loadScooties);
+document.getElementById("logoutBtn").onclick = () => auth.signOut();
+document.getElementById("refreshBtn").onclick = loadScooties;
+document.getElementById("saveBtn").onclick = saveToDB;
 
 async function loadScooties() {
-  tableBody.innerHTML = `<tr><td colspan="6">Loading…</td></tr>`;
+  tableBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
+  const scootySnap = await db.collection("scooty_master").get();
+  const logSnap = await db.collection("logs").where("type","==","scooty_master").where("action","==","state-change").get();
 
-  try {
-    const scootySnap = await db.collection("scooty_master").get();
-    const logsSnap = await db.collection("logs")
-      .where("action","==","state-change")
-      .orderBy("timestamp")
-      .get();
+  const logs = {};
+  logSnap.docs.forEach(d => {
+    const data = d.data();
+    if (!logs[data.itemId]) logs[data.itemId] = [];
+    logs[data.itemId].push({ state: data.newState, timestamp: data.timestamp.toDate() });
+  });
 
-    const logsMap = {};
-    logsSnap.docs.forEach(doc => {
-      const log = doc.data();
-      const ts = log.timestamp ? log.timestamp.toDate() : new Date();
-      if(!logsMap[log.itemId]) logsMap[log.itemId] = [];
-      logsMap[log.itemId].push({...log, timestamp: ts});
+  scootyList = [];
+  scootySnap.docs.forEach(doc => {
+    const data = doc.data();
+    const scootyId = doc.id;
+    const scootyLogs = logs[scootyId] || [];
+
+    // Last maintenance/repair date
+    let lastMaint = null;
+    scootyLogs.forEach(l => { if(l.state==="maintenance"||l.state==="repair") {
+      if(!lastMaint || l.timestamp>lastMaint) lastMaint=l.timestamp;
+    }});
+
+    // Days used calculation
+    let assignDate = data.lastAssignedTo ? new Date(data.lastUpdated.seconds*1000) : data.lastUpdated ? data.lastUpdated.toDate() : new Date();
+    let daysUsed = Math.ceil((new Date() - assignDate)/(1000*60*60*24));
+
+    // Next maintenance
+    let nextMaint = lastMaint ? new Date(lastMaint.getTime() + 15*24*60*60*1000) : new Date(assignDate.getTime()+15*24*60*60*1000);
+
+    scootyList.push({
+      id: scootyId,
+      assignedTo: data.assignedTo || "-",
+      daysUsed,
+      lastMaintenance: lastMaint ? lastMaint.toLocaleDateString() : "-",
+      nextMaintenance: nextMaint.toLocaleDateString(),
+      captain: data.captainInCharge || "-"
     });
+  });
 
-    const rows = [];
+  renderTable();
+}
 
-    scootySnap.docs.forEach(doc => {
-      const data = doc.data();
-      if(currentUserRole==="captain" && data.captainInCharge!==currentUserEmail) return;
-
-      const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
-      const updatedAt = data.updatedAt ? data.updatedAt.toDate() : createdAt;
-      const assignedRider = data.assignedTo || "-";
-      const captain = data.captainInCharge || "-";
-
-      const logs = logsMap[doc.id] || [];
-
-      // Filter maintenance/repair logs
-      const maintLogs = logs.filter(l => l.newState==="maintenance" || l.newState==="repair");
-      const lastMaint = maintLogs.length>0 ? maintLogs[maintLogs.length-1].timestamp : null;
-      const lastMaintDisplay = lastMaint ? lastMaint.toLocaleDateString() : "-";
-
-      const nextMaint = lastMaint ? new Date(lastMaint.getTime() + 15*24*60*60*1000) : 
-                        (createdAt ? new Date(createdAt.getTime() + 15*24*60*60*1000) : "-");
-      const nextMaintDisplay = nextMaint instanceof Date ? nextMaint.toLocaleDateString() : "-";
-
-      // Days Used calculation
-      let firstAssignDate = createdAt;
-      const postMaintLogs = logs.filter(l => l.newState==="active" && l.timestamp > (lastMaint||createdAt));
-      if(postMaintLogs.length>0) firstAssignDate = postMaintLogs[0].timestamp;
-
-      // Find last return
-      const returnLogs = logs.filter(l => l.newState==="returned");
-      const lastReturn = returnLogs.length>0 ? returnLogs[returnLogs.length-1].timestamp : new Date();
-
-      const daysUsed = Math.ceil((lastReturn-firstAssignDate)/(1000*60*60*24));
-
-      rows.push(`
-        <tr>
-          <td>${doc.id}</td>
-          <td>${assignedRider}</td>
-          <td>${daysUsed}</td>
-          <td>${lastMaintDisplay}</td>
-          <td>${nextMaintDisplay}</td>
-          <td>${captain}</td>
-        </tr>
-      `);
-    });
-
-    tableBody.innerHTML = rows.length>0 ? rows.join("") : `<tr><td colspan="6">No scooties found</td></tr>`;
-  } catch(e) {
-    console.error(e);
-    tableBody.innerHTML = `<tr><td colspan="6">Error loading scooties</td></tr>`;
+function renderTable() {
+  if(scootyList.length===0) {
+    tableBody.innerHTML="<tr><td colspan='6'>No scooties found</td></tr>";
+    return;
   }
+  tableBody.innerHTML = "";
+  scootyList.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.id}</td>
+      <td>${s.assignedTo}</td>
+      <td>${s.daysUsed}</td>
+      <td>${s.lastMaintenance}</td>
+      <td>${s.nextMaintenance}</td>
+      <td>${s.captain}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+async function saveToDB() {
+  for(const s of scootyList) {
+    await db.collection("scooty_master").doc(s.id).update({
+      lastMaintenanceDate: s.lastMaintenance,
+      nextMaintenanceDate: s.nextMaintenance,
+      daysUsed: s.daysUsed
+    });
+  }
+  alert("✅ Computed dates saved to DB");
 }
 </script>
+
 </body>
 </html>
