@@ -208,6 +208,23 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const u=await db.collection("users").doc(email).get();
   if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
+  // 🔄 Real-time Scooty & Battery
+  db.collection("scooty_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{
+      const scootyEl = document.getElementById("scooty");
+      scootyEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
+    });
+
+  db.collection("battery_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{
+      const batteryEl = document.getElementById("battery");
+      batteryEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
+    });
+
   document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
   document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
   document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
@@ -222,23 +239,20 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   async function autoPunchoutAt2AM(){
     const now = new Date();
     if(now.getHours() === 2 && now.getMinutes()===0){
-      // accumulate working/break seconds
       if(state.punchedIn && state.punchInTime){
         state.workingSeconds += Math.floor((now - state.punchInTime)/1000);
       }
       if(state.onBreak && state.breakStartTime){
         state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
       }
-      // log PunchOut if still punched in
       if(state.punchedIn){
         await logEvent("PunchOut");
       }
       state.punchedIn=false; state.punchInTime=null;
       state.onBreak=false; state.breakStartTime=null;
       await syncToServer();
-      // reset timers for new day
       state.workingSeconds=0; state.totalBreakSeconds=0;
-      currentDay = todayKey(); // new 2AM–2AM key
+      currentDay = todayKey();
     }
   }
 
