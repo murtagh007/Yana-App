@@ -1,84 +1,76 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>YANA — QR Scanner</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- QR Scanner -->
-  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
-
-  <!-- Firebase v8 SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="firebase-config.js"></script>
-
-  <style>
-    :root { --bg:#0a0f12; --card:rgba(255,255,255,0.1); --border:rgba(255,255,255,0.2); --action:#00eaff; --text:#eaf4f8; --radius:16px; }
-    body { margin:0; font-family:'Inter',sans-serif; color:var(--text); background:var(--bg); }
-    .navbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--border); position: sticky; top:0; z-index: 100; backdrop-filter: blur(6px); }
-    .navbar h2 { color:var(--action); font-size:1.2rem; margin:0; }
-    .profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
-    .profile-pic { background: var(--action); color:#000; font-weight:bold; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
-    .dropdown { display:none; position:absolute; top:44px; right:0; background: var(--card); border-radius: var(--radius); padding:4px 0; min-width:100px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
-    .dropdown button { width:100%; background:none; border:none; color: var(--text); padding:8px 12px; cursor:pointer; text-align:left; }
-    .profile:hover .dropdown { display:block; }
-    .container { display:flex; justify-content:center; padding:20px; }
-    .card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:24px; width:100%; max-width:480px; box-shadow: 0 0 20px rgba(0,234,255,0.3); backdrop-filter: blur(10px); text-align:center; }
-    h1 { font-size:24px; margin-bottom:8px; color: var(--action); }
-    .muted { color: rgba(234,244,248,0.6); font-size:14px; margin-bottom:16px; }
-    video { width:100%; border-radius: var(--radius); margin-bottom:12px; }
-    select, button { width:100%; padding:12px; border-radius: var(--radius); border:none; font-size:1rem; font-weight:600; margin:6px 0; cursor:pointer; }
-    select { background: rgba(255,255,255,0.05); color: var(--text); border:1px solid var(--border); }
-    select:focus { outline:none; border-color: var(--action); }
-    .btn { background: var(--action); color:#000; transition:0.2s; }
-    .btn:hover { background:#00c8e0; }
-    .btn.secondary { background:transparent; color: var(--action); border:2px solid var(--action); }
-    .btn.secondary:hover { background: rgba(0,234,255,0.1); }
-    #pendingSection { margin-top:16px; display:none; }
-    #locationSection { margin:10px 0; display:none; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>YANA — QR Scanner</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+:root { --bg:#0a0f12; --card:rgba(255,255,255,0.1); --border:rgba(255,255,255,0.2); --action:#00eaff; --text:#eaf4f8; --radius:16px; }
+body { margin:0; font-family:'Inter',sans-serif; color:var(--text); background:var(--bg); }
+.navbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--border); position: sticky; top:0; z-index: 100; backdrop-filter: blur(6px); }
+.navbar h2 { color:var(--action); font-size:1.2rem; margin:0; }
+.profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.profile-pic { background: var(--action); color:#000; font-weight:bold; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.dropdown { display:none; position:absolute; top:44px; right:0; background: var(--card); border-radius: var(--radius); padding:4px 0; min-width:100px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
+.dropdown button { width:100%; background:none; border:none; color: var(--text); padding:8px 12px; cursor:pointer; text-align:left; }
+.profile:hover .dropdown { display:block; }
+.container { display:flex; justify-content:center; padding:20px; }
+.card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:24px; width:100%; max-width:480px; box-shadow: 0 0 20px rgba(0,234,255,0.3); backdrop-filter: blur(10px); text-align:center; }
+h1 { font-size:24px; margin-bottom:8px; color: var(--action); }
+.muted { color: rgba(234,244,248,0.6); font-size:14px; margin-bottom:16px; }
+video { width:100%; border-radius: var(--radius); margin-bottom:12px; }
+select, button { width:100%; padding:12px; border-radius: var(--radius); border:none; font-size:1rem; font-weight:600; margin:6px 0; cursor:pointer; }
+select { background: rgba(255,255,255,0.05); color: var(--text); border:1px solid var(--border); }
+select:focus { outline:none; border-color: var(--action); }
+.btn { background: var(--action); color:#000; transition:0.2s; }
+.btn:hover { background:#00c8e0; }
+.btn.secondary { background:transparent; color: var(--action); border:2px solid var(--action); }
+.btn.secondary:hover { background: rgba(0,234,255,0.1); }
+#pendingSection { margin-top:16px; display:none; }
+#locationSection { margin:10px 0; display:none; }
+</style>
 </head>
 <body>
 
 <div class="navbar">
-  <h2>⚡ YANA Rider</h2>
-  <div class="profile">
-    <div class="profile-pic" id="profilePic">R</div>
-    <div class="dropdown">
-      <button id="logoutBtn">Logout</button>
-    </div>
-  </div>
+<h2>⚡ YANA Rider</h2>
+<div class="profile">
+  <div class="profile-pic" id="profilePic">R</div>
+  <div class="dropdown"><button id="logoutBtn">Logout</button></div>
+</div>
 </div>
 
 <div class="container">
-  <div class="card">
-    <h1>QR Scanner</h1>
-    <p class="muted">Scan a Scooty or Battery QR</p>
+<div class="card">
+<h1>QR Scanner</h1>
+<p class="muted">Scan a Scooty or Battery QR</p>
+<video id="video" playsinline></video>
+<button class="btn" id="startCam"><i class="fa-solid fa-qrcode"></i> Open QR Scanner</button>
+<button class="btn" id="stopCam" style="display:none"><i class="fa-solid fa-camera-slash"></i> Stop Camera</button>
 
-    <video id="video" playsinline></video>
-    <button class="btn" id="startCam"><i class="fa-solid fa-qrcode"></i> Open QR Scanner</button>
-    <button class="btn" id="stopCam" style="display:none"><i class="fa-solid fa-camera-slash"></i> Stop Camera</button>
-
-    <div id="pendingSection">
-      <h3>Pending Action</h3>
-      <p id="pendingText"></p>
-      <div id="locationSection">
-        <label>Select Return Location:</label>
-        <select id="returnLocation">
-          <option value="">-- Select Location --</option>
-          <option value="Hub 1">Hub 1</option>
-          <option value="Hub 2">Hub 2</option>
-          <option value="Hub 3">Hub 3</option>
-        </select>
-      </div>
-      <button class="btn" id="confirmBtn">Confirm</button>
-      <button class="btn secondary" id="cancelBtn">Cancel</button>
-    </div>
-  </div>
+<div id="pendingSection">
+<h3>Pending Action</h3>
+<p id="pendingText"></p>
+<div id="locationSection">
+<label>Select Return Location:</label>
+<select id="returnLocation">
+<option value="">-- Select Location --</option>
+<option value="Hub 1">Hub 1</option>
+<option value="Hub 2">Hub 2</option>
+<option value="Hub 3">Hub 3</option>
+</select>
+</div>
+<button class="btn" id="confirmBtn">Confirm</button>
+<button class="btn secondary" id="cancelBtn">Cancel</button>
+</div>
+</div>
 </div>
 
 <script>
@@ -131,11 +123,11 @@ document.getElementById("startCam").addEventListener("click",startCamera);
 document.getElementById("stopCam").addEventListener("click",stopCamera);
 
 async function handleScan(raw){
-  const id = raw.trim();
+  const id=raw.trim();
   let type=null, ref=null;
 
-  const scootyDoc = await db.collection("scooty_master").doc(id).get();
-  const batteryDoc = !scootyDoc.exists ? await db.collection("battery_master").doc(id).get() : null;
+  const scootyDoc=await db.collection("scooty_master").doc(id).get();
+  const batteryDoc=!scootyDoc.exists ? await db.collection("battery_master").doc(id).get() : null;
 
   if(scootyDoc.exists){ type="scooty"; ref=db.collection("scooty_master").doc(id); }
   else if(batteryDoc && batteryDoc.exists){ type="battery"; ref=db.collection("battery_master").doc(id); }
@@ -144,33 +136,24 @@ async function handleScan(raw){
   const data=(await ref.get()).data()||{};
   if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-  // --------- RULE CHECKS ----------
-  const riderDoc = await db.collection("users").doc(email).get();
-  const riderData = riderDoc.exists ? riderDoc.data() : {};
-  const currentScooty = riderData.scooterId || null;
+  // -------- RULE CHECKS ----------
+  const assignedScootiesSnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
+  const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
 
-  let action = null;
+  let action=null;
   if(data.status==="assigned" && data.assignedTo===email) action="return";
   else if(data.status==="returned") action="assign";
   else { alert(`${type} ${id} is not eligible for you.`); return; }
 
   if(action==="assign"){
-    if(type==="scooty" && currentScooty){ alert("You already have a Scooty assigned."); return; }
-
+    if(type==="scooty" && !assignedScootiesSnap.empty){ alert("You already have a Scooty assigned."); return; }
     if(type==="battery"){
-      if(!currentScooty){ alert("You must take a Scooty first."); return; }
-      // Check battery_master: any battery already assigned to this rider?
-      const assignedBatterySnap = await db.collection("battery_master")
-        .where("status","==","assigned").where("assignedTo","==",email).get();
-      if(!assignedBatterySnap.empty){ alert("You already have a Battery assigned."); return; }
+      if(assignedScootiesSnap.empty){ alert("You must take a Scooty first."); return; }
+      if(!assignedBatteriesSnap.empty){ alert("You already have a Battery assigned."); return; }
     }
   }
 
-  if(action==="return" && type==="scooty"){
-    const assignedBatterySnap = await db.collection("battery_master")
-      .where("status","==","assigned").where("assignedTo","==",email).get();
-    if(!assignedBatterySnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
-  }
+  if(action==="return" && type==="scooty" && !assignedBatteriesSnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
 
   pendingAction={action,id,type,ref};
   document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
@@ -178,26 +161,24 @@ async function handleScan(raw){
   document.getElementById("locationSection").style.display=action==="return"?"block":"none";
 }
 
-// --------- Confirm/Cancel ----------
 document.getElementById("confirmBtn").addEventListener("click",async()=>{
   if(!pendingAction) return;
   const {action,id,type,ref}=pendingAction;
   try{
-    const userRef=db.collection("users").doc(email);
     if(action==="assign"){
-      await ref.update({status:"assigned", assignedTo:email, location:firebase.firestore.FieldValue.delete()});
+      await ref.update({status:"assigned",assignedTo:email,location:firebase.firestore.FieldValue.delete()});
       const update={};
       if(type==="scooty") update.scooterId=id;
       if(type==="battery") update.batteryId=id;
-      await userRef.update(update);
+      await db.collection("users").doc(email).update(update);
     }else{
       const location=document.getElementById("returnLocation").value;
       if(!location){ alert("Select return location."); return; }
-      await ref.update({status:"returned", assignedTo:null, location});
+      await ref.update({status:"returned",assignedTo:null,location});
       const update={};
       if(type==="scooty") update.scooterId=firebase.firestore.FieldValue.delete();
       if(type==="battery") update.batteryId=firebase.firestore.FieldValue.delete();
-      await userRef.update(update);
+      await db.collection("users").doc(email).update(update);
     }
     alert(`✅ ${action.toUpperCase()} complete!`);
     window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
