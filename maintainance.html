@@ -1,316 +1,137 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Scooty Maintenance List</title>
-
-  <!-- Firebase v8 -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <!-- your firebase config should define `firebase` and `db` and `auth` -->
-  <script src="firebase-config.js"></script>
-
+  <meta charset="UTF-8">
+  <title>Scooty — Maintenance & Usage</title>
   <style>
-    :root{
-      --bg:#061014; --card: rgba(255,255,255,0.04); --border: rgba(255,255,255,0.08);
-      --accent:#00eaff; --text:#eaf4f8; --muted: rgba(234,244,248,0.6);
-      --radius:10px; --pad:14px;
-      font-family:Inter, Arial, sans-serif;
-    }
-    body{margin:0;background:var(--bg);color:var(--text);padding:18px}
-    h1{color:var(--accent);margin:0 0 8px 0}
-    .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
-    table{width:100%;border-collapse:collapse;font-size:14px}
-    th,td{padding:10px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)}
-    th{color:var(--muted);font-weight:700;font-size:13px}
-    tr:hover td{background:rgba(255,255,255,0.01)}
-    .small {font-size:12px;color:var(--muted)}
-    .actions {display:flex;gap:8px}
-    button {padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
-    .btn-primary{background:var(--accent);color:#000;font-weight:700}
-    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
-    .status-pill{padding:4px 8px;border-radius:999px;font-weight:700;font-size:12px}
-    .center{display:flex;align-items:center;gap:8px}
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f5f5f5; }
   </style>
 </head>
 <body>
-  <div class="top">
-    <div>
-      <h1>Scooty — Maintenance & Usage</h1>
-      <div class="small">Shows Assigned Rider, Days Used, Last / Next Maintenance and Assigned Captain.</div>
-    </div>
-    <div class="actions">
-      <button id="refreshBtn" class="btn-ghost">Refresh</button>
-      <button id="saveBtn" class="btn-primary">Save computed dates to DB</button>
-    </div>
-  </div>
+  <h2>Scooty — Maintenance & Usage</h2>
+  <p>Shows Assigned Rider, Days Used, Last / Next Maintenance and Assigned Captain.</p>
+  <button onclick="loadScooties()">Refresh</button>
+  <button onclick="saveComputed()">Save computed dates to DB</button>
 
-  <div class="card">
-    <table id="scootyTable" aria-live="polite">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Assigned To</th>
-          <th>Days Used</th>
-          <th>Last Maintenance</th>
-          <th>Next Maintenance</th>
-          <th>Assigned Captain</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-    <div id="note" class="small" style="margin-top:10px;color:var(--muted)">
-      Notes: Calculations use `logs` (action="state-change") if available. Fallbacks: `createdAt` / `updatedAt` from scooty_master. "Days Used" counts days between the first assignment after the last maintenance (or the first assignment ever) and the last return (or today if currently assigned).
-    </div>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Assigned To</th>
+        <th>Days Used</th>
+        <th>Last Maintenance</th>
+        <th>Next Maintenance</th>
+        <th>Assigned Captain</th>
+      </tr>
+    </thead>
+    <tbody id="scootyTableBody">
+      <tr><td colspan="6">Loading…</td></tr>
+    </tbody>
+  </table>
 
-<script>
-(async function(){
-  if(typeof firebase === 'undefined' || typeof db === 'undefined' || typeof auth === 'undefined'){
-    alert("Firebase not configured (firebase-config.js).");
-    return;
-  }
+  <p style="font-size:12px; color:#666;">
+    Notes: Calculations use `logs` (action="state-change") if available.  
+    Fallbacks: `createdAt` / `updatedAt` from scooty_master.  
+    "Days Used" counts days between the first assignment after the last maintenance (or the first assignment ever) and the last return (or today if currently assigned).
+  </p>
 
-  // convenience
-  const tbody = document.getElementById('tbody');
-  const refreshBtn = document.getElementById('refreshBtn');
-  const saveBtn = document.getElementById('saveBtn');
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-  // format helper
-  const fmt = (d) => {
-    if(!d) return "-";
-    if(!(d instanceof Date)) d = new Date(d);
-    return d.toLocaleDateString() + " " + d.toLocaleTimeString();
-  };
-  const fmtDateOnly = d => d ? d.toLocaleDateString() : "-";
-  const addDays = (date, n) => new Date(date.getTime() + n*24*60*60*1000);
-  const daysBetweenCeil = (start, end) => {
-    if(!start || !end) return 0;
-    const ms = end.getTime() - start.getTime();
-    if(ms <= 0) return 0;
-    return Math.ceil(ms / (24*60*60*1000));
-  };
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
 
-  // main load function
-  async function loadAndRender() {
-    tbody.innerHTML = `<tr><td colspan="6" class="small">Loading…</td></tr>`;
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    // 1) load all scooties
-    const scootySnap = await db.collection('scooty_master').get();
-    const scootyDocs = scootySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    async function loadScooties() {
+      const tbody = document.getElementById("scootyTableBody");
+      tbody.innerHTML = ""; // clear Loading…
 
-    if(scootyDocs.length === 0){
-      tbody.innerHTML = `<tr><td colspan="6" class="small">No scooties in masterlist.</td></tr>`;
-      return;
-    }
-
-    // 2) load logs (state-change) for scooty_master — use a single query and group by itemId
-    // NOTE: this assumes logs entries for scooty_master have type: "scooty_master" and action: "state-change"
-    const logsSnap = await db.collection('logs')
-      .where('type','==','scooty_master')
-      .where('action','==','state-change')
-      .orderBy('timestamp','asc')
-      .get();
-
-    const logsByItem = {};
-    logsSnap.docs.forEach(ld => {
-      const d = ld.data();
-      const itemId = d.itemId;
-      if(!logsByItem[itemId]) logsByItem[itemId] = [];
-      logsByItem[itemId].push({
-        newState: d.newState,
-        timestamp: d.timestamp ? d.timestamp.toDate() : null,
-        raw: d
-      });
-    });
-
-    // 3) collect user emails to fetch names (assignedTo and captainInCharge)
-    const emailsSet = new Set();
-    scootyDocs.forEach(s => {
-      if(s.assignedTo) emailsSet.add(s.assignedTo);
-      if(s.captainInCharge) emailsSet.add(s.captainInCharge);
-    });
-    const emails = Array.from(emailsSet);
-
-    // fetch user names in parallel (batched)
-    const userNameMap = {};
-    if(emails.length > 0){
-      await Promise.all(emails.map(async email => {
-        try {
-          const udoc = await db.collection('users').doc(email).get();
-          userNameMap[email] = udoc.exists ? (udoc.data().name || email) : email;
-        } catch(e){
-          userNameMap[email] = email;
+      try {
+        const snapshot = await getDocs(collection(db, "scooty_master"));
+        if (snapshot.empty) {
+          tbody.innerHTML = "<tr><td colspan='6'>No scooties found</td></tr>";
+          return;
         }
-      }));
-    }
 
-    // 4) compute rows
-    const today = new Date();
-    const rows = [];
+        snapshot.forEach(async (doc) => {
+          try {
+            const data = doc.data();
+            console.log("Processing scooty:", doc.id, data);
 
-    for(const s of scootyDocs){
-      const id = s.id;
-      const doc = s; // fields directly available
-      // timestamps from doc
-      const createdAt = doc.createdAt ? (doc.createdAt.toDate ? doc.createdAt.toDate() : new Date(doc.createdAt)) : null;
-      const updatedAt = doc.updatedAt ? (doc.updatedAt.toDate ? doc.updatedAt.toDate() : new Date(doc.updatedAt)) : null;
+            // Assigned To
+            const assignedTo = data.assignedTo || "—";
 
-      const assignedTo = doc.assignedTo || null;
-      const captainEmail = doc.captainInCharge || null;
+            // Captain
+            const captain = data.captainInCharge || "—";
 
-      const itemLogs = logsByItem[id] || [];
+            // Maintenance dates
+            const lastMaint = data.lastMaintenance?.toDate?.() || data.updatedAt?.toDate?.() || null;
+            const nextMaint = data.nextMaintenance?.toDate?.() || null;
 
-      // find last maintenance log (newState === 'maintenance')
-      const maintenanceLogs = itemLogs.filter(l => l.newState && String(l.newState).toLowerCase() === 'maintenance');
-      const lastMaintenance = maintenanceLogs.length ? maintenanceLogs[maintenanceLogs.length - 1].timestamp : null;
+            // Days Used
+            let daysUsed = "—";
+            try {
+              const logsQ = query(
+                collection(db, "logs"),
+                where("scootyId", "==", doc.id),
+                where("action", "==", "state-change")
+              );
+              const logsSnap = await getDocs(logsQ);
 
-      // find first active after last maintenance (maintenance -> active)
-      let activeAfterMaintenance = null;
-      if(lastMaintenance){
-        for(const l of itemLogs){
-          if(l.timestamp && l.timestamp > lastMaintenance && l.newState && String(l.newState).toLowerCase() === 'active'){
-            activeAfterMaintenance = l.timestamp;
-            break;
+              if (!logsSnap.empty) {
+                const events = logsSnap.docs.map(l => l.data());
+                const firstAssign = events.find(e => e.newState === "active")?.timestamp?.toDate?.();
+                const lastReturn = events.find(e => e.newState === "returned")?.timestamp?.toDate?.();
+
+                if (firstAssign) {
+                  const endDate = lastReturn || new Date();
+                  daysUsed = Math.ceil((endDate - firstAssign) / (1000 * 60 * 60 * 24));
+                }
+              } else if (data.createdAt?.toDate) {
+                const start = data.createdAt.toDate();
+                const end = data.updatedAt?.toDate?.() || new Date();
+                daysUsed = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+              }
+            } catch (err) {
+              console.error("Error calculating daysUsed for", doc.id, err);
+            }
+
+            const row = `
+              <tr>
+                <td>${doc.id}</td>
+                <td>${assignedTo}</td>
+                <td>${daysUsed}</td>
+                <td>${lastMaint ? lastMaint.toLocaleDateString() : "—"}</td>
+                <td>${nextMaint ? nextMaint.toLocaleDateString() : "—"}</td>
+                <td>${captain}</td>
+              </tr>
+            `;
+            tbody.insertAdjacentHTML("beforeend", row);
+          } catch (err) {
+            console.error("Error rendering row for scooty", doc.id, err);
           }
-        }
+        });
+      } catch (err) {
+        console.error("Error loading scooties:", err);
+        tbody.innerHTML = "<tr><td colspan='6'>Error loading scooties</td></tr>";
       }
-
-      // find assignment logs (heuristic: newState contains 'assign')
-      const assignLogs = itemLogs.filter(l => l.newState && /assign/i.test(l.newState));
-      // first assignment overall
-      const firstAssignmentOverall = assignLogs.length ? assignLogs[0].timestamp : null;
-      // first assignment after maintenance->active (if exists)
-      let firstAssignmentAfterActive = null;
-      if(activeAfterMaintenance){
-        for(const l of assignLogs){
-          if(l.timestamp && l.timestamp >= activeAfterMaintenance){
-            firstAssignmentAfterActive = l.timestamp;
-            break;
-          }
-        }
-      }
-
-      // find return logs (heuristic: newState contains 'return' or 'returned')
-      const returnLogs = itemLogs.filter(l => l.newState && /return/i.test(l.newState));
-      const lastReturnLog = returnLogs.length ? returnLogs[returnLogs.length - 1].timestamp : null;
-
-      // determine "period start" for Days Used:
-      // if had maintenance and an active-after-maintenance event, prefer first assignment after that; else prefer first assignment overall; fallback to createdAt
-      let periodStart = null;
-      if(lastMaintenance && activeAfterMaintenance){
-        periodStart = firstAssignmentAfterActive || activeAfterMaintenance || firstAssignmentOverall || createdAt;
-      } else {
-        periodStart = firstAssignmentOverall || createdAt;
-      }
-
-      // determine "period end" for Days Used:
-      // prefer lastReturnLog (return date). If lastReturnLog missing and currently assigned (assignedTo not null) -> use today, else fallback to updatedAt or today.
-      let periodEnd = null;
-      if(lastReturnLog) periodEnd = lastReturnLog;
-      else if(assignedTo) periodEnd = today;
-      else periodEnd = updatedAt || today;
-
-      // Edge: ensure periodStart is present, else set to createdAt or null
-      if(!periodStart) periodStart = createdAt || null;
-
-      // compute daysUsed (ceil so same-day counts as 1)
-      let daysUsed = 0;
-      if(periodStart && periodEnd){
-        daysUsed = daysBetweenCeil(periodStart, periodEnd);
-      }
-
-      // compute next maintenance:
-      let nextMaintenance = null;
-      if(lastMaintenance){
-        nextMaintenance = addDays(lastMaintenance, 15);
-      } else if(firstAssignmentOverall){
-        nextMaintenance = addDays(firstAssignmentOverall, 15);
-      } else if(createdAt){
-        nextMaintenance = addDays(createdAt, 15);
-      }
-
-      rows.push({
-        id,
-        assignedTo,
-        assignedToName: assignedTo ? (userNameMap[assignedTo] || assignedTo) : '-',
-        captainEmail,
-        captainName: captainEmail ? (userNameMap[captainEmail] || captainEmail) : '-',
-        daysUsed,
-        lastMaintenance,
-        nextMaintenance,
-        periodStart,
-        periodEnd
-      });
     }
 
-    // 5) render table sorted by nextMaintenance (soonest first)
-    rows.sort((a,b) => {
-      if(!a.nextMaintenance && !b.nextMaintenance) return a.id.localeCompare(b.id);
-      if(!a.nextMaintenance) return 1;
-      if(!b.nextMaintenance) return -1;
-      return a.nextMaintenance - b.nextMaintenance;
-    });
-
-    // build tbody
-    tbody.innerHTML = "";
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${r.id}</strong></td>
-        <td>${r.assignedToName}${r.assignedTo ? `<div class="small">${r.assignedTo}</div>` : ''}</td>
-        <td>${r.daysUsed}</td>
-        <td>${r.lastMaintenance ? fmtDateOnly(r.lastMaintenance) : '-'}</td>
-        <td>${r.nextMaintenance ? fmtDateOnly(r.nextMaintenance) : '-'}</td>
-        <td>${r.captainName}${r.captainEmail ? `<div class="small">${r.captainEmail}</div>` : ''}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    // store computedRows on window for optional save
-    window.__computedScootyRows = rows;
-  }
-
-  // Save computed maintenance dates back to scooty_master (optional)
-  async function saveComputedDates(){
-    if(!window.__computedScootyRows) return alert("Nothing to save — refresh first.");
-    const rows = window.__computedScootyRows;
-    if(!confirm(`This will write LastMaintenance and NextMaintenance timestamps for ${rows.length} scooties. Proceed?`)) return;
-    const batch = db.batch();
-    let writes = 0;
-    rows.forEach(r => {
-      const docRef = db.collection('scooty_master').doc(r.id);
-      const update = {};
-      if(r.lastMaintenance) update.lastMaintenance = firebase.firestore.Timestamp.fromDate(new Date(r.lastMaintenance));
-      if(r.nextMaintenance) update.nextMaintenance = firebase.firestore.Timestamp.fromDate(new Date(r.nextMaintenance));
-      // only write if we have something to set
-      if(Object.keys(update).length){
-        update.lastUpdated = firebase.firestore.FieldValue.serverTimestamp();
-        batch.set(docRef, update, { merge:true });
-        writes++;
-      }
-    });
-    if(writes === 0) return alert("No computed dates to write.");
-    try {
-      await batch.commit();
-      alert("Saved computed maintenance dates to scooty_master.");
-      // refresh after save to show any server timestamps etc.
-      await loadAndRender();
-    } catch(e){
-      alert("Failed to save: " + e.message);
+    function saveComputed() {
+      alert("Save-to-DB not implemented yet.");
     }
-  }
 
-  // wire buttons
-  refreshBtn.addEventListener('click', loadAndRender);
-  saveBtn.addEventListener('click', saveComputedDates);
-
-  // initial load
-  await loadAndRender();
-})();
-</script>
+    // Initial load
+    loadScooties();
+  </script>
 </body>
 </html>
