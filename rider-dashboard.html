@@ -65,8 +65,8 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     </div>
 
     <div class="info">
-      <div class="pill">Scooty: <strong id="scooty">Loading...</strong></div>
-      <div class="pill">Battery: <strong id="battery">Loading...</strong></div>
+      <div class="pill">Scooty: <strong id="scooty">--</strong></div>
+      <div class="pill">Battery: <strong id="battery">--</strong></div>
     </div>
     <div style="margin-top:8px;font-size:0.85rem" id="statusLine">Status: --</div>
   </div>
@@ -83,9 +83,8 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 (async function(){
   if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase not configured"); return; }
 
-  const auth = firebase.auth();
-  const pad = n => String(n).padStart(2,"0");
-  const fmt = s => `${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60)}:${pad(s%60)}`;
+  const email = new URLSearchParams(window.location.search).get('email');
+  if(!email){ location.href="rider-signin.html"; return; }
 
   function todayKey(){
     const now = new Date();
@@ -94,25 +93,24 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   }
 
   let currentDay = todayKey();
-  let stateRef;
-  let state = {punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0};
+  const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
 
-  const workValue=document.getElementById("workValue"),
-        breakValue=document.getElementById("breakValue"),
-        punchLabel=document.getElementById("punchLabel"),
-        breakLabel=document.getElementById("breakLabel"),
-        statusLine=document.getElementById("statusLine"),
-        riderName=document.getElementById("riderName"),
-        scootyEl=document.getElementById("scooty"),
-        batteryEl=document.getElementById("battery");
+  let state = { punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0 };
+
+  const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
+  const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getElementById("breakLabel");
+  const statusLine=document.getElementById("statusLine");
+
+  const pad=n=>String(n).padStart(2,"0");
+  const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
 
   function computeTimes(){
     const now=Date.now();
-    let workSecs = state.workingSeconds;
+    let workSecs=state.workingSeconds;
     if(state.punchedIn && state.punchInTime && !state.onBreak){
       workSecs += Math.floor((now - state.punchInTime)/1000);
     }
-    let breakSecs = state.totalBreakSeconds;
+    let breakSecs=state.totalBreakSeconds;
     if(state.onBreak && state.breakStartTime){
       breakSecs += Math.floor((now - state.breakStartTime)/1000);
     }
@@ -120,32 +118,34 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   }
 
   function updateUI(){
-    const {workSecs, breakSecs} = computeTimes();
-    workValue.innerText = fmt(workSecs);
-    breakValue.innerText = fmt(breakSecs);
-    punchLabel.innerText = state.punchedIn ? "Punch Out" : "Punch In";
-    breakLabel.innerText = state.onBreak ? "Stop Break" : "Start Break";
-    statusLine.innerText = `Status: ${state.onBreak ? "On Break" : (state.punchedIn ? "Working" : "Idle")}`;
+    const {workSecs, breakSecs}=computeTimes();
+    workValue.innerText=fmt(workSecs);
+    breakValue.innerText=fmt(breakSecs);
+    punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
+    breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
+    statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
   }
 
-  function startTickers(){ setInterval(updateUI,1000); }
+  function startTickers(){
+    setInterval(updateUI,1000);
+    setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
+  }
 
   async function syncToServer(){
-    if(!stateRef) return;
-    await stateRef.set({
-      punchedIn: state.punchedIn,
-      punchInTime: state.punchInTime ? firebase.firestore.Timestamp.fromMillis(state.punchInTime) : null,
-      onBreak: state.onBreak,
-      breakStartTime: state.breakStartTime ? firebase.firestore.Timestamp.fromMillis(state.breakStartTime) : null,
-      workingSeconds: state.workingSeconds,
-      totalBreakSeconds: state.totalBreakSeconds,
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    }, {merge:true});
+    await stateRef().set({
+      punchedIn:state.punchedIn,
+      punchInTime: state.punchInTime? firebase.firestore.Timestamp.fromMillis(state.punchInTime):null,
+      onBreak:state.onBreak,
+      breakStartTime: state.breakStartTime? firebase.firestore.Timestamp.fromMillis(state.breakStartTime):null,
+      workingSeconds:state.workingSeconds,
+      totalBreakSeconds:state.totalBreakSeconds,
+      lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
   }
 
   async function logEvent(type){
     await db.collection("attendance").add({
-      email: auth.currentUser.email,
+      email,
       type,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       day: currentDay
@@ -162,58 +162,37 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     updateUI();
   }
 
-  async function loadState(){ const snap = await stateRef.get(); if(snap.exists) applySnapshot(snap.data()); }
-
-  // --- Auto 2AM punchout ---
-  function checkDailyReset(){
-    const now = new Date();
-    if(now.getHours() === 2 && now.getMinutes() === 0){
-      if(state.punchedIn && state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); state.punchedIn=false; state.punchInTime=null; }
-      if(state.onBreak && state.breakStartTime){ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; }
-      syncToServer(); updateUI();
-      currentDay = todayKey();
-      stateRef = db.collection("attendance").doc(`${auth.currentUser.email}_${currentDay}_state`);
-    }
+  async function loadState(){
+    const snap=await stateRef().get();
+    if(snap.exists){ applySnapshot(snap.data()); }
   }
-  setInterval(checkDailyReset,60000);
 
-  // --- Auth + Fetch Rider Info ---
-  auth.onAuthStateChanged(async user=>{
-    if(!user) return location.href="rider-signin.html";
-
-    const uDoc = await db.collection("users").doc(user.email).get();
-    if(uDoc.exists) riderName.innerText = `${uDoc.data().name} (${user.email})`;
-
-    // Assigned Scooty
-    const scootySnap = await db.collection("scooty_master").where("assignedTo","==",user.email).where("state","==","active").get();
-    scootyEl.innerText = !scootySnap.empty ? scootySnap.docs[0].id : "None";
-
-    // Assigned Battery
-    const batterySnap = await db.collection("battery_master").where("assignedTo","==",user.email).where("state","==","active").get();
-    batteryEl.innerText = !batterySnap.empty ? batterySnap.docs[0].id : "None";
-
-    stateRef = db.collection("attendance").doc(`${user.email}_${currentDay}_state`);
-    await loadState();
-    startTickers();
-    stateRef.onSnapshot(snap=>{ if(snap.exists) applySnapshot(snap.data()); });
-  });
-
-  // --- Button listeners ---
-  document.getElementById("punchBtn").addEventListener("click", async ()=>{
-    if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); await logEvent("PunchIn"); }
-    else{
-      if(!state.onBreak && state.punchInTime) state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+  // Punch logic
+  document.getElementById("punchBtn").addEventListener("click",async()=>{
+    if(!state.punchedIn){
+      state.punchedIn=true; state.punchInTime=Date.now();
+      await logEvent("PunchIn");
+    } else {
+      if(!state.onBreak && state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
       state.punchedIn=false; state.punchInTime=null;
-      if(state.onBreak && state.breakStartTime){ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; }
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+        state.onBreak=false; state.breakStartTime=null;
+      }
       await logEvent("PunchOut");
     }
     await syncToServer(); updateUI();
   });
 
-  document.getElementById("breakBtn").addEventListener("click", async ()=>{
+  // Break logic
+  document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
     if(!state.onBreak){
-      if(state.punchInTime) state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      if(state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
       state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null;
       await logEvent("BreakStart");
     } else {
@@ -224,14 +203,45 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     await syncToServer(); updateUI();
   });
 
-  document.getElementById("logoutBtn").addEventListener("click", ()=>{ auth.signOut().then(()=>location.href="rider-signin.html"); });
+  document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
-  document.getElementById("navScanner").onclick=()=>location.href=`scanner.html`;
-  document.getElementById("navIssues").onclick=()=>location.href=`issue.html`;
-  document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html`;
-  document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html`;
+  const u=await db.collection("users").doc(email).get();
+  if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
+  document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
+  document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
+  document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
+  document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
+
+  await loadState();
+  startTickers();
+  stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
   setInterval(syncToServer,30000);
+
+  // Auto Punch Out + Reset at 2 AM
+  async function autoPunchoutAt2AM(){
+    const now = new Date();
+    if(now.getHours() === 2 && now.getMinutes()===0){
+      // accumulate working/break seconds
+      if(state.punchedIn && state.punchInTime){
+        state.workingSeconds += Math.floor((now - state.punchInTime)/1000);
+      }
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
+      }
+      // log PunchOut if still punched in
+      if(state.punchedIn){
+        await logEvent("PunchOut");
+      }
+      state.punchedIn=false; state.punchInTime=null;
+      state.onBreak=false; state.breakStartTime=null;
+      await syncToServer();
+      // reset timers for new day
+      state.workingSeconds=0; state.totalBreakSeconds=0;
+      currentDay = todayKey(); // new 2AM–2AM key
+    }
+  }
+
 })();
 </script>
 
