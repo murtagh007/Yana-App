@@ -26,40 +26,121 @@
       --radius: 16px;
     }
 
-    body { margin:0; font-family:'Inter',sans-serif; color: var(--text); background: var(--bg); }
+    body {
+      margin:0;
+      font-family:'Inter',sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
 
+    /* Navbar */
     .navbar {
-      display:flex; justify-content:space-between; align-items:center;
-      padding:12px 20px; background: var(--card); border-bottom:1px solid var(--border);
-      position: sticky; top:0; z-index: 100; backdrop-filter: blur(6px);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 20px;
+      background: var(--card);
+      border-bottom:1px solid var(--border);
+      position: sticky;
+      top:0;
+      z-index: 100;
+      backdrop-filter: blur(6px);
     }
     .navbar h2 { color: var(--action); font-size: 1.2rem; margin:0; }
     .profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
     .profile-pic {
-      background: var(--action); color:#000; font-weight:bold;
-      width:36px; height:36px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center; font-size:16px;
+      background: var(--action);
+      color:#000;
+      font-weight:bold;
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
     }
-    .dropdown { display:none; position:absolute; top:44px; right:0; background: var(--card); border-radius: var(--radius); padding:4px 0; min-width:100px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
-    .dropdown button { width:100%; background:none; border:none; color: var(--text); padding:8px 12px; cursor:pointer; text-align:left; }
+    .dropdown {
+      display:none;
+      position:absolute;
+      top:44px;
+      right:0;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding:4px 0;
+      min-width:100px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.5);
+    }
+    .dropdown button {
+      width:100%;
+      background:none;
+      border:none;
+      color: var(--text);
+      padding:8px 12px;
+      cursor:pointer;
+      text-align:left;
+    }
     .profile:hover .dropdown { display:block; }
 
-    .container { display:flex; justify-content:center; padding:20px; }
+    /* Card */
+    .container {
+      display:flex;
+      justify-content:center;
+      padding:20px;
+    }
     .card {
-      background: var(--card); border:1px solid var(--border); border-radius: var(--radius);
-      padding:24px; width:100%; max-width:480px; box-shadow: 0 0 20px rgba(0,234,255,0.3);
-      backdrop-filter: blur(10px); text-align:center;
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:24px;
+      width:100%;
+      max-width:480px;
+      box-shadow: 0 0 20px rgba(0,234,255,0.3);
+      backdrop-filter: blur(10px);
+      text-align:center;
     }
 
-    h1 { font-size:24px; margin-bottom:8px; color: var(--action); }
-    .muted { color: rgba(234,244,248,0.6); font-size:14px; margin-bottom:16px; }
-    video { width:100%; border-radius: var(--radius); margin-bottom:12px; }
-    select, button { width:100%; padding:12px; border-radius: var(--radius); border:none; font-size:1rem; font-weight:600; margin:6px 0; cursor:pointer; }
+    h1 {
+      font-size:24px;
+      margin-bottom:8px;
+      color: var(--action);
+    }
+    .muted {
+      color: rgba(234,244,248,0.6);
+      font-size:14px;
+      margin-bottom:16px;
+    }
+
+    video {
+      width:100%;
+      border-radius: var(--radius);
+      margin-bottom:12px;
+    }
+
+    select, button {
+      width:100%;
+      padding:12px;
+      border-radius: var(--radius);
+      border:none;
+      font-size:1rem;
+      font-weight:600;
+      margin:6px 0;
+      cursor:pointer;
+    }
     select { background: rgba(255,255,255,0.05); color: var(--text); border:1px solid var(--border); }
     select:focus { outline:none; border-color: var(--action); }
-    .btn { background: var(--action); color:#000; transition:0.2s; }
+
+    .btn {
+      background: var(--action);
+      color:#000;
+      transition:0.2s;
+    }
     .btn:hover { background:#00c8e0; }
-    .btn.secondary { background:transparent; color: var(--action); border:2px solid var(--action); }
+    .btn.secondary {
+      background:transparent;
+      color: var(--action);
+      border:2px solid var(--action);
+    }
     .btn.secondary:hover { background: rgba(0,234,255,0.1); }
 
     #pendingSection { margin-top:16px; display:none; }
@@ -68,6 +149,7 @@
 </head>
 <body>
 
+  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Rider</h2>
     <div class="profile">
@@ -108,57 +190,65 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const email = params.get("email");
-    if(!email){ alert("Not signed in!"); window.location.href="rider-signin.html"; }
 
-    document.getElementById("profilePic").innerText = email.charAt(0).toUpperCase();
-    document.getElementById("logoutBtn").addEventListener("click", ()=>{ firebase.auth().signOut().then(()=> window.location.href="rider-signin.html"); });
-
-    let pendingAction=null, stream=null, scanning=false, scanInterval=null, lastRawResult=null;
-
-    function scanLoop(){
-      const video=document.getElementById("video");
-      const canvas=document.createElement("canvas");
-      const ctx=canvas.getContext("2d",{willReadFrequently:true});
-
-      scanInterval=setInterval(()=>{
-        if(!scanning||!video.videoWidth) return;
-        canvas.width=video.videoWidth;
-        canvas.height=video.videoHeight;
-        ctx.drawImage(video,0,0,canvas.width,canvas.height);
-        const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
-        const code=jsQR(imageData.data,canvas.width,canvas.height);
-        if(code && code.data && code.data!==lastRawResult){
-          lastRawResult=code.data;
-          handleScan(code.data);
-        }
-      },400);
+    if (!email) {
+      alert("Not signed in!");
+      window.location.href = "rider-signin.html";
     }
 
-    async function startCamera(){
-      try{
-        const video=document.getElementById("video");
-        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-        video.srcObject=stream;
+    document.getElementById("profilePic").innerText = email.charAt(0).toUpperCase();
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      firebase.auth().signOut().then(()=> window.location.href="rider-signin.html");
+    });
+
+    let pendingAction = null, stream = null, scanning = false, scanInterval = null, lastRawResult = null;
+
+    function scanLoop() {
+      const video = document.getElementById("video");
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      scanInterval = setInterval(() => {
+        if (!scanning || !video.videoWidth) return;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+        if (code && code.data && code.data !== lastRawResult) {
+          lastRawResult = code.data;
+          handleScan(code.data);
+        }
+      }, 400);
+    }
+
+    async function startCamera() {
+      try {
+        const video = document.getElementById("video");
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:"environment" } });
+        video.srcObject = stream;
         await video.play();
-        scanning=true;
+        scanning = true;
         scanLoop();
         document.getElementById("startCam").style.display="none";
         document.getElementById("stopCam").style.display="inline-block";
-      }catch(e){ alert("Camera access denied or unavailable."); }
+      } catch(e) { alert("Camera access denied or unavailable."); }
     }
 
-    function stopCamera(){
-      scanning=false;
+    function stopCamera() {
+      scanning = false;
       if(stream) stream.getTracks().forEach(t=>t.stop());
-      if(scanInterval){ clearInterval(scanInterval); scanInterval=null; }
+      if(scanInterval) { clearInterval(scanInterval); scanInterval=null; }
       document.getElementById("startCam").style.display="inline-block";
       document.getElementById("stopCam").style.display="none";
     }
 
-    document.getElementById("startCam").addEventListener("click",startCamera);
-    document.getElementById("stopCam").addEventListener("click",stopCamera);
+    document.getElementById("startCam").addEventListener("click", startCamera);
+    document.getElementById("stopCam").addEventListener("click", stopCamera);
 
-    async function handleScan(raw){
+    async function handleScan(raw) {
       const id = raw.trim();
       let type=null, ref=null;
 
@@ -169,18 +259,23 @@
       else if(batteryDoc && batteryDoc.exists){ type="battery"; ref=db.collection("battery_master").doc(id); }
       else { alert("Unknown QR code: "+id); return; }
 
-      const data = (await ref.get()).data() || {};
+      const data=(await ref.get()).data()||{};
       if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
+      // ---------- RULE CHECKS ----------
       const riderDoc = await db.collection("users").doc(email).get();
       const riderData = riderDoc.exists ? riderDoc.data() : {};
       const currentScooty = riderData.scooterId || null;
       const currentBattery = riderData.batteryId || null;
 
       let action = null;
-      if(data.status==="assigned" && data.assignedTo===email) action="return";
-      else if(data.status==="returned") action="assign";
-      else { alert(`${type} ${id} is not eligible for you.`); return; }
+      if(data.status==="assigned" && data.assignedTo===email){
+        action = "return";
+      } else if(data.status==="returned"){
+        action = "assign";
+      } else {
+        alert(`${type} ${id} is not eligible for you.`); return;
+      }
 
       if(action==="assign"){
         if(type==="scooty" && currentScooty){ alert("You already have a Scooty assigned."); return; }
@@ -198,35 +293,54 @@
       document.getElementById("locationSection").style.display=action==="return"?"block":"none";
     }
 
-    document.getElementById("confirmBtn").addEventListener("click", async ()=>{
-      if(!pendingAction) return;
-      const {action,id,type,ref} = pendingAction;
-      try{
+    // --------- Confirm/Cancel Handlers ----------
+    document.getElementById("confirmBtn").addEventListener("click", async () => {
+      if (!pendingAction) return;
+      const { action, id, type, ref } = pendingAction;
+
+      try {
         const userRef = db.collection("users").doc(email);
-        if(action==="assign"){
-          await ref.update({status:"assigned",assignedTo:email,location:firebase.firestore.FieldValue.delete()});
+
+        if (action === "assign") {
+          // double-check rules from DB
+          const riderDocCheck = await db.collection("users").doc(email).get();
+          const riderDataCheck = riderDocCheck.exists ? riderDocCheck.data() : {};
+          const currentBatteryCheck = riderDataCheck.batteryId || null;
+          const currentScootyCheck = riderDataCheck.scooterId || null;
+
+          if(type==="scooty" && currentScootyCheck){ alert("You already have a Scooty assigned."); return; }
+          if(type==="battery"){
+            if(!currentScootyCheck){ alert("You must take a Scooty first."); return; }
+            if(currentBatteryCheck){ alert("You already have a Battery assigned."); return; }
+          }
+
+          await ref.update({ status: "assigned", assignedTo: email, location: firebase.firestore.FieldValue.delete() });
           const update = {};
           if(type==="scooty") update.scooterId=id;
           if(type==="battery") update.batteryId=id;
           await userRef.update(update);
+
         } else {
-          const location=document.getElementById("returnLocation").value;
-          if(!location){ alert("Select return location."); return; }
-          await ref.update({status:"returned",assignedTo:null,location});
+          const location = document.getElementById("returnLocation").value;
+          if (!location){ alert("Select return location."); return; }
+          await ref.update({ status:"returned", assignedTo:null, location });
+
           const update = {};
-          if(type==="scooty") update.scooterId=firebase.firestore.FieldValue.delete();
-          if(type==="battery") update.batteryId=firebase.firestore.FieldValue.delete();
+          if (type === "scooty") update.scooterId = firebase.firestore.FieldValue.delete();
+          if (type === "battery") update.batteryId = firebase.firestore.FieldValue.delete();
           await userRef.update(update);
         }
+
         alert(`✅ ${action.toUpperCase()} complete!`);
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
-      } catch(e){ alert("Failed: "+e.message); }
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
+
+      } catch (e) { alert("Failed: " + e.message); }
     });
 
-    document.getElementById("cancelBtn").addEventListener("click", ()=>{
-      pendingAction=null;
-      document.getElementById("pendingSection").style.display="none";
-      document.getElementById("locationSection").style.display="none";
+    document.getElementById("cancelBtn").addEventListener("click", ()=> {
+      pendingAction = null;
+      document.getElementById("pendingSection").style.display = "none";
+      document.getElementById("locationSection").style.display = "none";
     });
   </script>
 </body>
