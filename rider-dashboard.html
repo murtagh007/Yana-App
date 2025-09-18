@@ -86,10 +86,9 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const email = new URLSearchParams(window.location.search).get('email');
   if(!email){ location.href="rider-signin.html"; return; }
 
-  // 🔄 2am–2am cycle
   function todayKey(){
     const now = new Date();
-    if(now.getHours() < 2){ now.setDate(now.getDate()-1); }
+    if(now.getHours()<2){ now.setDate(now.getDate()-1); }
     return now.toISOString().slice(0,10);
   }
 
@@ -108,12 +107,9 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   function computeTimes(){
     const now=Date.now();
     let workSecs=state.workingSeconds;
-
-    // ⏸ Pause work during break
     if(state.punchedIn && state.punchInTime && !state.onBreak){
-      workSecs = state.workingSeconds + Math.floor((now - state.punchInTime)/1000);
+      workSecs += Math.floor((now - state.punchInTime)/1000);
     }
-
     let breakSecs=state.totalBreakSeconds;
     if(state.onBreak && state.breakStartTime){
       breakSecs += Math.floor((now - state.breakStartTime)/1000);
@@ -132,6 +128,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   function startTickers(){
     setInterval(updateUI,1000);
+    setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
   }
 
   async function syncToServer(){
@@ -170,38 +167,37 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     if(snap.exists){ applySnapshot(snap.data()); }
   }
 
+  // Punch logic
   document.getElementById("punchBtn").addEventListener("click",async()=>{
     if(!state.punchedIn){
-      state.punchedIn=true;
-      state.punchInTime=Date.now();
+      state.punchedIn=true; state.punchInTime=Date.now();
       await logEvent("PunchIn");
     } else {
+      if(!state.onBreak && state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
+      state.punchedIn=false; state.punchInTime=null;
       if(state.onBreak && state.breakStartTime){
-        const extra=Math.floor((Date.now()-state.breakStartTime)/1000);
-        state.totalBreakSeconds+=extra;
+        state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
         state.onBreak=false; state.breakStartTime=null;
       }
-      // 🛑 Pause timer at PunchOut (store accumulated seconds)
-      state.workingSeconds=computeTimes().workSecs;
-      state.punchedIn=false;
-      state.punchInTime=null;
       await logEvent("PunchOut");
     }
     await syncToServer(); updateUI();
   });
 
+  // Break logic
   document.getElementById("breakBtn").addEventListener("click",async()=>{
     if(!state.punchedIn) return alert("Punch in first!");
     if(!state.onBreak){
-      // Pause work counter at break start
-      state.workingSeconds=computeTimes().workSecs;
-      state.onBreak=true; state.breakStartTime=Date.now();
+      if(state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
+      state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null;
       await logEvent("BreakStart");
     } else {
-      const extra=Math.floor((Date.now()-state.breakStartTime)/1000);
-      state.totalBreakSeconds+=extra;
-      state.onBreak=false; state.breakStartTime=null;
-      state.punchInTime=Date.now(); // resume work
+      state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+      state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now();
       await logEvent("BreakEnd");
     }
     await syncToServer(); updateUI();
@@ -210,16 +206,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
   const u=await db.collection("users").doc(email).get();
-  if(u.exists){
-    const d=u.data();
-    document.getElementById("riderName").innerText=d.name+" ("+email+")";
-  }
-
-  const scootySnap = await db.collection("scooty_master").where("assignedTo","==",email).where("state","==","active").get();
-  document.getElementById("scooty").innerText = !scootySnap.empty ? scootySnap.docs[0].id : "--";
-
-  const batterySnap = await db.collection("battery_master").where("assignedTo","==",email).where("state","==","active").get();
-  document.getElementById("battery").innerText = !batterySnap.empty ? batterySnap.docs[0].id : "--";
+  if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
   document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
   document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
@@ -228,10 +215,33 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   await loadState();
   startTickers();
-
   stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
-
   setInterval(syncToServer,30000);
+
+  // Auto Punch Out + Reset at 2 AM
+  async function autoPunchoutAt2AM(){
+    const now = new Date();
+    if(now.getHours() === 2 && now.getMinutes()===0){
+      // accumulate working/break seconds
+      if(state.punchedIn && state.punchInTime){
+        state.workingSeconds += Math.floor((now - state.punchInTime)/1000);
+      }
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
+      }
+      // log PunchOut if still punched in
+      if(state.punchedIn){
+        await logEvent("PunchOut");
+      }
+      state.punchedIn=false; state.punchInTime=null;
+      state.onBreak=false; state.breakStartTime=null;
+      await syncToServer();
+      // reset timers for new day
+      state.workingSeconds=0; state.totalBreakSeconds=0;
+      currentDay = todayKey(); // new 2AM–2AM key
+    }
+  }
+
 })();
 </script>
 
