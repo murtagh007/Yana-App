@@ -263,7 +263,6 @@
       if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
       // ---------- RULE CHECKS ----------
-      // Fetch rider's current assignments
       const riderDoc = await db.collection("users").doc(email).get();
       const riderData = riderDoc.exists ? riderDoc.data() : {};
       const currentScooty = riderData.scooterId || null;
@@ -279,7 +278,6 @@
         return;
       }
 
-      // Only block "assign" if rider already has another one
       if(action==="assign"){
         if(type==="scooty" && currentScooty){
           alert("You already have a Scooty assigned."); return;
@@ -290,7 +288,6 @@
         }
       }
 
-      // Prevent returning Scooty if Battery is still assigned
       if(action==="return" && type==="scooty" && currentBattery){
         alert("Return the Battery first before returning the Scooty."); return;
       }
@@ -301,27 +298,46 @@
       document.getElementById("locationSection").style.display=action==="return"?"block":"none";
     }
 
-    document.getElementById("confirmBtn").addEventListener("click", async ()=>{
-      if(!pendingAction) return;
-      const {action,id,type,ref}=pendingAction;
+    // --------- Confirm/Cancel Handlers ----------
+    document.getElementById("confirmBtn").addEventListener("click", async () => {
+      if (!pendingAction) return;
+      const { action, id, type, ref } = pendingAction;
 
       try {
-        if(action==="assign"){
-          await ref.update({ status:"assigned", assignedTo:email, location: firebase.firestore.FieldValue.delete() });
+        const userRef = db.collection("users").doc(email);
+
+        if (action === "assign") {
+          await ref.update({ status: "assigned", assignedTo: email, location: firebase.firestore.FieldValue.delete() });
+
+          // update rider's currentScooty / currentBattery
+          const update = {};
+          if (type === "scooty") update.scooterId = id;
+          if (type === "battery") update.batteryId = id;
+          await userRef.update(update);
+
         } else {
-          const location=document.getElementById("returnLocation").value;
-          if(!location){ alert("Select return location."); return; }
+          const location = document.getElementById("returnLocation").value;
+          if (!location){ alert("Select return location."); return; }
           await ref.update({ status:"returned", assignedTo:null, location });
+
+          const update = {};
+          if (type === "scooty") update.scooterId = firebase.firestore.FieldValue.delete();
+          if (type === "battery") update.batteryId = firebase.firestore.FieldValue.delete();
+          await userRef.update(update);
         }
+
         alert(`✅ ${action.toUpperCase()} complete!`);
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
-      } catch(e){ alert("Failed: "+e.message); }
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
+
+      } catch (e) {
+        alert("Failed: " + e.message);
+      }
     });
 
-    document.getElementById("cancelBtn").addEventListener("click", ()=>{
-      pendingAction=null;
-      document.getElementById("pendingSection").style.display="none";
-      document.getElementById("locationSection").style.display="none";
+    document.getElementById("cancelBtn").addEventListener("click", ()=> {
+      pendingAction = null;
+      document.getElementById("pendingSection").style.display = "none";
+      document.getElementById("locationSection").style.display = "none";
     });
   </script>
 </body>
