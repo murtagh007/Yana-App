@@ -1,37 +1,47 @@
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>YANA — Scooty & Battery Masterlist</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    :root {
-      --bg: #0a0f12;
-      --bg2: rgba(0,0,0,0.2);
-      --card: rgba(255,255,255,0.1);
-      --border: rgba(255,255,255,0.2);
-      --action: #00eaff;
-      --text: #eaf4f8;
-      --radius: 12px;
-      --transition: 0.2s;
-    }
-
-    body { margin:0; font-family:'Inter',sans-serif; color: var(--text); background: var(--bg); }
-
-    /* Navbar */
+    /* Navbar styles */
     .navbar {
-      display:flex; justify-content:space-between; align-items:center;
-      padding:8px 12px; background: var(--card); border-bottom:1px solid var(--border); border-radius: var(--radius); margin-bottom:12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
     }
-    .navbar h2 { margin:0; font-size:18px; color: var(--action); }
-    .profile { display:flex; align-items:center; gap:8px; }
-    .profile-pic { width:32px; height:32px; border-radius:50%; background: var(--action); color:#000; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; }
-    .dropdown button { margin-left:4px; padding:4px 8px; border-radius:var(--radius); border:1px solid var(--border); background: var(--bg2); color: var(--text); cursor:pointer; }
+    .navbar h2 { margin: 0; font-size: 18px; color: var(--action); }
+    .profile { display: flex; align-items: center; gap: 8px; }
+    .profile-pic {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--action); color: #000;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 14px;
+    }
+    .dropdown button {
+      margin-left: 4px;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      cursor: pointer;
+    }
 
     /* Tabs */
     .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-    .tab-btn { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; cursor:pointer; transition:var(--transition); color:var(--text); }
+    .tab-btn {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:8px 12px; cursor:pointer; transition:var(--transition); color:var(--text);
+    }
     .tab-btn.active { background:var(--action); color:#000; }
 
     /* Tab content */
@@ -39,21 +49,58 @@
     .tab-content.active { display:block; }
 
     /* Search bar */
-    .search-container { margin:12px 0; display:flex; justify-content:flex-start; gap:8px; flex-wrap:wrap; }
-    .search-container input { padding:8px; border-radius:var(--radius); border:1px solid var(--border); background: var(--bg2); color: var(--text); flex:1 1 250px; }
+    .search-container {
+      margin: 12px 0;
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .search-container input {
+      padding: 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      flex: 1 1 250px;
+    }
 
     /* Card container */
-    .card-container { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:12px; margin-top:16px; }
-    .card { background: rgba(255,255,255,0.1); padding:12px; border-radius:var(--radius); border:1px solid var(--border); backdrop-filter:blur(10px); display:flex; flex-direction:column; justify-content:space-between; min-height:150px; transition:var(--transition); }
-    .card:hover { box-shadow:0 0 12px var(--action); border-color: var(--action); }
-    .card-header { font-weight:bold; font-size:16px; margin-bottom:6px; color: var(--action); }
-    .card-row { font-size:14px; margin:2px 0; }
-    select { padding:4px; border-radius:var(--radius); border:1px solid var(--border); background:var(--bg2); color: var(--text); margin-right:6px; }
-    button.assignBtn { padding:4px 8px; border-radius:var(--radius); border:none; background: var(--action); color:#000; cursor:pointer; }
+    .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 16px; }
+    .card {
+      background: rgba(255,255,255,0.1);
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 150px;
+      transition: var(--transition);
+    }
+    .card:hover { box-shadow: 0 0 12px var(--action); border-color: var(--action); }
+    .card-header { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: var(--action); }
+    .card-row { font-size: 14px; margin: 2px 0; }
+    select {
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      margin-right: 6px;
+    }
+    button.assignBtn {
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--action);
+      color: #000;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-
 <!-- Navbar -->
 <div class="navbar">
   <h2>⚡ YANA Admin</h2>
@@ -143,21 +190,32 @@ tabButtons.forEach(btn => {
   });
 });
 
-// Render cards without filtering by captain
 async function renderCards(collection, container, searchInput) {
-  db.collection(collection).onSnapshot(snapshot => {
-    const tempData = snapshot.docs.map(doc => {
+  db.collection(collection).onSnapshot(async snapshot => {
+    const tempData = [];
+    for (const doc of snapshot.docs) {
       const data = doc.data();
-      return {
-        id: doc.id,
-        state: data.state || "-",
-        status: data.status || "-",
-        assignedName: data.assignedTo || "-",
-        captainName: data.captainInCharge || "-",
-        captainInCharge: data.captainInCharge || null
-      };
-    });
+      let assignedName = "-";
+      let captainName = "-";
+      const captainEmail = data.captainInCharge || null;
 
+      if (data.assignedTo) {
+        const userDoc = await db.collection("users").doc(data.assignedTo).get();
+        if (userDoc.exists) assignedName = userDoc.data().name || "-";
+      }
+      if (captainEmail) {
+        const capDoc = await db.collection("users").doc(captainEmail).get();
+        if (capDoc.exists) captainName = capDoc.data().name || "-";
+      }
+
+      // Captains see only their own assets
+      if (currentUserRole === "captain" && captainEmail !== currentUserEmail) continue;
+
+      tempData.push({ 
+        id: doc.id, state: data.state, status: data.status, 
+        assignedName, captainName, captainInCharge: captainEmail 
+      });
+    }
     if (collection === "scooty_master") scootyData = tempData;
     else batteryData = tempData;
 
@@ -173,30 +231,32 @@ function displayCards(dataArray, container, filter, collection) {
     d.assignedName.toLowerCase().includes(filterLower) ||
     d.captainName.toLowerCase().includes(filterLower)
   ).forEach(d => {
-    const card = document.createElement("div");
-    card.classList.add("card");
+      const card = document.createElement("div");
+      card.classList.add("card");
 
-    // Only admins see assign captain controls
-    let captainOptionsHTML = "";
-    let saveButtonHTML = "";
-    if (currentUserRole === "admin") {
-      let captainOptions = `<option value="">-- Select Captain --</option>`;
-      captains.forEach(c => {
-        captainOptions += `<option value="${c.email}" ${d.captainInCharge===c.email ? "selected" : ""}>${c.name}</option>`;
-      });
-      captainOptionsHTML = `<select id="cap-${collection}-${d.id}">${captainOptions}</select>`;
-      saveButtonHTML = `<button class="assignBtn" onclick="assignCaptain('${collection}','${d.id}')">Save</button>`;
-    }
+      // Only admins see assign captain controls
+      let captainOptionsHTML = "";
+      let saveButtonHTML = "";
+      if (currentUserRole === "admin") {
+        let captainOptions = `<option value="">-- Select Captain --</option>`;
+        captains.forEach(c => {
+          captainOptions += `<option value="${c.email}" ${d.captainInCharge===c.email ? "selected" : ""}>${c.name}</option>`;
+        });
+        captainOptionsHTML = `<select id="cap-${collection}-${d.id}">${captainOptions}</select>`;
+        saveButtonHTML = `<button class="assignBtn" onclick="assignCaptain('${collection}','${d.id}')">Save</button>`;
+      }
 
-    card.innerHTML = `
-      <div class="card-header">${d.id}</div>
-      <div class="card-row">Assigned To (Rider): ${d.assignedName}</div>
-      <div class="card-row">Captain In Charge: ${d.captainName}</div>
-      <div class="card-row">State: ${d.state}</div>
-      <div class="card-row">Status: ${d.status}</div>
-      <div class="card-row">${captainOptionsHTML} ${saveButtonHTML}</div>
-    `;
-    container.appendChild(card);
+      card.innerHTML = `
+        <div class="card-header" style="color: var(--action)">${d.id}</div>
+        <div class="card-row">Assigned To (Rider): ${d.assignedName}</div>
+        <div class="card-row">Captain In Charge: ${d.captainName}</div>
+        <div class="card-row">State: ${d.state}</div>
+        <div class="card-row">Status: ${d.status}</div>
+        <div class="card-row">
+          ${captainOptionsHTML} ${saveButtonHTML}
+        </div>
+      `;
+      container.appendChild(card);
   });
 }
 
