@@ -136,7 +136,6 @@ async function handleScan(raw){
   const data=(await ref.get()).data()||{};
   if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-  // -------- RULE CHECKS ----------
   const assignedScootiesSnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
   const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
 
@@ -165,6 +164,7 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
   if(!pendingAction) return;
   const {action,id,type,ref}=pendingAction;
   try{
+    let location=null;
     if(action==="assign"){
       await ref.update({status:"assigned",assignedTo:email,location:firebase.firestore.FieldValue.delete()});
       const update={};
@@ -172,7 +172,7 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
       if(type==="battery") update.batteryId=id;
       await db.collection("users").doc(email).update(update);
     }else{
-      const location=document.getElementById("returnLocation").value;
+      location=document.getElementById("returnLocation").value;
       if(!location){ alert("Select return location."); return; }
       await ref.update({status:"returned",assignedTo:null,location});
       const update={};
@@ -180,6 +180,17 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
       if(type==="battery") update.batteryId=firebase.firestore.FieldValue.delete();
       await db.collection("users").doc(email).update(update);
     }
+
+    // ✅ ADDITION: Write to logs (with location if return)
+    await db.collection("logs").add({
+      email: email,
+      type: type,
+      id: id,
+      action: action,
+      location: action==="return" ? location : null,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
     alert(`✅ ${action.toUpperCase()} complete!`);
     window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
   }catch(e){ alert("Failed: "+e.message); }
