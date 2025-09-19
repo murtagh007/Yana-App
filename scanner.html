@@ -12,34 +12,36 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 <style>
-:root { --bg:#0a0f12; --card:rgba(255,255,255,0.1); --border:rgba(255,255,255,0.2); --action:#00eaff; --text:#eaf4f8; --radius:16px; }
-body { margin:0; font-family:'Inter',sans-serif; color:var(--text); background:var(--bg); }
+:root { --bg:#0a0f12; --card:rgba(255,255,255,0.06); --border:rgba(255,255,255,0.12); --action:#00eaff; --text:#eaf4f8; --radius:14px; }
+html,body{height:100%}
+body { margin:0; font-family:'Inter',sans-serif; color:var(--text); background:linear-gradient(180deg,#061219 0%, #07131a 100%); }
 .navbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--border); position: sticky; top:0; z-index: 100; backdrop-filter: blur(6px); }
-.navbar h2 { color:var(--action); font-size:1.2rem; margin:0; }
-.profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
-.profile-pic { background: var(--action); color:#000; font-weight:bold; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
-.dropdown { display:none; position:absolute; top:44px; right:0; background: var(--card); border-radius: var(--radius); padding:4px 0; min-width:100px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
-.dropdown button { width:100%; background:none; border:none; color: var(--text); padding:8px 12px; cursor:pointer; text-align:left; }
+.navbar h2 { color:var(--action); font-size:1.1rem; margin:0; letter-spacing:0.4px; }
+.profile { display:flex; align-items:center; gap:10px; cursor:pointer; position:relative; }
+.profile-pic { background: var(--action); color:#000; font-weight:700; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.dropdown { display:none; position:absolute; top:46px; right:0; background: var(--card); border-radius: 10px; padding:6px 0; min-width:120px; box-shadow:0 6px 18px rgba(0,0,0,0.6); }
+.dropdown button { width:100%; background:none; border:none; color: var(--text); padding:10px 14px; cursor:pointer; text-align:left; font-weight:600; }
 .profile:hover .dropdown { display:block; }
 .container { display:flex; justify-content:center; padding:20px; }
-.card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:24px; width:100%; max-width:480px; box-shadow: 0 0 20px rgba(0,234,255,0.3); backdrop-filter: blur(10px); text-align:center; }
-h1 { font-size:24px; margin-bottom:8px; color: var(--action); }
-.muted { color: rgba(234,244,248,0.6); font-size:14px; margin-bottom:16px; }
-video { width:100%; border-radius: var(--radius); margin-bottom:12px; }
-select, button, input[type="checkbox"] { width:100%; padding:12px; border-radius: var(--radius); border:none; font-size:1rem; font-weight:600; margin:6px 0; cursor:pointer; box-sizing:border-box; }
-select { background: rgba(255,255,255,0.05); color: var(--text); border:1px solid var(--border); }
+.card { background: var(--card); border:1px solid var(--border); border-radius: 16px; padding:22px; width:100%; max-width:540px; box-shadow: 0 6px 30px rgba(0,234,255,0.05); backdrop-filter: blur(8px); text-align:center; }
+h1 { font-size:22px; margin-bottom:6px; color: var(--action); }
+.muted { color: rgba(234,244,248,0.6); font-size:14px; margin-bottom:14px; }
+video { width:100%; height:auto; border-radius:12px; background:#000; margin-bottom:12px; }
+select, button, input[type="checkbox"] { width:100%; padding:12px; border-radius:12px; border:none; font-size:1rem; font-weight:700; margin:8px 0; cursor:pointer; box-sizing:border-box; }
+select { background: rgba(255,255,255,0.03); color: var(--text); border:1px solid var(--border); text-align:left; }
 select:focus { outline:none; border-color: var(--action); }
-.btn { background: var(--action); color:#000; transition:0.2s; }
-.btn:hover { background:#00c8e0; }
+.btn { background: var(--action); color:#000; transition:0.18s; }
+.btn:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,234,255,0.06); }
 .btn.secondary { background:transparent; color: var(--action); border:2px solid var(--action); }
-.btn.secondary:hover { background: rgba(0,234,255,0.1); }
+.btn.secondary:hover { background: rgba(0,234,255,0.06); }
 #pendingSection { margin-top:16px; display:none; text-align:left; }
 #locationSection { margin:10px 0; display:none; }
 #planSection { margin:10px 0; display:none; }
 .deposit-row { display:flex; align-items:center; gap:10px; }
-.deposit-row input[type="checkbox"]{ width:auto; height:auto; margin:0; transform:scale(1.1); }
-.label-small { font-size:0.92rem; color:rgba(234,244,248,0.9); font-weight:600; }
-.note { font-size:0.85rem; color:rgba(234,244,248,0.6); margin-top:6px; font-weight:500; }
+.deposit-row input[type="checkbox"]{ width:auto; height:auto; margin:0; transform:scale(1.05); }
+.label-small { font-size:0.92rem; color:rgba(234,244,248,0.9); font-weight:700; margin:6px 0; display:block; }
+.note { font-size:0.84rem; color:rgba(234,244,248,0.6); margin-top:6px; font-weight:600; }
+.small-muted{font-size:12px;color:rgba(234,244,248,0.45);margin-top:6px}
 </style>
 </head>
 <body>
@@ -56,12 +58,14 @@ select:focus { outline:none; border-color: var(--action); }
   <div class="card">
     <h1>QR Scanner</h1>
     <p class="muted">Scan a Scooty or Battery QR</p>
+
     <video id="video" playsinline></video>
+
     <button class="btn" id="startCam"><i class="fa-solid fa-qrcode"></i> Open QR Scanner</button>
     <button class="btn" id="stopCam" style="display:none"><i class="fa-solid fa-camera-slash"></i> Stop Camera</button>
 
     <div id="pendingSection">
-      <h3>Pending Action</h3>
+      <h3 style="margin-top:6px">Pending Action</h3>
       <p id="pendingText" class="label-small"></p>
 
       <div id="locationSection">
@@ -74,7 +78,6 @@ select:focus { outline:none; border-color: var(--action); }
         </select>
       </div>
 
-      <!-- Plan + Deposit (only for Scooty assign) -->
       <div id="planSection">
         <label class="label-small">Select Rental Plan:</label>
         <select id="rentalPlan">
@@ -88,32 +91,39 @@ select:focus { outline:none; border-color: var(--action); }
           <input type="checkbox" id="depositCheck" />
           <label for="depositCheck" class="note">Submit ₹3000 as security deposit (optional)</label>
         </div>
+
+        <div class="small-muted">Note: Scooty assignments require admin approval — this request will be sent to the admin panel.</div>
       </div>
 
       <button class="btn" id="confirmBtn">Confirm</button>
       <button class="btn secondary" id="cancelBtn">Cancel</button>
     </div>
+
   </div>
 </div>
 
 <script>
 /*
-  Assumptions:
-  - firebase-config.js initializes firebase and sets `db = firebase.firestore();`
-  - `db` is available here (same as your previous code).
-  - This file preserves all original behavior and adds plan/deposit feature.
+  Full scanner.html with:
+  - jsQR scanning loop
+  - All original validation rules
+  - Plan + deposit UI (deposit optional)
+  - Scooty assign -> creates rental_requests (status: pending) instead of immediate assign
+  - Battery assign/returns and all returns remain immediate and update users + logs
+  - Logs added consistently (rental_request_created, assign/return logs)
+  - Assumes firebase-config.js initializes firebase and sets db = firebase.firestore()
 */
 
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
 if(!email){ alert("Not signed in!"); window.location.href="rider-signin.html"; }
 
+// profile letter
 document.getElementById("profilePic").innerText = email.charAt(0).toUpperCase();
 document.getElementById("logoutBtn").addEventListener("click", ()=>firebase.auth().signOut().then(()=>window.location.href="rider-signin.html"));
 
 let pendingAction=null, stream=null, scanning=false, scanInterval=null, lastRawResult=null;
 
-// scanning loop using jsQR (as before)
 function scanLoop(){
   const video=document.getElementById("video");
   const canvas=document.createElement("canvas");
@@ -153,7 +163,7 @@ function stopCamera(){
 document.getElementById("startCam").addEventListener("click",startCamera);
 document.getElementById("stopCam").addEventListener("click",stopCamera);
 
-// Handle scan -> determine type and rules (kept all original logic)
+// handleScan: detect scooty vs battery, run validations, show pending UI
 async function handleScan(raw){
   const id=raw.trim();
   let type=null, ref=null;
@@ -166,17 +176,18 @@ async function handleScan(raw){
   else { alert("Unknown QR code: "+id); return; }
 
   const data=(await ref.get()).data()||{};
-  if(data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
+  if(data.state && data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
+  // fetch assigned items for this rider
   const assignedScootiesSnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
   const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
 
   let action=null;
   if(data.status==="assigned" && data.assignedTo===email) action="return";
-  else if(data.status==="returned") action="assign";
+  else if(data.status==="returned" || data.status==="available" || !data.status) action="assign";
   else { alert(`${type} ${id} is not eligible for you.`); return; }
 
-  // rules from original code
+  // rules
   if(action==="assign"){
     if(type==="scooty" && !assignedScootiesSnap.empty){ alert("You already have a Scooty assigned."); return; }
     if(type==="battery"){
@@ -187,18 +198,15 @@ async function handleScan(raw){
 
   if(action==="return" && type==="scooty" && !assignedBatteriesSnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
 
-  // set pending action and show UI
+  // prepare UI
   pendingAction={action,id,type,ref};
   document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
   document.getElementById("pendingSection").style.display="block";
-
-  // show return location only on return
-  document.getElementById("locationSection").style.display = action==="return" ? "block" : "none";
+  document.getElementById("locationSection").style.display= action==="return" ? "block" : "none";
 
   // show plan + deposit only when assigning a scooty
   if(action==="assign" && type==="scooty"){
     document.getElementById("planSection").style.display = "block";
-    // reset UI elements for plan/deposit to safe defaults
     document.getElementById("rentalPlan").value = "";
     document.getElementById("depositCheck").checked = false;
   } else {
@@ -206,7 +214,7 @@ async function handleScan(raw){
   }
 }
 
-// Confirm/cancel handlers
+// Confirm handler: major change here for scooty assign -> create rental_requests
 document.getElementById("confirmBtn").addEventListener("click",async()=>{
   if(!pendingAction) return;
   const {action,id,type,ref}=pendingAction;
@@ -214,87 +222,136 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
     let location=null, plan=null, amount=null, depositAmount=null;
 
     if(action==="assign"){
-      // If assigning a scooty, require plan selection
       if(type==="scooty"){
+        // RENTAL REQUEST flow (pending approval)
         plan = document.getElementById("rentalPlan").value;
         if(!plan){ alert("Select rental plan."); return; }
 
-        // map plan to amount
         if(plan === "1d") amount = 300;
-        else if(plan === "7d") amount = 7 * 200; // 1400
+        else if(plan === "7d") amount = 7 * 200;
         else if(plan === "30d") amount = 5500;
         else { alert("Unknown plan selected."); return; }
 
-        // deposit checkbox is optional — if rider checked it, set deposit amount to 3000
-        if(document.getElementById("depositCheck").checked){
-          depositAmount = 3000;
-        }
+        // deposit optional (always visible per your request)
+        if(document.getElementById("depositCheck").checked) depositAmount = 3000;
+
+        // Write rental request instead of assigning directly
+        const req = {
+          email: email,
+          scootyId: id,
+          plan: plan,
+          amount: amount,
+          depositSelected: Boolean(depositAmount),
+          depositAmount: depositAmount || null,
+          status: "pending",
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection("rental_requests").add(req);
+
+        // Log that a rental request was created (admin will later approve)
+        await db.collection("logs").add({
+          email: email,
+          type: "scooty",
+          id: id,
+          action: "rental_request_created",
+          plan: plan,
+          amount: amount,
+          depositAmount: depositAmount || null,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("✅ Rental request submitted — waiting for admin approval.");
+        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        return; // don't proceed further — request ends here
+
+      } else if(type==="battery"){
+        // Battery assignment — immediate (must have scooty assigned)
+        // verify again the rider has a scooty
+        const riderScootySnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
+        if(riderScootySnap.empty){ alert("You must take a Scooty first."); return; }
+
+        // update battery doc to assigned
+        await ref.update({ status:"assigned", assignedTo: email, location: firebase.firestore.FieldValue.delete() });
+
+        // update user doc
+        await db.collection("users").doc(email).set({ batteryId: id }, { merge: true });
+
+        // log
+        await db.collection("logs").add({
+          email: email,
+          type: "battery",
+          id: id,
+          action: "assign",
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("✅ Battery assigned!");
+        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        return;
       }
-
-      // update scanned doc (scooty or battery) to assigned
-      await ref.update({ status:"assigned", assignedTo:email, location:firebase.firestore.FieldValue.delete() });
-
-      // update users document with scooter/battery and rental data (keep deposit if provided)
-      const update = {};
-      if(type==="scooty"){
-        update.scooterId = id;
-        update.rentalPlan = plan;
-        update.rentalAmount = amount;
-        // If deposit selected, write fields in users (this will overwrite or create)
-        if(depositAmount){
-          update.securityDeposit = depositAmount;
-          update.securityDepositTimestamp = firebase.firestore.FieldValue.serverTimestamp();
-        }
-      }
-      if(type==="battery"){
-        update.batteryId = id;
-      }
-
-      // ensure user doc exists; use set with merge to create if missing
-      await db.collection("users").doc(email).set(update, { merge: true });
-
     } else {
-      // RETURN flow
+      // RETURN flow (immediate) for scooty or battery
       location=document.getElementById("returnLocation").value;
       if(!location){ alert("Select return location."); return; }
 
-      await ref.update({ status:"returned", assignedTo:null, location });
-
-      const update = {};
       if(type==="scooty"){
-        update.scooterId = firebase.firestore.FieldValue.delete();
-        update.rentalPlan = firebase.firestore.FieldValue.delete();
-        update.rentalAmount = firebase.firestore.FieldValue.delete();
-        // do NOT delete securityDeposit (admin side) — deposit remains recorded if it was ever recorded
+        // For Scooty: ensure no assigned battery exists
+        const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
+        if(!assignedBatteriesSnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
+
+        // update scooty doc
+        await ref.update({ status:"returned", assignedTo: null, location });
+
+        // update user doc: remove scooter fields but keep securityDeposit if exists (admin-managed)
+        const update = {
+          scooterId: firebase.firestore.FieldValue.delete(),
+          rentalPlan: firebase.firestore.FieldValue.delete(),
+          rentalAmount: firebase.firestore.FieldValue.delete()
+        };
+        await db.collection("users").doc(email).update(update);
+
+        // log
+        await db.collection("logs").add({
+          email: email,
+          type: "scooty",
+          id: id,
+          action: "return",
+          location: location,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("✅ Scooty returned!");
+        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        return;
+
+      } else if(type==="battery"){
+        // update battery doc
+        await ref.update({ status:"returned", assignedTo: null, location });
+
+        // update user doc: remove batteryId
+        await db.collection("users").doc(email).update({ batteryId: firebase.firestore.FieldValue.delete() });
+
+        // log
+        await db.collection("logs").add({
+          email: email,
+          type: "battery",
+          id: id,
+          action: "return",
+          location: location,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("✅ Battery returned!");
+        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        return;
       }
-      if(type==="battery"){
-        update.batteryId = firebase.firestore.FieldValue.delete();
-      }
-      await db.collection("users").doc(email).update(update);
     }
 
-    // Write to logs (include plan/amount/deposit if applicable)
-    await db.collection("logs").add({
-      email: email,
-      type: type,
-      id: id,
-      action: action,
-      plan: plan || null,
-      amount: amount || null,
-      depositAmount: depositAmount || null,
-      location: action==="return" ? location : null,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    alert(`✅ ${action.toUpperCase()} complete!`);
-    // navigate back to dashboard (same as before)
-    window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
-
-  }catch(e){
-    alert("Failed: "+(e && e.message ? e.message : e));
-  }
+  }catch(e){ alert("Failed: "+(e && e.message ? e.message : e)); }
 });
 
+// Cancel
 document.getElementById("cancelBtn").addEventListener("click",()=>{
   pendingAction=null;
   document.getElementById("pendingSection").style.display="none";
