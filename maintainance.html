@@ -54,8 +54,8 @@ button { padding:6px 12px; border:none; border-radius:5px; background:#00eaff; c
   </table>
 
   <p class="muted">
-    Notes: Calculations use <code>logs</code> (action="state-change") if available. Fallbacks: <code>createdAt</code> / <code>updatedAt</code> from scooty_master.
-    <br>Days Used = From first assignment after last maintenance (or ever if none) → until last return (or today if still assigned).
+    Notes: Days Used = (last <code>returned</code> log after maintenance OR today) − (first <code>assigned</code> log after maintenance OR first assignment ever).
+    Next Maintenance = last maintenance/repair + 15 days (or first assignment + 15 if none).
   </p>
 </div>
 
@@ -82,83 +82,64 @@ async function loadScooties() {
   tableBody.innerHTML = "<tr><td colspan='6'>Loading…</td></tr>";
 
   const scootySnap = await db.collection("scooty_master").get();
-  const logSnap = await db.collection("logs")
-    .where("type","==","scooty_master")
-    .where("action","==","state-change")
-    .get();
+  const logSnap = await db.collection("logs").get();
 
-  // Collect logs grouped by scooty
+  // Organize logs by scooty
   const logs = {};
   logSnap.docs.forEach(d => {
     const data = d.data();
+    if (data.itemType !== "scooty") return;
     if (!logs[data.itemId]) logs[data.itemId] = [];
-    logs[data.itemId].push({
-      state: data.newState,
-      timestamp: data.timestamp.toDate()
-    });
+    logs[data.itemId].push({ ...data, timestamp: data.timestamp.toDate() });
   });
 
   scootyList = [];
-
   scootySnap.docs.forEach(doc => {
     const data = doc.data();
     const scootyId = doc.id;
-    const scootyLogs = (logs[scootyId] || []).sort((a,b)=>a.timestamp-b.timestamp);
+    const scootyLogs = logs[scootyId] || [];
 
-    // --- Last maintenance / repair date ---
+    // Find last maintenance/repair date
     let lastMaint = null;
     scootyLogs.forEach(l => {
-      if (l.state==="maintenance" || l.state==="repair") {
+      if (l.action === "state-change" && (l.newState === "maintenance" || l.newState === "repair")) {
         if (!lastMaint || l.timestamp > lastMaint) lastMaint = l.timestamp;
       }
     });
 
-    // --- Assignment + return tracking ---
-    let firstAssignAfterMaint = null;
-    let lastReturn = null;
-
-    for (let i=0;i<scootyLogs.length;i++) {
-      const l = scootyLogs[i];
-      if (lastMaint && l.timestamp <= lastMaint) continue; // skip before maintenance
-
-      if (l.state === "assigned" && !firstAssignAfterMaint) {
-        firstAssignAfterMaint = l.timestamp;
-      }
-      if (l.state === "returned") {
-        lastReturn = l.timestamp;
-      }
+    // Find first assignment after maintenance (or ever)
+    let startDate = null;
+    scootyLogs.filter(l => l.action === "assigned")
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .forEach(l => {
+        if (!lastMaint || l.timestamp > lastMaint) {
+          if (!startDate) startDate = l.timestamp;
+        }
+      });
+    if (!startDate && data.createdAt) {
+      startDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt.seconds*1000);
     }
 
-    // If no maintenance exists, fallback to first ever assignment
-    if (!lastMaint && !firstAssignAfterMaint) {
-      const firstAssignLog = scootyLogs.find(l => l.state==="assigned");
-      if (firstAssignLog) firstAssignAfterMaint = firstAssignLog.timestamp;
-    }
+    // Find most recent return after startDate
+    let endDate = null;
+    scootyLogs.filter(l => l.action === "returned" && (!startDate || l.timestamp >= startDate))
+      .forEach(l => {
+        if (!endDate || l.timestamp > endDate) endDate = l.timestamp;
+      });
+    if (!endDate) endDate = new Date();
 
-    // Days Used calculation
-    let endDate = lastReturn || new Date();
-    let daysUsed = 0;
-    if (firstAssignAfterMaint) {
-      daysUsed = Math.ceil((endDate - firstAssignAfterMaint) / (1000*60*60*24));
-    }
+    // Days used
+    let daysUsed = (startDate && endDate) ? Math.ceil((endDate - startDate)/(1000*60*60*24)) : 0;
 
-    // Next Maintenance calculation
-    let nextMaint;
-    if (lastMaint) {
-      nextMaint = new Date(lastMaint.getTime() + 15*24*60*60*1000);
-    } else if (firstAssignAfterMaint) {
-      if (daysUsed >= 15) {
-        // today is maintenance day
-        nextMaint = new Date();
-      } else {
-        nextMaint = new Date(firstAssignAfterMaint.getTime() + 15*24*60*60*1000);
-      }
-    }
+    // Next maintenance
+    let nextMaint = lastMaint
+      ? new Date(lastMaint.getTime() + 15*24*60*60*1000)
+      : (startDate ? new Date(startDate.getTime() + 15*24*60*60*1000) : null);
 
     scootyList.push({
       id: scootyId,
       assignedTo: data.assignedTo || "-",
-      daysUsed: daysUsed || 0,
+      daysUsed,
       lastMaintenance: lastMaint ? lastMaint.toLocaleDateString() : "-",
       nextMaintenance: nextMaint ? nextMaint.toLocaleDateString() : "-",
       captain: data.captainInCharge || "-"
@@ -169,8 +150,8 @@ async function loadScooties() {
 }
 
 function renderTable() {
-  if (scootyList.length === 0) {
-    tableBody.innerHTML="<tr><td colspan='6'>No scooties found</td></tr>";
+  if(scootyList.length === 0) {
+    tableBody.innerHTML = "<tr><td colspan='6'>No scooties found</td></tr>";
     return;
   }
   tableBody.innerHTML = "";
@@ -189,7 +170,7 @@ function renderTable() {
 }
 
 async function saveToDB() {
-  for(const s of scootyList) {
+  for (const s of scootyList) {
     await db.collection("scooty_master").doc(s.id).update({
       lastMaintenanceDate: s.lastMaintenance,
       nextMaintenanceDate: s.nextMaintenance,
