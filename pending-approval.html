@@ -1,220 +1,373 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>⚡ YANA Admin — Pending Approvals</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-  /* Card layout */
-  .card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius);
-    padding: 12px;
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .card-left { flex: 1; min-width: 150px; }
-  .card-right { display: flex; gap: 8px; align-items: center; }
-  select, input { padding: 4px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg2); color: var(--text); }
-  #searchBar { width: 100%; padding: 8px 12px; margin-bottom: 12px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-  .tab { padding: 8px 16px; border-radius: var(--radius); cursor: pointer; }
-  .tab.active { background: var(--action); color: #000; font-weight: bold; }
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>⚡ YANA Admin — Pending Approvals</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      background: var(--bg2);
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--action);
+      color: #000;
+      font-weight: bold;
+    }
+
+    /* Card layout */
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      transition: var(--transition);
+    }
+    .card:hover {
+      border-color: var(--action);
+      box-shadow: 0 0 10px var(--action);
+    }
+    .card-left {
+      flex: 1;
+      min-width: 200px;
+    }
+    .card-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    select {
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    #searchBar {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    #submitBtn {
+      float: right;
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-
-<div class="navbar">
-  <h2>⚡ YANA Admin — Pending Approvals</h2>
-  <div class="profile">
-    <div class="profile-pic">A</div>
-    <div class="dropdown">
-      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-      <button id="logoutBtn">Logout</button>
+  <!-- Navbar -->
+  <div class="navbar">
+    <h2>⚡ YANA Admin — Pending Approvals</h2>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="container">
-  <!-- Tabs -->
-  <div class="tabs">
-    <div class="tab active" id="riderTab">Rider Approvals</div>
-    <div class="tab" id="rentalTab">Rental Requests</div>
+  <div class="container">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" id="riderTab">Rider Approvals</div>
+      <div class="tab" id="rentalTab">Rental Requests</div>
+    </div>
+
+    <!-- Search bar -->
+    <input type="text" id="searchBar" placeholder="Search by email, scooty id, name, plan...">
+
+    <!-- Riders -->
+    <div id="riderContainer"></div>
+
+    <!-- Rentals -->
+    <div id="rentalContainer" style="display:none;"></div>
+
+    <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
   </div>
 
-  <!-- Search -->
-  <input type="text" id="searchBar" placeholder="Search by email, scooty id, name, plan...">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="firebase-config.js"></script>
 
-  <!-- Containers -->
-  <div id="riderContainer"></div>
-  <div id="rentalContainer" style="display:none;"></div>
+  <script>
+    const riderContainer = document.getElementById("riderContainer");
+    const rentalContainer = document.getElementById("rentalContainer");
+    let pendingRiders = [];
+    let pendingRentals = [];
+    let activeTab = "riders";
 
-  <button id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
-</div>
+    // Tab switching
+    document.getElementById("riderTab").onclick = () => {
+      activeTab = "riders";
+      document.getElementById("riderTab").classList.add("active");
+      document.getElementById("rentalTab").classList.remove("active");
+      riderContainer.style.display = "block";
+      rentalContainer.style.display = "none";
+    };
+    document.getElementById("rentalTab").onclick = () => {
+      activeTab = "rentals";
+      document.getElementById("rentalTab").classList.add("active");
+      document.getElementById("riderTab").classList.remove("active");
+      riderContainer.style.display = "none";
+      rentalContainer.style.display = "block";
+    };
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="firebase-config.js"></script>
+    // Auth check
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href="admin-signin.html";
+      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
 
-<script>
-const riderContainer = document.getElementById("riderContainer");
-const rentalContainer = document.getElementById("rentalContainer");
-const searchBar = document.getElementById("searchBar");
-let pendingRiders = [];
-let pendingRentals = [];
-let activeTab = "riders";
+      const doc = await db.collection("users").doc(user.email).get();
+      if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
+        alert("❌ Access denied. Only Admins or Captains allowed.");
+        return location.href="index.html";
+      }
 
-// Tabs
-document.getElementById("riderTab").onclick = () => { showTab('riders'); };
-document.getElementById("rentalTab").onclick = () => { showTab('rentals'); };
-function showTab(tab){ 
-  activeTab = tab;
-  document.getElementById("riderTab").classList.toggle("active", tab==='riders');
-  document.getElementById("rentalTab").classList.toggle("active", tab==='rentals');
-  riderContainer.style.display = tab==='riders' ? 'block' : 'none';
-  rentalContainer.style.display = tab==='rentals' ? 'block' : 'none';
-  searchBar.value = '';
-  renderView();
-}
-
-// Auth
-auth.onAuthStateChanged(async user => {
-  if(!user) return location.href="admin-signin.html";
-  document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
-  const doc = await db.collection("users").doc(user.email).get();
-  if(!doc.exists || !["admin","captain"].includes(doc.data().role)) { alert("Access denied"); return location.href="index.html"; }
-  loadPendingRiders(); loadPendingRentals();
-});
-document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-// Load riders
-function loadPendingRiders(){
-  db.collection("users").where("status","==","pending")
-    .onSnapshot(snap=>{
-      pendingRiders = [];
-      snap.forEach(doc => { const d=doc.data(); d.id=doc.id; pendingRiders.push(d); });
-      renderRiders(pendingRiders);
+      loadPendingRiders();
+      loadPendingRentals();
     });
-}
-function renderRiders(list){
-  riderContainer.innerHTML = "";
-  if(list.length===0){ riderContainer.innerHTML="<p>No pending riders</p>"; return; }
-  list.forEach(d=>{
-    const card = document.createElement("div"); card.className="card";
-    card.innerHTML = `
-      <div class="card-left"><b>${d.name||""}</b><br>Email: ${d.email||""}<br>Vendor: ${d.vendor||""}<br>Partners: ${(d.partners||[]).join(", ")}</div>
-      <div class="card-right"><select data-id="${d.id}" data-type="rider">
-        <option value="none" selected>No Action</option>
-        <option value="approved">Approve</option>
-        <option value="rejected">Reject</option>
-      </select></div>
-    `;
-    riderContainer.appendChild(card);
-  });
-}
 
-// Load rentals
-function loadPendingRentals(){
-  db.collection("rental_requests").where("status","==","pending").orderBy("timestamp","desc")
-    .onSnapshot(snap=>{
-      pendingRentals=[]; snap.forEach(doc=>{ const d=doc.data(); d.id=doc.id; pendingRentals.push(d); });
-      renderRentals(pendingRentals);
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+    // Riders
+    function loadPendingRiders() {
+      db.collection("users").where("status","==","pending")
+        .onSnapshot(snapshot => {
+          pendingRiders = [];
+          riderContainer.innerHTML = "";
+          if (snapshot.empty) {
+            riderContainer.innerHTML = "<p>No pending riders.</p>";
+            return;
+          }
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            d.id = doc.id;
+            pendingRiders.push(d);
+          });
+          renderRiderCards(pendingRiders);
+        });
+    }
+
+    function renderRiderCards(list) {
+      riderContainer.innerHTML = "";
+      list.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-left">
+            <b>${d.name || ""}</b><br>
+            Email: ${d.email || ""}<br>
+            Vendor: ${d.vendor || ""}<br>
+            Partners: ${(d.partners||[]).join(", ")}
+          </div>
+          <div class="card-right">
+            <select data-type="rider" data-id="${d.id}">
+              <option value="none" selected>No Action</option>
+              <option value="approved">Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+        `;
+        riderContainer.appendChild(card);
+      });
+    }
+
+    // Rentals
+    function loadPendingRentals() {
+      db.collection("rental_requests").where("status","==","pending")
+        .onSnapshot(snapshot => {
+          pendingRentals = [];
+          rentalContainer.innerHTML = "";
+          if (snapshot.empty) {
+            rentalContainer.innerHTML = "<p>No pending rentals.</p>";
+            return;
+          }
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            d.id = doc.id;
+            pendingRentals.push(d);
+          });
+          renderRentalCards(pendingRentals);
+        });
+    }
+
+    function renderRentalCards(list) {
+      rentalContainer.innerHTML = "";
+      list.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-left">
+            <b>${d.email || ""}</b><br>
+            Scooty: ${d.scootyId || ""}<br>
+            Plan: ${d.plan || ""} | Amount: ${d.amount || ""}<br>
+            Deposit: ${d.depositSelected ? d.depositAmount : "No"}
+          </div>
+          <div class="card-right">
+            <select data-type="rental" data-id="${d.id}">
+              <option value="none" selected>No Action</option>
+              <option value="approved">Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+        `;
+        rentalContainer.appendChild(card);
+      });
+    }
+
+    // Search filter (applies to active tab)
+    document.getElementById("searchBar").addEventListener("input", e => {
+      const term = e.target.value.toLowerCase();
+      if (activeTab === "riders") {
+        renderRiderCards(pendingRiders.filter(d =>
+          (d.name || "").toLowerCase().includes(term) ||
+          (d.email || "").toLowerCase().includes(term) ||
+          (d.vendor || "").toLowerCase().includes(term) ||
+          (d.partners || []).join(", ").toLowerCase().includes(term)
+        ));
+      } else {
+        renderRentalCards(pendingRentals.filter(d =>
+          (d.email || "").toLowerCase().includes(term) ||
+          (d.scootyId || "").toLowerCase().includes(term) ||
+          (d.plan || "").toLowerCase().includes(term)
+        ));
+      }
     });
-}
-function renderRentals(list){
-  rentalContainer.innerHTML="";
-  if(list.length===0){ rentalContainer.innerHTML="<p>No pending rentals</p>"; return; }
-  list.forEach(d=>{
-    const card = document.createElement("div"); card.className="card";
-    card.innerHTML=`
-      <div class="card-left"><b>${d.email||""}</b><br>Scooty: ${d.scootyId||""}<br>Plan: ${d.plan||""} | ₹${d.amount||0}<br>Deposit: ${d.depositSelected?d.depositAmount:"No"}</div>
-      <div class="card-right"><select data-id="${d.id}" data-type="rental">
-        <option value="none" selected>No Action</option>
-        <option value="approved">Approve</option>
-        <option value="rejected">Reject</option>
-      </select></div>
-    `;
-    rentalContainer.appendChild(card);
-  });
-}
 
-// Search filter
-searchBar.addEventListener("input", renderView);
-function renderView(){
-  const term = searchBar.value.toLowerCase();
-  if(activeTab==='riders') renderRiders(pendingRiders.filter(d=> (d.name||'').toLowerCase().includes(term)||(d.email||'').toLowerCase().includes(term)||(d.vendor||'').toLowerCase().includes(term)||(d.partners||[]).join(", ").toLowerCase().includes(term)));
-  else renderRentals(pendingRentals.filter(d=> (d.email||'').toLowerCase().includes(term)||(d.scootyId||'').toLowerCase().includes(term)||(d.plan||'').toLowerCase().includes(term)));
-}
+    // Submit changes — auto-update all related docs
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const selects = document.querySelectorAll("select[data-id]");
+      for (let sel of selects) {
+        const type = sel.dataset.type;
+        const id = sel.dataset.id;
+        const val = sel.value;
+        if (val === "none") continue;
 
-// Submit changes
-document.getElementById("submitBtn").addEventListener("click", async ()=>{
-  const selects = document.querySelectorAll("select[data-id]");
-  for(let sel of selects){
-    const val = sel.value;
-    const id = sel.dataset.id;
-    const type = sel.dataset.type;
-    if(val==='none') continue;
-    try{
-      if(type==='rider'){
-        await db.collection("users").doc(id).update({status: val});
-        await db.collection("logs").add({email:id, action:'rider_'+val, timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      } else if(type==='rental'){
-        if(val==='rejected'){
-          await db.collection("rental_requests").doc(id).update({status:'rejected', rejectedBy:auth.currentUser.email, rejectedAt:firebase.firestore.FieldValue.serverTimestamp()});
-          await db.collection("logs").add({action:'rental_request_rejected', requestId:id, rejectedBy:auth.currentUser.email, timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-        } else if(val==='approved'){
-          await approveRental(id);
+        try {
+          if (type === "rider") {
+            await db.collection("users").doc(id).update({
+              status: val,
+              approvedBy: val === "approved" ? auth.currentUser.email : null,
+              approvedAt: val === "approved" ? firebase.firestore.FieldValue.serverTimestamp() : null
+            });
+            await db.collection("logs").add({
+              email: id,
+              action: "rider_" + val,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+          } else if (type === "rental") {
+            const reqRef = db.collection("rental_requests").doc(id);
+            const reqSnap = await reqRef.get();
+            if (!reqSnap.exists) continue;
+            const req = reqSnap.data();
+
+            if (val === "rejected") {
+              await reqRef.update({
+                status: "rejected",
+                rejectedBy: auth.currentUser.email,
+                rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+              await db.collection("logs").add({
+                email: req.email,
+                action: "rental_rejected",
+                requestId: id,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+              });
+            } else if (val === "approved") {
+              await reqRef.update({
+                status: "approved",
+                approvedBy: auth.currentUser.email,
+                approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+
+              // Assign scooty
+              await db.collection("scooty_master").doc(req.scootyId).update({
+                status: "assigned",
+                assignedTo: req.email,
+                lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+
+              // Assign battery
+              if (req.batteryId) {
+                await db.collection("battery_master").doc(req.batteryId).update({
+                  status: "assigned",
+                  assignedTo: req.email,
+                  lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+              }
+
+              // Update user doc
+              const userUpdate = {
+                scootyId: req.scootyId,
+                rentalPlan: req.plan || null,
+                rentalAmount: req.amount || 0,
+                lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
+              };
+              if (req.batteryId) userUpdate.batteryId = req.batteryId;
+              if (req.depositSelected) {
+                userUpdate.securityDeposit = req.depositAmount || 3000;
+                userUpdate.securityDepositTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+              }
+              await db.collection("users").doc(req.email).set(userUpdate, {merge: true});
+
+              // Log scooty/battery assignment
+              await db.collection("logs").add({
+                email: req.email,
+                type: "scooty",
+                id: req.scootyId,
+                action: "assign_via_admin",
+                plan: req.plan || null,
+                amount: req.amount || 0,
+                depositAmount: req.depositSelected ? req.depositAmount || 3000 : null,
+                approvedBy: auth.currentUser.email,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+              });
+              if (req.batteryId) {
+                await db.collection("logs").add({
+                  email: req.email,
+                  type: "battery",
+                  id: req.batteryId,
+                  action: "assign_via_admin",
+                  approvedBy: auth.currentUser.email,
+                  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
+          alert("Failed to process " + (type==="rider"?"rider":"rental") + " ID " + id + ": " + e.message);
         }
       }
-    } catch(e){ console.error(e); alert('Failed: '+e.message); }
-  }
-  alert('✅ Changes applied!');
-});
-
-// Auto-assign rental
-async function approveRental(requestId){
-  const reqRef = db.collection("rental_requests").doc(requestId);
-  const reqSnap = await reqRef.get();
-  if(!reqSnap.exists) return alert('Request not found');
-  const req = reqSnap.data();
-  if(req.status!=='pending') return;
-
-  const batch = db.batch();
-  const scootyRef = db.collection("scooty_master").doc(req.scootyId);
-  const scootySnap = await scootyRef.get();
-  if(!scootySnap.exists) return alert('Scooty not found: '+req.scootyId);
-  const scootyData = scootySnap.data();
-  if(scootyData.status==='assigned' && scootyData.assignedTo) return alert('Scooty already assigned');
-
-  batch.update(scootyRef,{status:'assigned',assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-  if(req.batteryId){
-    const batteryRef = db.collection("battery_master").doc(req.batteryId);
-    const batterySnap = await batteryRef.get();
-    if(!batterySnap.exists) return alert('Battery not found: '+req.batteryId);
-    batch.update(batteryRef,{status:'assigned',assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-  }
-
-  const userRef = db.collection("users").doc(req.email);
-  const userUpdate = {scootyId:req.scootyId, rentalPlan:req.plan||null, rentalAmount:req.amount||0, lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  if(req.batteryId) userUpdate.batteryId=req.batteryId;
-  if(req.depositSelected) { userUpdate.securityDeposit=req.depositAmount||3000; userUpdate.securityDepositTimestamp=firebase.firestore.FieldValue.serverTimestamp(); }
-  batch.set(userRef,userUpdate,{merge:true});
-
-  batch.update(reqRef,{status:'approved',approvedBy:auth.currentUser.email,approvedAt:firebase.firestore.FieldValue.serverTimestamp()});
-  await batch.commit();
-
-  await db.collection("logs").add({email:req.email,type:'scooty',id:req.scootyId,action:'assign_via_admin',plan:req.plan||null,amount:req.amount||0,depositAmount:req.depositSelected?req.depositAmount||3000:null,approvedBy:auth.currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-  if(req.batteryId){
-    await db.collection("logs").add({email:req.email,type:'battery',id:req.batteryId,action:'assign_via_admin',approvedBy:auth.currentUser.email,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-  }
-}
-</script>
+      alert("✅ All selected changes applied!");
+    });
+  </script>
 </body>
 </html>
