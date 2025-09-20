@@ -72,28 +72,52 @@ select{padding:4px;border-radius:var(--radius);border:1px solid var(--border);ba
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 <script>
-const riderContainer=document.getElementById("riderContainer");
-const rentalContainer=document.getElementById("rentalContainer");
-const returnContainer=document.getElementById("returnContainer");
-let pendingRiders=[],pendingRentals=[],pendingReturns=[];
-let activeTab="riders";
+const riderContainer = document.getElementById("riderContainer");
+const rentalContainer = document.getElementById("rentalContainer");
+const returnContainer = document.getElementById("returnContainer");
+let pendingRiders = [], pendingRentals = [], pendingReturns = [];
+let activeTab = "riders";
 
 // Tabs
-document.getElementById("riderTab").onclick=()=>{activeTab="riders"; document.getElementById("riderTab").classList.add("active"); document.getElementById("rentalTab").classList.remove("active"); document.getElementById("returnTab").classList.remove("active"); riderContainer.style.display="block"; rentalContainer.style.display="none"; returnContainer.style.display="none";}
-document.getElementById("rentalTab").onclick=()=>{activeTab="rentals"; document.getElementById("rentalTab").classList.add("active"); document.getElementById("riderTab").classList.remove("active"); document.getElementById("returnTab").classList.remove("active"); riderContainer.style.display="none"; rentalContainer.style.display="block"; returnContainer.style.display="none";}
-document.getElementById("returnTab").onclick=()=>{activeTab="returns"; document.getElementById("returnTab").classList.add("active"); document.getElementById("riderTab").classList.remove("active"); document.getElementById("rentalTab").classList.remove("active"); riderContainer.style.display="none"; rentalContainer.style.display="none"; returnContainer.style.display="block";}
+document.getElementById("riderTab").onclick = ()=>{
+  activeTab="riders";
+  document.getElementById("riderTab").classList.add("active");
+  document.getElementById("rentalTab").classList.remove("active");
+  document.getElementById("returnTab").classList.remove("active");
+  riderContainer.style.display="block";
+  rentalContainer.style.display="none";
+  returnContainer.style.display="none";
+};
+document.getElementById("rentalTab").onclick = ()=>{
+  activeTab="rentals";
+  document.getElementById("rentalTab").classList.add("active");
+  document.getElementById("riderTab").classList.remove("active");
+  document.getElementById("returnTab").classList.remove("active");
+  riderContainer.style.display="none";
+  rentalContainer.style.display="block";
+  returnContainer.style.display="none";
+};
+document.getElementById("returnTab").onclick = ()=>{
+  activeTab="returns";
+  document.getElementById("returnTab").classList.add("active");
+  document.getElementById("riderTab").classList.remove("active");
+  document.getElementById("rentalTab").classList.remove("active");
+  riderContainer.style.display="none";
+  rentalContainer.style.display="none";
+  returnContainer.style.display="block";
+};
 
 // Auth
 auth.onAuthStateChanged(async user=>{
   if(!user) return location.href="admin-signin.html";
   document.querySelector(".profile-pic").innerText=(user.email[0]||"A").toUpperCase();
-  const doc=await db.collection("users").doc(user.email).get();
+  const doc = await db.collection("users").doc(user.email).get();
   if(!doc.exists || !["admin","captain"].includes(doc.data().role)){ alert("Access denied"); return location.href="index.html"; }
   loadRiders(); loadRentals(); loadReturns();
 });
 document.getElementById("logoutBtn").onclick=()=>auth.signOut();
 
-// Load pending riders
+// --- RIDERS ---
 function loadRiders(){
   db.collection("users").where("status","==","pending").onSnapshot(snapshot=>{
     pendingRiders=[]; riderContainer.innerHTML="";
@@ -118,7 +142,7 @@ function renderRiders(list){
   });
 }
 
-// Load rentals
+// --- RENTAL REQUESTS ---
 function loadRentals(){
   db.collection("rental_requests").where("status","==","pending").onSnapshot(snapshot=>{
     pendingRentals=[]; rentalContainer.innerHTML="";
@@ -131,19 +155,12 @@ function renderRentals(list){
   rentalContainer.innerHTML="";
   list.forEach(d=>{
     const card=document.createElement("div"); card.className="card";
-    // calculate due date and excess days dynamically
-    const rentalDate=new Date(d.rentalDate?.seconds*1000||Date.now());
-    const planDays=parseInt(d.plan)||0;
-    const dueDate=new Date(rentalDate.getTime()+planDays*24*60*60*1000);
-    const now=new Date();
-    const excessDays=Math.max(Math.ceil((now-dueDate)/(1000*60*60*24)),0);
     card.innerHTML=`<div class="card-left">
       <b>${d.email||""}</b><br>
       Scooty: ${d.scootyId||""}<br>
       Plan: ${d.plan||""} | Amount: ₹${d.amount||0}<br>
-      Security: ₹${d.depositSelected?d.depositAmount:0}<br>
-      Rental Date: ${rentalDate.toLocaleDateString()}<br>
-      Due: ${dueDate.toLocaleDateString()} | Excess Days: ${excessDays}
+      Security: ₹${d.depositSelected?d.depositAmount||0:0}<br>
+      Rental Date: ${d.rentalDate||"N/A"}
     </div>
     <div class="card-right">
       <select data-type="rental" data-id="${d.id}">
@@ -156,12 +173,15 @@ function renderRentals(list){
   });
 }
 
-// Load return requests (with checklist)
+// --- RETURN REQUESTS ---
 function loadReturns(){
-  db.collection("return_requests").where("status","==","pending").onSnapshot(snapshot=>{
+  // only users with active scooty assigned
+  db.collection("users").where("scootyId","!=",null).onSnapshot(snapshot=>{
     pendingReturns=[]; returnContainer.innerHTML="";
     if(snapshot.empty){ returnContainer.innerHTML="<p>No pending returns.</p>"; return; }
-    snapshot.forEach(doc=>{const d=doc.data(); d.id=doc.id; pendingReturns.push(d);});
+    snapshot.forEach(doc=>{
+      const d=doc.data(); d.id=doc.id; pendingReturns.push(d);
+    });
     renderReturns(pendingReturns);
   });
 }
@@ -169,16 +189,16 @@ function renderReturns(list){
   returnContainer.innerHTML="";
   list.forEach(d=>{
     const card=document.createElement("div"); card.className="card";
-    // calculate due date and excess days
-    const rentalDate=new Date(d.rentalDate?.seconds*1000||Date.now());
-    const planDays=parseInt(d.plan)||0;
-    const dueDate=new Date(rentalDate.getTime()+planDays*24*60*60*1000);
-    const now=new Date();
-    const excessDays=Math.max(Math.ceil((now-dueDate)/(1000*60*60*24)),0);
-
+    // calculate due and excess days
+    let rentalDate = d.lastAssignedAt ? new Date(d.lastAssignedAt.seconds*1000) : new Date();
+    let planDays = parseInt(d.rentalPlan) || 0;
+    let dueDate = new Date(rentalDate); dueDate.setDate(dueDate.getDate()+planDays);
+    let today = new Date();
+    let excessDays = Math.max(0, Math.floor((today-dueDate)/(1000*60*60*24)));
     card.innerHTML=`<div class="card-left">
       <b>${d.email||""}</b><br>
       Scooty: ${d.scootyId||""}<br>
+      Rental Amount: ₹${d.rentalAmount||0}<br>
       Security: ₹${d.securityDeposit||0}<br>
       Rental Date: ${rentalDate.toLocaleDateString()}<br>
       Due: ${dueDate.toLocaleDateString()} | Excess Days: ${excessDays}
@@ -207,18 +227,17 @@ function renderReturns(list){
         <option value="rejected">Reject</option>
       </select>
     </div>`;
-    // toggle checklist on click
     card.addEventListener("click", e=>{
       if(e.target.tagName==="SELECT") return;
       const checklist=card.querySelector(".checklist");
-      if(checklist) checklist.style.display=checklist.style.display==="block"?"none":"block";
+      checklist.style.display=checklist.style.display==="block"?"none":"block";
     });
     returnContainer.appendChild(card);
   });
 }
 
-// Search
-document.getElementById("searchBar").addEventListener("input",e=>{
+// Search filter
+document.getElementById("searchBar").addEventListener("input", e=>{
   const term=e.target.value.toLowerCase();
   if(activeTab==="riders") renderRiders(pendingRiders.filter(d=>((d.name||"")+ (d.email||"")+ (d.vendor||"")+ ((d.partners||[]).join(","))).toLowerCase().includes(term)));
   else if(activeTab==="rentals") renderRentals(pendingRentals.filter(d=>((d.email||"")+(d.scootyId||"")+(d.plan||"")).toLowerCase().includes(term)));
@@ -229,7 +248,7 @@ document.getElementById("searchBar").addEventListener("input",e=>{
 document.getElementById("submitBtn").addEventListener("click",async()=>{
   const selects=document.querySelectorAll("select[data-id]");
   for(let sel of selects){
-    const type=sel.dataset.type,id=sel.dataset.id,val=sel.value;
+    const type=sel.dataset.type, id=sel.dataset.id, val=sel.value;
     if(val==="none") continue;
     try{
       if(type==="rider"){
@@ -240,16 +259,16 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
         });
         await db.collection("logs").add({email:id,action:"rider_"+val,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
       }else if(type==="rental" || type==="return"){
-        const collectionName=type==="rental"?"rental_requests":"return_requests";
+        const collectionName = type==="rental"?"rental_requests":"users";
         const reqRef=db.collection(collectionName).doc(id);
         const reqSnap=await reqRef.get();
         if(!reqSnap.exists) continue;
         const req=reqSnap.data();
-        // gather checklist only for return
+        // gather checklist for return only
         let checklistItems=[];
         if(type==="return"){
-          const card=sel.closest(".card");
-          checklistItems=Array.from(card.querySelectorAll(".checklist input")).map(i=>{
+          const card = sel.closest(".card");
+          checklistItems = Array.from(card.querySelectorAll(".checklist input")).map(i=>{
             if(i.type==="checkbox") return i.checked?i.dataset.part:null;
             else if(i.type==="text" && i.value.trim()!=="") return "Others: "+i.value.trim();
             return null;
@@ -257,9 +276,9 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
         }
         await reqRef.update({
           status:val,
-          approvedBy:auth.currentUser.email,
+          approvedBy: auth.currentUser.email,
           approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
-          checklist: checklistItems
+          ...(type==="return" ? {checklist:checklistItems} : {})
         });
         await db.collection("logs").add({
           email:req.email,
@@ -271,7 +290,7 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
         if(type==="rental" && val==="approved"){
           await db.collection("scooty_master").doc(req.scootyId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
           if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-          await db.collection("users").doc(req.email).set({scootyId:req.scootyId,rentalPlan:req.plan,rentalAmount:req.amount||0,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp(),batteryId:req.batteryId||null,securityDeposit:req.depositSelected?req.depositAmount||0:0,securityDepositTimestamp:req.depositSelected?firebase.firestore.FieldValue.serverTimestamp():null},{merge:true});
+          await db.collection("users").doc(req.email).set({scootyId:req.scootyId,rentalPlan:req.plan,rentalAmount:req.amount||0,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp(),batteryId:req.batteryId||null,securityDeposit:req.depositSelected?req.depositAmount||3000:0,securityDepositTimestamp:req.depositSelected?firebase.firestore.FieldValue.serverTimestamp():null},{merge:true});
         }
       }
     }catch(e){console.error(e); alert("Failed "+type+" ID "+id+": "+e.message);}
