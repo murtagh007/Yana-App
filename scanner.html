@@ -92,7 +92,7 @@ select:focus { outline:none; border-color: var(--action); }
           <label for="depositCheck" class="note">Submit ₹3000 as security deposit (optional)</label>
         </div>
 
-        <div class="small-muted">Note: Scooty assignments require admin approval — this request will be sent to the admin panel.</div>
+        <div class="small-muted">Note: Scooty assignments and returns require admin approval — requests will be sent to the admin panel.</div>
       </div>
 
       <button class="btn" id="confirmBtn">Confirm</button>
@@ -103,17 +103,7 @@ select:focus { outline:none; border-color: var(--action); }
 </div>
 
 <script>
-/*
-  Full scanner.html with:
-  - jsQR scanning loop
-  - All original validation rules
-  - Plan + deposit UI (deposit optional)
-  - Scooty assign -> creates rental_requests (status: pending) instead of immediate assign
-  - Battery assign/returns and all returns remain immediate and update users + logs
-  - Logs added consistently (rental_request_created, assign/return logs)
-  - Assumes firebase-config.js initializes firebase and sets db = firebase.firestore()
-*/
-
+// signed-in user email
 const params = new URLSearchParams(window.location.search);
 const email = params.get("email");
 if(!email){ alert("Not signed in!"); window.location.href="rider-signin.html"; }
@@ -163,7 +153,6 @@ function stopCamera(){
 document.getElementById("startCam").addEventListener("click",startCamera);
 document.getElementById("stopCam").addEventListener("click",stopCamera);
 
-// handleScan: detect scooty vs battery, run validations, show pending UI
 async function handleScan(raw){
   const id=raw.trim();
   let type=null, ref=null;
@@ -178,7 +167,6 @@ async function handleScan(raw){
   const data=(await ref.get()).data()||{};
   if(data.state && data.state!=="active"){ alert(`${type} ${id} is not active.`); return; }
 
-  // fetch assigned items for this rider
   const assignedScootiesSnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
   const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
 
@@ -187,7 +175,6 @@ async function handleScan(raw){
   else if(data.status==="returned" || data.status==="available" || !data.status) action="assign";
   else { alert(`${type} ${id} is not eligible for you.`); return; }
 
-  // rules
   if(action==="assign"){
     if(type==="scooty" && !assignedScootiesSnap.empty){ alert("You already have a Scooty assigned."); return; }
     if(type==="battery"){
@@ -198,44 +185,39 @@ async function handleScan(raw){
 
   if(action==="return" && type==="scooty" && !assignedBatteriesSnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
 
-  // prepare UI
   pendingAction={action,id,type,ref};
   document.getElementById("pendingText").innerText=`${action.toUpperCase()} ${type} ${id}?`;
   document.getElementById("pendingSection").style.display="block";
   document.getElementById("locationSection").style.display= action==="return" ? "block" : "none";
-
-  // show plan + deposit only when assigning a scooty
   if(action==="assign" && type==="scooty"){
     document.getElementById("planSection").style.display = "block";
     document.getElementById("rentalPlan").value = "";
     document.getElementById("depositCheck").checked = false;
-  } else {
-    document.getElementById("planSection").style.display = "none";
-  }
+  } else { document.getElementById("planSection").style.display = "none"; }
 }
 
-// Confirm handler: major change here for scooty assign -> create rental_requests
-document.getElementById("confirmBtn").addEventListener("click",async()=>{
-  if(!pendingAction) return;
-  const {action,id,type,ref}=pendingAction;
-  try{
-    let location=null, plan=null, amount=null, depositAmount=null;
+// Confirm handler
+document.getElementById("confirmBtn").addEventListener("click", async () => {
+  if (!pendingAction) return;
+  const { action, id, type, ref } = pendingAction;
 
-    if(action==="assign"){
-      if(type==="scooty"){
-        // RENTAL REQUEST flow (pending approval)
+  try {
+    let location = null,
+      plan = null,
+      amount = null,
+      depositAmount = null;
+
+    if (action === "assign") {
+      if (type === "scooty") {
         plan = document.getElementById("rentalPlan").value;
-        if(!plan){ alert("Select rental plan."); return; }
-
-        if(plan === "1d") amount = 300;
-        else if(plan === "7d") amount = 7 * 200;
-        else if(plan === "30d") amount = 5500;
+        if (!plan) { alert("Select rental plan."); return; }
+        if (plan === "1d") amount = 300;
+        else if (plan === "7d") amount = 7 * 200;
+        else if (plan === "30d") amount = 5500;
         else { alert("Unknown plan selected."); return; }
 
-        // deposit optional (always visible per your request)
-        if(document.getElementById("depositCheck").checked) depositAmount = 3000;
+        if (document.getElementById("depositCheck").checked) depositAmount = 3000;
 
-        // Write rental request instead of assigning directly
         const req = {
           email: email,
           scootyId: id,
@@ -248,8 +230,6 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
         };
 
         await db.collection("rental_requests").add(req);
-
-        // Log that a rental request was created (admin will later approve)
         await db.collection("logs").add({
           email: email,
           type: "scooty",
@@ -262,22 +242,17 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
         });
 
         alert("✅ Rental request submitted — waiting for admin approval.");
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
-        return; // don't proceed further — request ends here
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
+        return;
 
-      } else if(type==="battery"){
-        // Battery assignment — immediate (must have scooty assigned)
-        // verify again the rider has a scooty
+      } else if (type === "battery") {
         const riderScootySnap = await db.collection("scooty_master").where("status","==","assigned").where("assignedTo","==",email).get();
-        if(riderScootySnap.empty){ alert("You must take a Scooty first."); return; }
+        if (riderScootySnap.empty){ alert("You must take a Scooty first."); return; }
+        const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
+        if (!assignedBatteriesSnap.empty){ alert("You already have a Battery assigned."); return; }
 
-        // update battery doc to assigned
         await ref.update({ status:"assigned", assignedTo: email, location: firebase.firestore.FieldValue.delete() });
-
-        // update user doc
         await db.collection("users").doc(email).set({ batteryId: id }, { merge: true });
-
-        // log
         await db.collection("logs").add({
           email: email,
           type: "battery",
@@ -287,52 +262,45 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
         });
 
         alert("✅ Battery assigned!");
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
         return;
       }
-    } else {
-      // RETURN flow (immediate) for scooty or battery
-      location=document.getElementById("returnLocation").value;
-      if(!location){ alert("Select return location."); return; }
 
-      if(type==="scooty"){
-        // For Scooty: ensure no assigned battery exists
+    } else if (action === "return") {
+      location = document.getElementById("returnLocation").value;
+      if (!location){ alert("Select return location."); return; }
+
+      if (type === "scooty") {
         const assignedBatteriesSnap = await db.collection("battery_master").where("status","==","assigned").where("assignedTo","==",email).get();
         if(!assignedBatteriesSnap.empty){ alert("Return the Battery first before returning the Scooty."); return; }
 
-        // update scooty doc
-        await ref.update({ status:"returned", assignedTo: null, location });
-
-        // update user doc: remove scooter fields but keep securityDeposit if exists (admin-managed)
-        const update = {
-          scooterId: firebase.firestore.FieldValue.delete(),
-          rentalPlan: firebase.firestore.FieldValue.delete(),
-          rentalAmount: firebase.firestore.FieldValue.delete()
+        // CREATE RETURN REQUEST
+        const returnReq = {
+          email: email,
+          itemId: id,
+          itemType: "scooty",
+          location: location,
+          status: "pending",
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        await db.collection("users").doc(email).update(update);
+        await db.collection("return_requests").add(returnReq);
 
-        // log
         await db.collection("logs").add({
           email: email,
           type: "scooty",
           id: id,
-          action: "return",
+          action: "return_request_created",
           location: location,
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert("✅ Scooty returned!");
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        alert("✅ Scooty return request submitted — waiting for admin approval.");
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
         return;
 
-      } else if(type==="battery"){
-        // update battery doc
-        await ref.update({ status:"returned", assignedTo: null, location });
-
-        // update user doc: remove batteryId
+      } else if (type === "battery") {
+        await ref.update({ status:"returned", assignedTo:null, location });
         await db.collection("users").doc(email).update({ batteryId: firebase.firestore.FieldValue.delete() });
-
-        // log
         await db.collection("logs").add({
           email: email,
           type: "battery",
@@ -343,16 +311,16 @@ document.getElementById("confirmBtn").addEventListener("click",async()=>{
         });
 
         alert("✅ Battery returned!");
-        window.location.href="rider-dashboard.html?email="+encodeURIComponent(email);
+        window.location.href = "rider-dashboard.html?email=" + encodeURIComponent(email);
         return;
       }
     }
 
-  }catch(e){ alert("Failed: "+(e && e.message ? e.message : e)); }
+  } catch(e){ alert("Failed: "+(e && e.message ? e.message : e)); }
 });
 
 // Cancel
-document.getElementById("cancelBtn").addEventListener("click",()=>{
+document.getElementById("cancelBtn").addEventListener("click", ()=>{
   pendingAction=null;
   document.getElementById("pendingSection").style.display="none";
   document.getElementById("locationSection").style.display="none";
