@@ -3,432 +3,280 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — Pending Approvals (Riders & Rentals)</title>
-
-  <!-- Embedded styles -->
+  <title>⚡ YANA Admin — Pending Approvals</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    :root{
-      --bg:#061219;
-      --card:rgba(255,255,255,0.04);
-      --border:rgba(255,255,255,0.08);
-      --action:#00eaff;
-      --text:#eaf4f8;
-      --radius:12px;
-      --muted:rgba(234,244,248,0.6);
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
     }
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;color:var(--text);background:linear-gradient(180deg,#041018 0,#07161c 100%);}
-    .navbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
-    .navbar h2{color:var(--action);margin:0;font-size:1.05rem}
-    .container{max-width:1100px;margin:20px auto;padding:0 16px}
-    .top-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-    .tabs{display:flex;gap:8px}
-    .tab{padding:8px 12px;border-radius:10px;cursor:pointer;background:transparent;border:1px solid transparent;color:var(--muted);font-weight:700}
-    .tab.active{background:rgba(0,234,255,0.08);border-color:var(--action);color:var(--action)}
-    .search{flex:1;min-width:220px}
-    input[type="search"]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);box-sizing:border-box}
-    .cards{margin-top:12px;display:flex;flex-direction:column;gap:12px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-    .card-left{flex:1;min-width:220px}
-    .card-meta{color:var(--muted);font-size:0.92rem;margin-top:6px}
-    .card-right{display:flex;gap:8px;align-items:center}
-    .btn{padding:8px 12px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
-    .btn.approve{background:var(--action);color:#000}
-    .btn.reject{background:transparent;color:var(--action);border:1px solid var(--action)}
-    .small{font-size:0.85rem;color:var(--muted)}
-    .muted{color:var(--muted)}
-    .tag{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:8px;border:1px solid transparent;font-weight:700}
-    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .note{font-size:13px;color:var(--muted);margin-top:6px}
-    .actions{display:flex;gap:8px}
-    .reason-input{padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);width:220px}
-    .timestamp{font-size:12px;color:var(--muted)}
+    .tab {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      background: var(--bg2);
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--action);
+      color: #000;
+      font-weight: bold;
+    }
+
+    /* Card layout */
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      transition: var(--transition);
+    }
+    .card:hover {
+      border-color: var(--action);
+      box-shadow: 0 0 10px var(--action);
+    }
+    .card-left {
+      flex: 1;
+      min-width: 200px;
+    }
+    .card-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    select {
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    #searchBar {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+    }
+    #submitBtn {
+      float: right;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
-
+  <!-- Navbar -->
   <div class="navbar">
     <h2>⚡ YANA Admin — Pending Approvals</h2>
-    <div class="profile" style="position:relative">
-      <div class="tag" id="adminEmail">—</div>
-      <div style="position:absolute;right:8px;top:46px;display:none" id="authActions">
-        <button id="logoutBtn" class="btn" style="background:transparent;color:var(--muted)">Logout</button>
+    <div class="profile">
+      <div class="profile-pic">A</div>
+      <div class="dropdown">
+        <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+        <button id="logoutBtn">Logout</button>
       </div>
     </div>
   </div>
 
   <div class="container">
-    <div class="top-row">
-      <div class="tabs" role="tablist">
-        <div class="tab active" data-tab="riders" id="tabRiders">Rider Approvals</div>
-        <div class="tab" data-tab="rentals" id="tabRentals">Rental Requests</div>
-      </div>
-
-      <div class="search">
-        <input type="search" id="searchInput" placeholder="Search by email, scooty id, name, plan..." />
-      </div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" id="riderTab">Rider Approvals</div>
+      <div class="tab" id="rentalTab">Rental Requests</div>
     </div>
 
-    <div id="content">
-      <!-- Riders tab -->
-      <div id="ridersView" class="view">
-        <h3>Pending Rider Accounts</h3>
-        <p class="note">Approve or reject new rider accounts. This updates <code>users.status</code>.</p>
-        <div id="ridersCards" class="cards"></div>
-      </div>
+    <!-- Search bar -->
+    <input type="text" id="searchBar" placeholder="Search by email, scooty id, name, plan...">
 
-      <!-- Rentals tab -->
-      <div id="rentalsView" class="view" style="display:none">
-        <h3>Pending Rental Requests</h3>
-        <p class="note">Approve to automatically assign Scooty/Battery and update users/logs. Reject to decline the request.</p>
-        <div id="rentalsCards" class="cards"></div>
-      </div>
-    </div>
+    <!-- Riders -->
+    <div id="riderContainer"></div>
+
+    <!-- Rentals -->
+    <div id="rentalContainer" style="display:none;"></div>
+
+    <button class="menu-btn ripple" id="submitBtn"><i class="fas fa-check"></i> Submit Changes</button>
   </div>
 
-  <!-- Firebase libs (assumes firebase-config.js initializes firebase and exports db, auth) -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="firebase-config.js"></script>
 
   <script>
-  // ------------ Admin Approvals Page ------------
-  // Requires firebase-config.js to set: firebase, db = firebase.firestore(), auth = firebase.auth()
+    const riderContainer = document.getElementById("riderContainer");
+    const rentalContainer = document.getElementById("rentalContainer");
+    let pendingRiders = [];
+    let pendingRentals = [];
+    let activeTab = "riders";
 
-  const tabRiders = document.getElementById('tabRiders');
-  const tabRentals = document.getElementById('tabRentals');
-  const ridersView = document.getElementById('ridersView');
-  const rentalsView = document.getElementById('rentalsView');
-  const searchInput = document.getElementById('searchInput');
-  const adminEmailTag = document.getElementById('adminEmail');
-  const ridersCards = document.getElementById('ridersCards');
-  const rentalsCards = document.getElementById('rentalsCards');
-  const logoutBtn = document.getElementById('logoutBtn');
+    // Tab switching
+    document.getElementById("riderTab").onclick = () => {
+      activeTab = "riders";
+      document.getElementById("riderTab").classList.add("active");
+      document.getElementById("rentalTab").classList.remove("active");
+      riderContainer.style.display = "block";
+      rentalContainer.style.display = "none";
+    };
+    document.getElementById("rentalTab").onclick = () => {
+      activeTab = "rentals";
+      document.getElementById("rentalTab").classList.add("active");
+      document.getElementById("riderTab").classList.remove("active");
+      riderContainer.style.display = "none";
+      rentalContainer.style.display = "block";
+    };
 
-  let currentUser = null; // admin user object
-  let ridersList = [];    // cached pending riders
-  let rentalsList = [];   // cached pending rental requests
+    // Auth check
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href="admin-signin.html";
+      document.querySelector(".profile-pic").innerText = (user.email[0]||"A").toUpperCase();
 
-  // Tab switching
-  tabRiders.addEventListener('click', ()=>{ setActiveTab('riders'); });
-  tabRentals.addEventListener('click', ()=>{ setActiveTab('rentals'); });
-
-  function setActiveTab(name){
-    if(name==='riders'){
-      tabRiders.classList.add('active'); tabRentals.classList.remove('active');
-      ridersView.style.display='block'; rentalsView.style.display='none';
-    }else{
-      tabRentals.classList.add('active'); tabRiders.classList.remove('active');
-      rentalsView.style.display='block'; ridersView.style.display='none';
-    }
-    // clear search
-    searchInput.value='';
-    renderCurrentView();
-  }
-
-  // Auth & role guard
-  auth.onAuthStateChanged(async user => {
-    if(!user) return location.href = 'admin-signin.html';
-    currentUser = user;
-    adminEmailTag.innerText = (user.email||'admin').toLowerCase();
-    logoutBtn.onclick = ()=> auth.signOut().then(()=>location.href='admin-signin.html');
-
-    // Verify role in users collection (must be admin or captain)
-    try{
-      const doc = await db.collection('users').doc(user.email).get();
-      if(!doc.exists || !['admin','captain'].includes(doc.data().role)){
-        alert('Access denied — only admin/captain allowed');
-        return location.href='index.html';
+      const doc = await db.collection("users").doc(user.email).get();
+      if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
+        alert("❌ Access denied. Only Admins or Captains allowed.");
+        return location.href="index.html";
       }
-    }catch(e){
-      console.error(e); alert('Auth check failed: '+e.message);
-      return location.href='index.html';
-    }
 
-    // Start listeners
-    listenPendingRiders();
-    listenRentalRequests();
-  });
-
-  // ----------------- Riders -----------------
-  function listenPendingRiders(){
-    db.collection('users').where('status','==','pending').onSnapshot(snapshot=>{
-      ridersList = [];
-      snapshot.forEach(d=>{
-        const item = d.data(); item._id = d.id;
-        ridersList.push(item);
-      });
-      renderRiders(ridersList);
-    }, err => console.error('riders listen err', err));
-  }
-
-  function renderRiders(list){
-    ridersCards.innerHTML='';
-    if(!list.length){ ridersCards.innerHTML = '<div class="note">No pending rider accounts.</div>'; return; }
-    list.forEach(u=>{
-      const card = document.createElement('div'); card.className='card';
-      const left = document.createElement('div'); left.className='card-left';
-      left.innerHTML = `<b>${u.name||u.email}</b><div class="card-meta">${u.email || ''}</div>
-                        <div class="card-meta">Phone: ${u.phone || '—'}</div>
-                        <div class="card-meta">Applied: ${u.appliedAt ? new Date(u.appliedAt.seconds*1000).toLocaleString() : '—'}</div>`;
-      const right = document.createElement('div'); right.className='card-right';
-      const sel = document.createElement('select'); sel.className='tag';
-      sel.innerHTML = `<option value="none" selected>No Action</option><option value="approved">Approve</option><option value="rejected">Reject</option>`;
-      sel.dataset.uid = u._id;
-      const reason = document.createElement('input'); reason.className='reason-input'; reason.placeholder='Optional reason (reject)';
-      reason.style.display='none';
-      sel.addEventListener('change', ()=>{ reason.style.display = sel.value==='rejected' ? 'inline-block' : 'none'; });
-
-      const applyBtn = document.createElement('button'); applyBtn.className='btn approve'; applyBtn.innerText='Apply';
-      applyBtn.onclick = ()=> applyRiderAction(sel.value, u._id, reason.value);
-
-      right.appendChild(sel); right.appendChild(reason); right.appendChild(applyBtn);
-      card.appendChild(left); card.appendChild(right);
-      ridersCards.appendChild(card);
+      loadPendingRiders();
+      loadPendingRentals();
     });
-  }
 
-  async function applyRiderAction(action, uid, reason){
-    if(action==='none'){ return alert('Choose an action before applying.'); }
-    try{
-      if(action==='approved'){
-        await db.collection('users').doc(uid).update({
-          status: 'approved',
-          approvedBy: currentUser.email,
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+    // Riders
+    function loadPendingRiders() {
+      db.collection("users").where("status","==","pending")
+        .onSnapshot(snapshot => {
+          pendingRiders = [];
+          riderContainer.innerHTML = "";
+          if (snapshot.empty) {
+            riderContainer.innerHTML = "<p>No pending riders.</p>";
+            return;
+          }
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            d.id = doc.id;
+            pendingRiders.push(d);
+          });
+          renderRiderCards(pendingRiders);
         });
-        await db.collection('logs').add({
-          email: uid,
-          action: 'rider_approved',
-          approvedBy: currentUser.email,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        alert('✅ Rider approved');
-      } else if(action==='rejected'){
-        await db.collection('users').doc(uid).update({
-          status: 'rejected',
-          rejectedBy: currentUser.email,
-          rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        await db.collection('logs').add({
-          email: uid,
-          action: 'rider_rejected',
-          reason: reason || null,
-          rejectedBy: currentUser.email,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        alert('❌ Rider rejected');
-      }
-    }catch(e){
-      console.error(e); alert('Failed: '+(e.message||e));
     }
-  }
 
-  // ----------------- Rentals -----------------
-  function listenRentalRequests(){
-    db.collection('rental_requests').where('status','==','pending').orderBy('timestamp','desc')
-      .onSnapshot(snapshot=>{
-        rentalsList = [];
-        snapshot.forEach(d=>{
-          const item = d.data(); item._id = d.id;
-          rentalsList.push(item);
+    function renderRiderCards(list) {
+      riderContainer.innerHTML = "";
+      list.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-left">
+            <b>${d.name || ""}</b><br>
+            Email: ${d.email || ""}<br>
+            Vendor: ${d.vendor || ""}<br>
+            Partners: ${(d.partners||[]).join(", ")}
+          </div>
+          <div class="card-right">
+            <select data-type="rider" data-id="${d.id}">
+              <option value="none" selected>No Action</option>
+              <option value="approved">Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+        `;
+        riderContainer.appendChild(card);
+      });
+    }
+
+    // Rentals
+    function loadPendingRentals() {
+      db.collection("rental_requests").where("status","==","pending")
+        .onSnapshot(snapshot => {
+          pendingRentals = [];
+          rentalContainer.innerHTML = "";
+          if (snapshot.empty) {
+            rentalContainer.innerHTML = "<p>No pending rentals.</p>";
+            return;
+          }
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            d.id = doc.id;
+            pendingRentals.push(d);
+          });
+          renderRentalCards(pendingRentals);
         });
-        renderRentals(rentalsList);
-      }, err => console.error('rental listen err', err));
-  }
+    }
 
-  function renderRentals(list){
-    rentalsCards.innerHTML='';
-    if(!list.length){ rentalsCards.innerHTML = '<div class="note">No pending rental requests.</div>'; return; }
-    list.forEach(r=>{
-      const card = document.createElement('div'); card.className='card';
-      const left = document.createElement('div'); left.className='card-left';
-      left.innerHTML = `<b>${r.email}</b>
-        <div class="card-meta">Scooty: ${r.scootyId || '—'}</div>
-        <div class="card-meta">Battery: ${r.batteryId || '—'}</div>
-        <div class="card-meta">Plan: ${formatPlan(r.plan)} | ₹${r.amount||0}</div>
-        <div class="card-meta">Deposit: ${r.depositSelected ? 'Yes (₹'+(r.depositAmount||3000)+')' : 'No'}</div>
-        <div class="card-meta timestamp">Requested: ${r.timestamp ? new Date(r.timestamp.seconds*1000).toLocaleString() : '—'}</div>`;
+    function renderRentalCards(list) {
+      rentalContainer.innerHTML = "";
+      list.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-left">
+            <b>${d.email || ""}</b><br>
+            Scooty: ${d.scootyId || ""}<br>
+            Plan: ${d.plan || ""} | Amount: ${d.amount || ""}<br>
+            Deposit: ${d.depositSelected ? d.depositAmount : "No"}
+          </div>
+          <div class="card-right">
+            <select data-type="rental" data-id="${d.id}">
+              <option value="none" selected>No Action</option>
+              <option value="approved">Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+        `;
+        rentalContainer.appendChild(card);
+      });
+    }
 
-      const right = document.createElement('div'); right.className='card-right';
-      const approveBtn = document.createElement('button'); approveBtn.className='btn approve'; approveBtn.innerText='Approve';
-      approveBtn.onclick = ()=> approveRentalRequest(r._id);
-      const rejectBtn = document.createElement('button'); rejectBtn.className='btn reject'; rejectBtn.innerText='Reject';
-      rejectBtn.onclick = ()=> rejectRentalRequest(r._id);
-
-      right.appendChild(approveBtn); right.appendChild(rejectBtn);
-      card.appendChild(left); card.appendChild(right);
-      rentalsCards.appendChild(card);
+    // Search filter (applies to active tab)
+    document.getElementById("searchBar").addEventListener("input", e => {
+      const term = e.target.value.toLowerCase();
+      if (activeTab === "riders") {
+        renderRiderCards(pendingRiders.filter(d =>
+          (d.name || "").toLowerCase().includes(term) ||
+          (d.email || "").toLowerCase().includes(term) ||
+          (d.vendor || "").toLowerCase().includes(term) ||
+          (d.partners || []).join(", ").toLowerCase().includes(term)
+        ));
+      } else {
+        renderRentalCards(pendingRentals.filter(d =>
+          (d.email || "").toLowerCase().includes(term) ||
+          (d.scootyId || "").toLowerCase().includes(term) ||
+          (d.plan || "").toLowerCase().includes(term)
+        ));
+      }
     });
-  }
 
-  function formatPlan(p){
-    if(!p) return '—';
-    if(p==='1d') return '1 Day';
-    if(p==='7d') return '7 Days';
-    if(p==='30d') return '30 Days';
-    return p;
-  }
-
-  // Approve rental request -> automatic assignment (transaction-style flow)
-  async function approveRentalRequest(requestId){
-    if(!confirm('Approve this rental request? This will assign Scooty/Battery to the rider immediately.')) return;
-    try{
-      const reqRef = db.collection('rental_requests').doc(requestId);
-      const reqSnap = await reqRef.get();
-      if(!reqSnap.exists) return alert('Request not found');
-      const req = reqSnap.data();
-
-      if(req.status !== 'pending') return alert('Request already processed');
-
-      const batch = db.batch();
-
-      const scootyId = req.scootyId;
-      const batteryId = req.batteryId || null;
-      const riderEmail = req.email;
-
-      // 1) Check scooty availability
-      const scootyRef = db.collection('scooty_master').doc(scootyId);
-      const scootySnap = await scootyRef.get();
-      if(!scootySnap.exists) return alert('Scooty not found: '+scootyId);
-      const scootyData = scootySnap.data();
-      if(scootyData.status === 'assigned' && scootyData.assignedTo) return alert('Scooty already assigned');
-
-      // 2) If battery provided, check availability
-      let batteryRef = null;
-      if(batteryId){
-        batteryRef = db.collection('battery_master').doc(batteryId);
-        const battSnap = await batteryRef.get();
-        if(!battSnap.exists) return alert('Battery not found: '+batteryId);
-        const battData = battSnap.data();
-        if(battData.status === 'assigned' && battData.assignedTo) return alert('Battery already assigned');
-      }
-
-      // 3) Update scooty_master -> assigned
-      batch.update(scootyRef, {
-        status: 'assigned',
-        assignedTo: riderEmail,
-        location: firebase.firestore.FieldValue.delete(),
-        lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
+    // Submit changes
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const updates = [];
+      document.querySelectorAll("select[data-id]").forEach(sel => {
+        if (sel.value !== "none") {
+          if (sel.dataset.type === "rider") {
+            updates.push(db.collection("users").doc(sel.dataset.id).update({status: sel.value}));
+          } else if (sel.dataset.type === "rental") {
+            updates.push(db.collection("rental_requests").doc(sel.dataset.id).update({status: sel.value}));
+            // 🚀 TODO: if approved, assign scooty/battery here
+          }
+        }
       });
-
-      // 4) Update battery_master -> assigned (if present)
-      if(batteryRef){
-        batch.update(batteryRef, {
-          status: 'assigned',
-          assignedTo: riderEmail,
-          location: firebase.firestore.FieldValue.delete(),
-          lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      // 5) Update users doc
-      const userRef = db.collection('users').doc(riderEmail);
-      const userUpdate = {
-        scooterId: scootyId,
-        rentalPlan: req.plan || null,
-        rentalAmount: req.amount || null,
-        lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      if(batteryId) userUpdate.batteryId = batteryId;
-      // if deposit selected, set securityDeposit (admin side)
-      if(req.depositSelected){
-        userUpdate.securityDeposit = req.depositAmount || 3000;
-        userUpdate.securityDepositTimestamp = firebase.firestore.FieldValue.serverTimestamp();
-      }
-      batch.set(userRef, userUpdate, { merge: true });
-
-      // 6) Update rental_requests doc -> approved
-      batch.update(reqRef, {
-        status: 'approved',
-        approvedBy: currentUser.email,
-        approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      // 7) Commit batch
-      await batch.commit();
-
-      // 8) Log assignment separately
-      await db.collection('logs').add({
-        email: riderEmail,
-        type: 'scooty',
-        id: scootyId,
-        action: 'assign_via_admin',
-        plan: req.plan || null,
-        amount: req.amount || null,
-        depositAmount: req.depositSelected ? (req.depositAmount || 3000) : null,
-        approvedBy: currentUser.email,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      if(batteryId){
-        await db.collection('logs').add({
-          email: riderEmail,
-          type: 'battery',
-          id: batteryId,
-          action: 'assign_via_admin',
-          approvedBy: currentUser.email,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      alert('✅ Rental approved and assigned.');
-    }catch(e){
-      console.error(e);
-      alert('Failed to approve: ' + (e.message||e));
-    }
-  }
-
-  // Reject rental request
-  async function rejectRentalRequest(requestId){
-    const reason = prompt('Optional reason for rejection (leave blank for none):');
-    try{
-      await db.collection('rental_requests').doc(requestId).update({
-        status: 'rejected',
-        rejectedBy: currentUser.email,
-        rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        rejectReason: reason || null
-      });
-      await db.collection('logs').add({
-        action: 'rental_request_rejected',
-        requestId: requestId,
-        rejectedBy: currentUser.email,
-        reason: reason || null,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      alert('❌ Request rejected.');
-    }catch(e){
-      console.error(e);
-      alert('Failed to reject: ' + (e.message||e));
-    }
-  }
-
-  // ----------------- Search & render helpers -----------------
-  searchInput.addEventListener('input', renderCurrentView);
-
-  function renderCurrentView(){
-    const term = (searchInput.value || '').trim().toLowerCase();
-    if(tabRiders.classList.contains('active')) renderRiders(ridersList.filter(r => filterRider(r,term)));
-    else renderRentals(rentalsList.filter(r => filterRental(r,term)));
-  }
-
-  function filterRider(r, term){
-    if(!term) return true;
-    return (r.name||'').toLowerCase().includes(term) || (r.email||'').toLowerCase().includes(term) || (r.phone||'').toLowerCase().includes(term);
-  }
-
-  function filterRental(r, term){
-    if(!term) return true;
-    if((r.email||'').toLowerCase().includes(term)) return true;
-    if((r.scootyId||'').toLowerCase().includes(term)) return true;
-    if((r.plan||'').toLowerCase().includes(term)) return true;
-    return false;
-  }
-
-  // initial render helpers (empty)
-  function renderRiders(list){ ridersCards.innerHTML = '<div class="note">Loading…</div>'; }
-  function renderRentals(list){ rentalsCards.innerHTML = '<div class="note">Loading…</div>'; }
-
+      if (updates.length === 0) return alert("ℹ No actions selected.");
+      await Promise.all(updates);
+      alert("✅ Changes applied!");
+    });
   </script>
 </body>
 </html>
