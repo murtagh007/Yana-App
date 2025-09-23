@@ -79,33 +79,9 @@ let pendingRiders = [], pendingRentals = [], pendingReturns = [];
 let activeTab = "riders";
 
 // Tabs
-document.getElementById("riderTab").onclick = ()=>{
-  activeTab="riders";
-  document.getElementById("riderTab").classList.add("active");
-  document.getElementById("rentalTab").classList.remove("active");
-  document.getElementById("returnTab").classList.remove("active");
-  riderContainer.style.display="block";
-  rentalContainer.style.display="none";
-  returnContainer.style.display="none";
-};
-document.getElementById("rentalTab").onclick = ()=>{
-  activeTab="rentals";
-  document.getElementById("rentalTab").classList.add("active");
-  document.getElementById("riderTab").classList.remove("active");
-  document.getElementById("returnTab").classList.remove("active");
-  riderContainer.style.display="none";
-  rentalContainer.style.display="block";
-  returnContainer.style.display="none";
-};
-document.getElementById("returnTab").onclick = ()=>{
-  activeTab="returns";
-  document.getElementById("returnTab").classList.add("active");
-  document.getElementById("riderTab").classList.remove("active");
-  document.getElementById("rentalTab").classList.remove("active");
-  riderContainer.style.display="none";
-  rentalContainer.style.display="none";
-  returnContainer.style.display="block";
-};
+document.getElementById("riderTab").onclick = ()=>{activeTab="riders";document.getElementById("riderTab").classList.add("active");document.getElementById("rentalTab").classList.remove("active");document.getElementById("returnTab").classList.remove("active");riderContainer.style.display="block";rentalContainer.style.display="none";returnContainer.style.display="none";};
+document.getElementById("rentalTab").onclick = ()=>{activeTab="rentals";document.getElementById("rentalTab").classList.add("active");document.getElementById("riderTab").classList.remove("active");document.getElementById("returnTab").classList.remove("active");riderContainer.style.display="none";rentalContainer.style.display="block";returnContainer.style.display="none";};
+document.getElementById("returnTab").onclick = ()=>{activeTab="returns";document.getElementById("returnTab").classList.add("active");document.getElementById("riderTab").classList.remove("active");document.getElementById("rentalTab").classList.remove("active");riderContainer.style.display="none";rentalContainer.style.display="none";returnContainer.style.display="block";};
 
 // Auth
 auth.onAuthStateChanged(async user=>{
@@ -195,13 +171,15 @@ function renderReturns(list){
     let dueDate = new Date(rentalDate); dueDate.setDate(dueDate.getDate()+planDays);
     let today = new Date();
     let excessDays = Math.max(0, Math.floor((today-dueDate)/(1000*60*60*24)));
+    // days left considering pausedDays
+    let daysLeft = d.pausedDays && d.pausedDays>0 ? d.pausedDays : Math.max(0, planDays - Math.floor((today-rentalDate)/(1000*60*60*24)));
     card.innerHTML=`<div class="card-left">
       <b>${d.email||""}</b><br>
       Scooty: ${d.scootyId||""}<br>
       Rental Amount: ₹${d.rentalAmount||0}<br>
       Security: ₹${d.securityDeposit||0}<br>
       Rental Date: ${rentalDate.toLocaleDateString()}<br>
-      Due: ${dueDate.toLocaleDateString()} | Excess Days: ${excessDays}
+      Due: ${dueDate.toLocaleDateString()} | Excess Days: ${excessDays} | Days Left: ${daysLeft}
       <div class="checklist">
         <label><input type="checkbox" data-part="Nuts & Bolts"> Nuts & Bolts</label>
         <label><input type="checkbox" data-part="Headlight"> Headlight</label>
@@ -274,6 +252,62 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
             return null;
           }).filter(Boolean);
         }
+
+        // --- PAUSE / RESUME FEATURE ---
+        if(type==="return" && val==="approved"){
+          const rentalStart = new Date(req.lastAssignedAt.seconds*1000);
+          const planDays = parseInt(req.rentalPlan) || 0;
+          const today = new Date();
+          const usedDays = Math.floor((today - rentalStart)/(1000*60*60*24));
+          const remainingDays = Math.max(0, planDays - usedDays);
+
+          if(remainingDays > 0){
+            await db.collection("users").doc(req.email).update({
+              pausedDays: remainingDays,
+              pausedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              scootyId: null,
+              batteryId: null
+            });
+          } else {
+            await db.collection("users").doc(req.email).update({
+              pausedDays: 0,
+              pausedAt: null,
+              scootyId: null,
+              batteryId: null
+            });
+          }
+          // update scooty/battery to available
+          await db.collection("scooty_master").doc(req.scootyId).update({status:"available",assignedTo:null});
+          if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"available",assignedTo:null});
+        }
+
+        // --- RENTAL ASSIGNMENT ---
+        if(type==="rental" && val==="approved"){
+          let assignDays = parseInt(req.plan) || 0;
+          const userSnap = await db.collection("users").doc(req.email).get();
+          const userData = userSnap.data();
+          if(userData.pausedDays && userData.pausedDays>0){
+            assignDays = userData.pausedDays;
+            await db.collection("users").doc(req.email).update({pausedDays:0, pausedAt:null});
+          }
+          const now = new Date();
+          const dueDate = new Date(now);
+          dueDate.setDate(dueDate.getDate() + assignDays);
+
+          await db.collection("users").doc(req.email).set({
+            scootyId: req.scootyId,
+            rentalPlan: assignDays,
+            lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            rentalAmount: req.amount||0,
+            batteryId: req.batteryId||null,
+            securityDeposit: req.depositSelected?req.depositAmount||3000:0,
+            securityDepositTimestamp: req.depositSelected?firebase.firestore.FieldValue.serverTimestamp():null
+          }, {merge:true});
+
+          await db.collection("scooty_master").doc(req.scootyId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
+          if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
+        }
+
         await reqRef.update({
           status:val,
           approvedBy: auth.currentUser.email,
@@ -287,11 +321,6 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
           requestId:id,
           timestamp:firebase.firestore.FieldValue.serverTimestamp()
         });
-        if(type==="rental" && val==="approved"){
-          await db.collection("scooty_master").doc(req.scootyId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-          if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-          await db.collection("users").doc(req.email).set({scootyId:req.scootyId,rentalPlan:req.plan,rentalAmount:req.amount||0,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp(),batteryId:req.batteryId||null,securityDeposit:req.depositSelected?req.depositAmount||3000:0,securityDepositTimestamp:req.depositSelected?firebase.firestore.FieldValue.serverTimestamp():null},{merge:true});
-        }
       }
     }catch(e){console.error(e); alert("Failed "+type+" ID "+id+": "+e.message);}
   }
