@@ -23,7 +23,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .container{padding:14px;display:flex;justify-content:center}
 .card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
-.timerRow{display:flex;gap:12px}
+.timerRow{display:flex;gap:12px;justify-content:center;align-items:center}
 .block{flex:1;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
 .block .label{font-size:0.9rem;color:#bcd;margin-bottom:6px}
 .block .value{font-size:1.6rem;font-weight:700}
@@ -34,6 +34,12 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .info .pill{flex:1;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
 .bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
 .navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+
+/* Circular Timer */
+#timerContainer{position:relative;width:120px;height:120px;margin:auto}
+#timerSvg{transform: rotate(-90deg)}
+#progressCircle{transition: stroke-dashoffset 0.5s linear; transform: rotate(0deg);}
+#timerText{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2rem;font-weight:700;color:var(--accent);}
 </style>
 </head>
 <body>
@@ -47,6 +53,14 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   <div class="card">
     <div class="title">Rider Dashboard</div>
     <div id="riderName">Loading...</div>
+
+    <div id="timerContainer">
+      <svg id="timerSvg" width="120" height="120">
+        <circle cx="60" cy="60" r="70" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="none"/>
+        <circle id="progressCircle" cx="60" cy="60" r="70" stroke="var(--accent)" stroke-width="10" fill="none" stroke-dasharray="439.82" stroke-dashoffset="0"/>
+      </svg>
+      <div id="timerText">--:--:--</div>
+    </div>
 
     <div class="timerRow">
       <div class="block">
@@ -255,6 +269,49 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
       currentDay = todayKey();
     }
   }
+
+  // 🔹 Rental Countdown Timer Logic
+  const progressCircle = document.getElementById("progressCircle");
+  const timerText = document.getElementById("timerText");
+  let rentalStartTime = null;
+  let rentalEndTime = null;
+
+  function updateRentalTimer() {
+    if (!rentalStartTime || !rentalEndTime) {
+      timerText.innerText = "--:--:--";
+      return;
+    }
+    const now = Date.now();
+    let remaining = Math.floor((rentalEndTime - now) / 1000);
+    if (remaining < 0) remaining = 0;
+
+    let hours = Math.floor(remaining / 3600);
+    let minutes = Math.floor((remaining % 3600) / 60);
+    let seconds = remaining % 60;
+    timerText.innerText = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+    const totalDuration = Math.floor((rentalEndTime - rentalStartTime) / 1000);
+    let dashOffset = 439.82 * (1 - remaining / totalDuration);
+    progressCircle.setAttribute("stroke-dashoffset", dashOffset);
+  }
+
+  // Fetch active rental/service for this rider
+  db.collection("scooty_master")
+    .where("assignedTo", "==", email)
+    .where("state", "==", "active")
+    .limit(1)
+    .onSnapshot(snap => {
+      if (!snap.empty) {
+        const rental = snap.docs[0].data();
+        rentalStartTime = rental.startTime ? rental.startTime.toMillis() : Date.now();
+        rentalEndTime = rental.endTime ? rental.endTime.toMillis() : rentalStartTime + 3600*1000; // fallback 1h
+      } else {
+        rentalStartTime = null;
+        rentalEndTime = null;
+      }
+    });
+
+  setInterval(updateRentalTimer, 1000);
 
 })();
 </script>
