@@ -21,7 +21,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
 .header h1{margin:0;font-size:1rem;color:var(--accent)}
 .container{padding:14px;display:flex;justify-content:center}
-.card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
+.card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border);position:relative}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
 .timerRow{display:flex;gap:12px;justify-content:center;align-items:center}
 .block{flex:1;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
@@ -36,10 +36,26 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
 
 /* Circular Timer */
-#timerContainer{position:relative;width:120px;height:120px;margin:auto}
+#timerContainer{
+  position:absolute;
+  top:12px;
+  right:12px;
+  width:90px;
+  height:90px;
+}
 #timerSvg{transform: rotate(-90deg)}
-#progressCircle{transition: stroke-dashoffset 0.5s linear; transform: rotate(0deg);}
-#timerText{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2rem;font-weight:700;color:var(--accent);}
+#progressCircle{transition: stroke-dashoffset 0.5s linear;}
+#timerText{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:0.65rem;
+  font-weight:700;
+  color:var(--accent);
+  text-align:center;
+  line-height:1.1;
+}
 </style>
 </head>
 <body>
@@ -54,12 +70,14 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     <div class="title">Rider Dashboard</div>
     <div id="riderName">Loading...</div>
 
+    <!-- Fixed Circular Timer -->
     <div id="timerContainer">
-      <svg id="timerSvg" width="120" height="120">
-        <circle cx="60" cy="60" r="70" stroke="rgba(255,255,255,0.1)" stroke-width="10" fill="none"/>
-        <circle id="progressCircle" cx="60" cy="60" r="70" stroke="var(--accent)" stroke-width="10" fill="none" stroke-dasharray="439.82" stroke-dashoffset="0"/>
+      <svg id="timerSvg" width="90" height="90">
+        <circle cx="45" cy="45" r="40" stroke="rgba(255,255,255,0.1)" stroke-width="6" fill="none"/>
+        <circle id="progressCircle" cx="45" cy="45" r="40" stroke="var(--accent)" stroke-width="6" fill="none"
+          stroke-dasharray="251.2" stroke-dashoffset="0"/>
       </svg>
-      <div id="timerText">--:--:--</div>
+      <div id="timerText">--d<br>--:--:--</div>
     </div>
 
     <div class="timerRow">
@@ -142,7 +160,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   function startTickers(){
     setInterval(updateUI,1000);
-    setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
+    setInterval(autoPunchoutAt2AM,60000);
   }
 
   async function syncToServer(){
@@ -278,20 +296,21 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
   function updateRentalTimer() {
     if (!rentalStartTime || !rentalEndTime) {
-      timerText.innerText = "--:--:--";
+      timerText.innerHTML = "--d<br>--:--:--";
       return;
     }
     const now = Date.now();
     let remaining = Math.floor((rentalEndTime - now) / 1000);
     if (remaining < 0) remaining = 0;
 
-    let hours = Math.floor(remaining / 3600);
+    let days = Math.floor(remaining / 86400);
+    let hours = Math.floor((remaining % 86400) / 3600);
     let minutes = Math.floor((remaining % 3600) / 60);
     let seconds = remaining % 60;
-    timerText.innerText = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    timerText.innerHTML = `${days}d<br>${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 
     const totalDuration = Math.floor((rentalEndTime - rentalStartTime) / 1000);
-    let dashOffset = 439.82 * (1 - remaining / totalDuration);
+    let dashOffset = 251.2 * (1 - remaining / totalDuration);
     progressCircle.setAttribute("stroke-dashoffset", dashOffset);
   }
 
@@ -304,7 +323,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
       if (!snap.empty) {
         const rental = snap.docs[0].data();
         rentalStartTime = rental.startTime ? rental.startTime.toMillis() : Date.now();
-        rentalEndTime = rental.endTime ? rental.endTime.toMillis() : rentalStartTime + 3600*1000; // fallback 1h
+        rentalEndTime = rental.endTime ? rental.endTime.toMillis() : rentalStartTime + 3600*1000;
       } else {
         rentalStartTime = null;
         rentalEndTime = null;
