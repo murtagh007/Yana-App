@@ -1,331 +1,294 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>⚡ YANA Admin — Pending Approvals & Returns</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-:root {
-  --bg:#0a0f12;
-  --bg2:rgba(255,255,255,0.05);
-  --border:rgba(255,255,255,0.1);
-  --action:#00eaff;
-  --text:#eaf4f8;
-  --radius:12px;
-  --transition:0.2s;
-}
-html,body{height:100%;margin:0;font-family:'Inter',sans-serif;color:var(--text);background:linear-gradient(180deg,#061219 0%, #07131a 100%);}
-.navbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:var(--bg2);border-bottom:1px solid var(--border);position: sticky; top:0; z-index:100;backdrop-filter:blur(6px);}
-.navbar h2{color:var(--action);font-size:1.1rem;margin:0;}
-.profile{display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;}
-.profile-pic{background: var(--action); color:#000; font-weight:700; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;}
-.dropdown{display:none;position:absolute;top:46px;right:0;background: var(--bg2);border-radius: var(--radius);padding:6px 0;min-width:150px;box-shadow:0 6px 18px rgba(0,0,0,0.6);}
-.dropdown button{width:100%;background:none;border:none;color: var(--text);padding:10px 14px;cursor:pointer;text-align:left;font-weight:600;}
-.profile:hover .dropdown{display:block;}
-.container{padding:20px; max-width:1000px;margin:auto;}
-.tabs{display:flex;gap:8px;margin-bottom:12px;}
-.tab{padding:8px 16px;border-radius:var(--radius);background:var(--bg2);cursor:pointer;}
-.tab.active{background:var(--action);color:#000;font-weight:bold;}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;backdrop-filter:blur(10px);transition:var(--transition);cursor:pointer;}
-.card:hover{border-color:var(--action);box-shadow:0 0 10px var(--action);}
-.card-left{flex:1;min-width:200px;}
-.card-right{display:flex;align-items:center;gap:8px;}
-select{padding:4px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);color:var(--text);}
-#searchBar{width:100%;padding:8px 12px;border-radius:var(--radius);margin-bottom:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text);}
-#submitBtn{float:right;color:#fff;background:var(--action);border:none;padding:8px 16px;border-radius:var(--radius);cursor:pointer;}
-.checklist{display:none;margin-top:10px;padding:10px;border:1px dashed var(--border);border-radius:var(--radius);background:rgba(255,255,255,0.03);}
-.checklist label{display:block;margin:4px 0;}
-.checklist input[type=text]{width:100%;padding:4px;margin-top:2px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);}
-</style>
-</head>
-<body>
-<div class="navbar">
-  <h2>⚡ YANA Admin — Pending Approvals & Returns</h2>
-  <div class="profile">
-    <div class="profile-pic">A</div>
-    <div class="dropdown">
-      <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-      <button id="logoutBtn">Logout</button>
-    </div>
-  </div>
-</div>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YANA — Rider Dashboard</title>
 
-<div class="container">
-  <div class="tabs">
-    <div class="tab active" id="riderTab">Rider Approvals</div>
-    <div class="tab" id="rentalTab">Rental Requests</div>
-    <div class="tab" id="returnTab">Return Requests</div>
-  </div>
-
-  <input type="text" id="searchBar" placeholder="Search...">
-
-  <div id="riderContainer"></div>
-  <div id="rentalContainer" style="display:none;"></div>
-  <div id="returnContainer" style="display:none;"></div>
-
-  <button id="submitBtn">✅ Submit Changes</button>
-</div>
-
+<!-- Firebase v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
-<script>
-const riderContainer = document.getElementById("riderContainer");
-const rentalContainer = document.getElementById("rentalContainer");
-const returnContainer = document.getElementById("returnContainer");
-let pendingRiders = [], pendingRentals = [], pendingReturns = [];
-let activeTab = "riders";
 
-// Tabs
-document.getElementById("riderTab").onclick = ()=>{activeTab="riders";document.getElementById("riderTab").classList.add("active");document.getElementById("rentalTab").classList.remove("active");document.getElementById("returnTab").classList.remove("active");riderContainer.style.display="block";rentalContainer.style.display="none";returnContainer.style.display="none";};
-document.getElementById("rentalTab").onclick = ()=>{activeTab="rentals";document.getElementById("rentalTab").classList.add("active");document.getElementById("riderTab").classList.remove("active");document.getElementById("returnTab").classList.remove("active");riderContainer.style.display="none";rentalContainer.style.display="block";returnContainer.style.display="none";};
-document.getElementById("returnTab").onclick = ()=>{activeTab="returns";document.getElementById("returnTab").classList.add("active");document.getElementById("riderTab").classList.remove("active");document.getElementById("rentalTab").classList.remove("active");riderContainer.style.display="none";rentalContainer.style.display="none";returnContainer.style.display="block";};
-
-// Auth
-auth.onAuthStateChanged(async user=>{
-  if(!user) return location.href="admin-signin.html";
-  document.querySelector(".profile-pic").innerText=(user.email[0]||"A").toUpperCase();
-  const doc = await db.collection("users").doc(user.email).get();
-  if(!doc.exists || !["admin","captain"].includes(doc.data().role)){ alert("Access denied"); return location.href="index.html"; }
-  loadRiders(); loadRentals(); loadReturns();
-});
-document.getElementById("logoutBtn").onclick=()=>auth.signOut();
-
-// --- RIDERS ---
-function loadRiders(){
-  db.collection("users").where("status","==","pending").onSnapshot(snapshot=>{
-    pendingRiders=[]; riderContainer.innerHTML="";
-    if(snapshot.empty){ riderContainer.innerHTML="<p>No pending riders.</p>"; return; }
-    snapshot.forEach(doc=>{const d=doc.data(); d.id=doc.id; pendingRiders.push(d);});
-    renderRiders(pendingRiders);
-  });
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --bg:#071014; --card: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
+  --accent:#00eaff; --text:#eaf4f8; --r:16px;
 }
-function renderRiders(list){
-  riderContainer.innerHTML="";
-  list.forEach(d=>{
-    const card=document.createElement("div"); card.className="card";
-    card.innerHTML=`<div class="card-left"><b>${d.name||""}</b><br>Email: ${d.email||""}<br>Vendor: ${d.vendor||""}<br>Partners: ${(d.partners||[]).join(", ")}</div>
-    <div class="card-right">
-      <select data-type="rider" data-id="${d.id}">
-        <option value="none" selected>No Action</option>
-        <option value="approved">Approve</option>
-        <option value="rejected">Reject</option>
-      </select>
-    </div>`;
-    riderContainer.appendChild(card);
-  });
-}
+body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.header h1{margin:0;font-size:1rem;color:var(--accent)}
+.container{padding:14px;display:flex;justify-content:center}
+.card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
+.title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
+.timerRow{display:flex;gap:12px}
+.block{flex:1;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
+.block .label{font-size:0.9rem;color:#bcd;margin-bottom:6px}
+.block .value{font-size:1.6rem;font-weight:700}
+.controls{display:flex;gap:10px;margin-top:14px}
+.btn{flex:1;padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn.secondary{background:transparent;color:var(--accent);border:2px solid var(--accent);padding:6px 10px;font-size:0.85rem}
+.info{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+.info .pill{flex:1;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-align:center}
+.bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
+.navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+</style>
+</head>
+<body>
 
-// --- RENTAL REQUESTS ---
-function loadRentals(){
-  db.collection("rental_requests").where("status","==","pending").onSnapshot(snapshot=>{
-    pendingRentals=[]; rentalContainer.innerHTML="";
-    if(snapshot.empty){ rentalContainer.innerHTML="<p>No pending rentals.</p>"; return; }
-    snapshot.forEach(doc=>{const d=doc.data(); d.id=doc.id; pendingRentals.push(d);});
-    renderRentals(pendingRentals);
-  });
-}
-function renderRentals(list){
-  rentalContainer.innerHTML="";
-  list.forEach(d=>{
-    const card=document.createElement("div"); card.className="card";
-    card.innerHTML=`<div class="card-left">
-      <b>${d.email||""}</b><br>
-      Scooty: ${d.scootyId||""}<br>
-      Plan: ${d.plan||""} | Amount: ₹${d.amount||0}<br>
-      Security: ₹${d.depositSelected?d.depositAmount||0:0}<br>
-      Rental Date: ${d.rentalDate||"N/A"}
+<div class="header">
+  <h1>⚡ YANA Rider</h1>
+  <button id="logoutBtn" class="btn secondary">Logout</button>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="title">Rider Dashboard</div>
+    <div id="riderName">Loading...</div>
+
+    <!-- Rental Timer Block -->
+    <div class="block" style="margin-bottom:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
+      <div class="label">Rental Time Left</div>
+      <div id="rentalTimer" class="value">--:--:--:--</div>
     </div>
-    <div class="card-right">
-      <select data-type="rental" data-id="${d.id}">
-        <option value="none" selected>No Action</option>
-        <option value="approved">Approve</option>
-        <option value="rejected">Reject</option>
-      </select>
-    </div>`;
-    rentalContainer.appendChild(card);
-  });
-}
 
-// --- RETURN REQUESTS ---
-function loadReturns(){
-  // only users with active scooty assigned
-  db.collection("users").where("scootyId","!=",null).onSnapshot(snapshot=>{
-    pendingReturns=[]; returnContainer.innerHTML="";
-    if(snapshot.empty){ returnContainer.innerHTML="<p>No pending returns.</p>"; return; }
-    snapshot.forEach(doc=>{
-      const d=doc.data(); d.id=doc.id; pendingReturns.push(d);
-    });
-    renderReturns(pendingReturns);
-  });
-}
-function renderReturns(list){
-  returnContainer.innerHTML="";
-  list.forEach(d=>{
-    const card=document.createElement("div"); card.className="card";
-    // calculate due and excess days
-    let rentalDate = d.lastAssignedAt ? new Date(d.lastAssignedAt.seconds*1000) : new Date();
-    let planDays = parseInt(d.rentalPlan) || 0;
-    let dueDate = new Date(rentalDate); dueDate.setDate(dueDate.getDate()+planDays);
-    let today = new Date();
-    let excessDays = Math.max(0, Math.floor((today-dueDate)/(1000*60*60*24)));
-    // days left considering pausedDays
-    let daysLeft = d.pausedDays && d.pausedDays>0 ? d.pausedDays : Math.max(0, planDays - Math.floor((today-rentalDate)/(1000*60*60*24)));
-    card.innerHTML=`<div class="card-left">
-      <b>${d.email||""}</b><br>
-      Scooty: ${d.scootyId||""}<br>
-      Rental Amount: ₹${d.rentalAmount||0}<br>
-      Security: ₹${d.securityDeposit||0}<br>
-      Rental Date: ${rentalDate.toLocaleDateString()}<br>
-      Due: ${dueDate.toLocaleDateString()} | Excess Days: ${excessDays} | Days Left: ${daysLeft}
-      <div class="checklist">
-        <label><input type="checkbox" data-part="Nuts & Bolts"> Nuts & Bolts</label>
-        <label><input type="checkbox" data-part="Headlight"> Headlight</label>
-        <label><input type="checkbox" data-part="Backlight"> Backlight</label>
-        <label><input type="checkbox" data-part="Tyres & Rims"> Tyres & Rims</label>
-        <label><input type="checkbox" data-part="Fan"> Fan</label>
-        <label><input type="checkbox" data-part="Number plates"> Number plates</label>
-        <label><input type="checkbox" data-part="Phone Stand"> Phone Stand</label>
-        <label><input type="checkbox" data-part="Foot rest"> Foot rest</label>
-        <label><input type="checkbox" data-part="Side stand"> Side stand</label>
-        <label><input type="checkbox" data-part="Brake levers"> Brake levers</label>
-        <label><input type="checkbox" data-part="Motor"> Motor</label>
-        <label><input type="checkbox" data-part="Battery Health"> Battery Health</label>
-        <label><input type="checkbox" data-part="Scratches"> Scratches</label>
-        <label><input type="checkbox" data-part="Paint loss"> Paint loss</label>
-        <label>Others Specify: <input type="text" data-part="Others"></label>
+    <div class="timerRow">
+      <div class="block">
+        <div class="label">Working Hours</div>
+        <div id="workValue" class="value">00:00:00</div>
+      </div>
+      <div class="block">
+        <div class="label">Break Time</div>
+        <div id="breakValue" class="value">00:00:00</div>
       </div>
     </div>
-    <div class="card-right">
-      <select data-type="return" data-id="${d.id}">
-        <option value="none" selected>No Action</option>
-        <option value="approved">Approve</option>
-        <option value="rejected">Reject</option>
-      </select>
-    </div>`;
-    card.addEventListener("click", e=>{
-      if(e.target.tagName==="SELECT") return;
-      const checklist=card.querySelector(".checklist");
-      checklist.style.display=checklist.style.display==="block"?"none":"block";
-    });
-    returnContainer.appendChild(card);
-  });
-}
 
-// Search filter
-document.getElementById("searchBar").addEventListener("input", e=>{
-  const term=e.target.value.toLowerCase();
-  if(activeTab==="riders") renderRiders(pendingRiders.filter(d=>((d.name||"")+ (d.email||"")+ (d.vendor||"")+ ((d.partners||[]).join(","))).toLowerCase().includes(term)));
-  else if(activeTab==="rentals") renderRentals(pendingRentals.filter(d=>((d.email||"")+(d.scootyId||"")+(d.plan||"")).toLowerCase().includes(term)));
-  else renderReturns(pendingReturns.filter(d=>((d.email||"")+(d.scootyId||"")).toLowerCase().includes(term)));
-});
+    <div class="controls">
+      <button id="punchBtn" class="btn"><i class="fa-solid fa-clock"></i><span id="punchLabel">Punch In</span></button>
+      <button id="breakBtn" class="btn secondary"><i class="fa-solid fa-coffee"></i><span id="breakLabel">Start Break</span></button>
+    </div>
 
-// Submit changes
-document.getElementById("submitBtn").addEventListener("click",async()=>{
-  const selects=document.querySelectorAll("select[data-id]");
-  for(let sel of selects){
-    const type=sel.dataset.type, id=sel.dataset.id, val=sel.value;
-    if(val==="none") continue;
-    try{
-      if(type==="rider"){
-        await db.collection("users").doc(id).update({
-          status:val,
-          approvedBy: val==="approved"?auth.currentUser.email:null,
-          approvedAt: val==="approved"?firebase.firestore.FieldValue.serverTimestamp():null
-        });
-        await db.collection("logs").add({email:id,action:"rider_"+val,timestamp:firebase.firestore.FieldValue.serverTimestamp()});
-      }else if(type==="rental" || type==="return"){
-        const collectionName = type==="rental"?"rental_requests":"users";
-        const reqRef=db.collection(collectionName).doc(id);
-        const reqSnap=await reqRef.get();
-        if(!reqSnap.exists) continue;
-        const req=reqSnap.data();
-        // gather checklist for return only
-        let checklistItems=[];
-        if(type==="return"){
-          const card = sel.closest(".card");
-          checklistItems = Array.from(card.querySelectorAll(".checklist input")).map(i=>{
-            if(i.type==="checkbox") return i.checked?i.dataset.part:null;
-            else if(i.type==="text" && i.value.trim()!=="") return "Others: "+i.value.trim();
-            return null;
-          }).filter(Boolean);
-        }
+    <div class="info">
+      <div class="pill">Scooty: <strong id="scooty">--</strong></div>
+      <div class="pill">Battery: <strong id="battery">--</strong></div>
+    </div>
+    <div style="margin-top:8px;font-size:0.85rem" id="statusLine">Status: --</div>
+  </div>
+</div>
 
-        // --- PAUSE / RESUME FEATURE ---
-        if(type==="return" && val==="approved"){
-          const rentalStart = new Date(req.lastAssignedAt.seconds*1000);
-          const planDays = parseInt(req.rentalPlan) || 0;
-          const today = new Date();
-          const usedDays = Math.floor((today - rentalStart)/(1000*60*60*24));
-          const remainingDays = Math.max(0, planDays - usedDays);
+<div class="bottomNav">
+  <div class="navBtn" id="navScanner"><i class="fa-solid fa-qrcode"></i><div>Scanner</div></div>
+  <div class="navBtn" id="navIssues"><i class="fa-solid fa-triangle-exclamation"></i><div>Issues</div></div>
+  <div class="navBtn" id="navAttendance"><i class="fa-solid fa-user-check"></i><div>Attendance</div></div>
+  <div class="navBtn" id="navLogs"><i class="fa-solid fa-file-lines"></i><div>Logs</div></div>
+</div>
 
-          if(remainingDays > 0){
-            await db.collection("users").doc(req.email).update({
-              pausedDays: remainingDays,
-              pausedAt: firebase.firestore.FieldValue.serverTimestamp(),
-              scootyId: null,
-              batteryId: null
-            });
-          } else {
-            await db.collection("users").doc(req.email).update({
-              pausedDays: 0,
-              pausedAt: null,
-              scootyId: null,
-              batteryId: null
-            });
-          }
-          // update scooty/battery to available
-          await db.collection("scooty_master").doc(req.scootyId).update({status:"available",assignedTo:null});
-          if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"available",assignedTo:null});
-        }
+<script>
+(async function(){
+  if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase not configured"); return; }
 
-        // --- RENTAL ASSIGNMENT ---
-        if(type==="rental" && val==="approved"){
-          let assignDays = parseInt(req.plan) || 0;
-          const userSnap = await db.collection("users").doc(req.email).get();
-          const userData = userSnap.data();
-          if(userData.pausedDays && userData.pausedDays>0){
-            assignDays = userData.pausedDays;
-            await db.collection("users").doc(req.email).update({pausedDays:0, pausedAt:null});
-          }
-          const now = new Date();
-          const dueDate = new Date(now);
-          dueDate.setDate(dueDate.getDate() + assignDays);
+  const email = new URLSearchParams(window.location.search).get('email');
+  if(!email){ location.href="rider-signin.html"; return; }
 
-          await db.collection("users").doc(req.email).set({
-            scootyId: req.scootyId,
-            rentalPlan: assignDays,
-            lastAssignedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            rentalAmount: req.amount||0,
-            batteryId: req.batteryId||null,
-            securityDeposit: req.depositSelected?req.depositAmount||3000:0,
-            securityDepositTimestamp: req.depositSelected?firebase.firestore.FieldValue.serverTimestamp():null
-          }, {merge:true});
-
-          await db.collection("scooty_master").doc(req.scootyId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-          if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"assigned",assignedTo:req.email,lastAssignedAt:firebase.firestore.FieldValue.serverTimestamp()});
-        }
-
-        await reqRef.update({
-          status:val,
-          approvedBy: auth.currentUser.email,
-          approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
-          ...(type==="return" ? {checklist:checklistItems} : {})
-        });
-        await db.collection("logs").add({
-          email:req.email,
-          action:type+"_approved_via_admin",
-          checklist: checklistItems,
-          requestId:id,
-          timestamp:firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-    }catch(e){console.error(e); alert("Failed "+type+" ID "+id+": "+e.message);}
+  function todayKey(){
+    const now = new Date();
+    if(now.getHours()<2){ now.setDate(now.getDate()-1); }
+    return now.toISOString().slice(0,10);
   }
-  alert("✅ All selected changes applied!");
-});
+
+  let currentDay = todayKey();
+  const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
+
+  let state = { punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0 };
+
+  const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
+  const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getElementById("breakLabel");
+  const statusLine=document.getElementById("statusLine");
+
+  const pad=n=>String(n).padStart(2,"0");
+  const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
+
+  function computeTimes(){
+    const now=Date.now();
+    let workSecs=state.workingSeconds;
+    if(state.punchedIn && state.punchInTime && !state.onBreak){
+      workSecs += Math.floor((now - state.punchInTime)/1000);
+    }
+    let breakSecs=state.totalBreakSeconds;
+    if(state.onBreak && state.breakStartTime){
+      breakSecs += Math.floor((now - state.breakStartTime)/1000);
+    }
+    return {workSecs, breakSecs};
+  }
+
+  function updateUI(){
+    const {workSecs, breakSecs}=computeTimes();
+    workValue.innerText=fmt(workSecs);
+    breakValue.innerText=fmt(breakSecs);
+    punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
+    breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
+    statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
+  }
+
+  function startTickers(){
+    setInterval(updateUI,1000);
+    setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
+  }
+
+  async function syncToServer(){
+    await stateRef().set({
+      punchedIn:state.punchedIn,
+      punchInTime: state.punchInTime? firebase.firestore.Timestamp.fromMillis(state.punchInTime):null,
+      onBreak:state.onBreak,
+      breakStartTime: state.breakStartTime? firebase.firestore.Timestamp.fromMillis(state.breakStartTime):null,
+      workingSeconds:state.workingSeconds,
+      totalBreakSeconds:state.totalBreakSeconds,
+      lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }
+
+  async function logEvent(type){
+    await db.collection("attendance").add({
+      email,
+      type,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      day: currentDay
+    });
+  }
+
+  function applySnapshot(d){
+    state.punchedIn=d.punchedIn;
+    state.onBreak=d.onBreak;
+    state.workingSeconds=d.workingSeconds||0;
+    state.totalBreakSeconds=d.totalBreakSeconds||0;
+    state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
+    state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
+    updateUI();
+  }
+
+  async function loadState(){
+    const snap=await stateRef().get();
+    if(snap.exists){ applySnapshot(snap.data()); }
+  }
+
+  // Punch logic
+  document.getElementById("punchBtn").addEventListener("click",async()=>{
+    if(!state.punchedIn){
+      state.punchedIn=true; state.punchInTime=Date.now();
+      await logEvent("PunchIn");
+    } else {
+      if(!state.onBreak && state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
+      state.punchedIn=false; state.punchInTime=null;
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+        state.onBreak=false; state.breakStartTime=null;
+      }
+      await logEvent("PunchOut");
+    }
+    await syncToServer(); updateUI();
+  });
+
+  // Break logic
+  document.getElementById("breakBtn").addEventListener("click",async()=>{
+    if(!state.punchedIn) return alert("Punch in first!");
+    if(!state.onBreak){
+      if(state.punchInTime){
+        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+      }
+      state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null;
+      await logEvent("BreakStart");
+    } else {
+      state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+      state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now();
+      await logEvent("BreakEnd");
+    }
+    await syncToServer(); updateUI();
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
+
+  const u=await db.collection("users").doc(email).get();
+  if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
+
+  // 🔄 Real-time Scooty & Battery
+  db.collection("scooty_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{ const scootyEl = document.getElementById("scooty"); scootyEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--"; });
+
+  db.collection("battery_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{ const batteryEl = document.getElementById("battery"); batteryEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--"; });
+
+  document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
+  document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
+  document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
+  document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
+
+  await loadState();
+  startTickers();
+  stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
+  setInterval(syncToServer,30000);
+
+  // Auto Punch Out + Reset at 2 AM
+  async function autoPunchoutAt2AM(){
+    const now = new Date();
+    if(now.getHours() === 2 && now.getMinutes()===0){
+      if(state.punchedIn && state.punchInTime){
+        state.workingSeconds += Math.floor((now - state.punchInTime)/1000);
+      }
+      if(state.onBreak && state.breakStartTime){
+        state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
+      }
+      if(state.punchedIn){
+        await logEvent("PunchOut");
+      }
+      state.punchedIn=false; state.punchInTime=null;
+      state.onBreak=false; state.breakStartTime=null;
+      await syncToServer();
+      state.workingSeconds=0; state.totalBreakSeconds=0;
+      currentDay = todayKey();
+    }
+  }
+
+  // --- RENTAL COUNTDOWN TIMER ---
+  const rentalTimerEl = document.getElementById("rentalTimer");
+  async function updateRentalTimer(){
+    const scootySnap = await db.collection("scooty_master")
+      .where("assignedTo","==",email)
+      .where("state","==","active")
+      .get();
+
+    if(scootySnap.empty){ rentalTimerEl.innerText="--:--:--:--"; return; }
+
+    const scootyData = scootySnap.docs[0].data();
+    if(!scootyData.lastAssignedAt || !scootyData.rentalPlan){ rentalTimerEl.innerText="--:--:--:--"; return; }
+
+    const start = new Date(scootyData.lastAssignedAt.seconds*1000);
+    const planDays = parseInt(scootyData.rentalPlan) || 0;
+    const end = new Date(start); end.setDate(end.getDate() + planDays);
+
+    const now = new Date();
+    let remaining = Math.max(0,end - now);
+    const days = Math.floor(remaining/(1000*60*60*24));
+    remaining %= (1000*60*60*24);
+    const hours = Math.floor(remaining/(1000*60*60));
+    remaining %= (1000*60*60);
+    const mins = Math.floor(remaining/(1000*60));
+    const secs = Math.floor((remaining%60000)/1000);
+
+    rentalTimerEl.innerText = `${days}d ${hours}h ${mins}m ${secs}s`;
+  }
+  setInterval(updateRentalTimer,1000);
+  updateRentalTimer();
+
+})();
 </script>
+
 </body>
 </html>
