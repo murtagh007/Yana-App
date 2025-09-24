@@ -20,7 +20,7 @@
 body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
 .header h1{margin:0;font-size:1rem;color:var(--accent)}
-.container{padding:14px;display:flex;flex-direction:column;align-items:center;}
+.container{padding:14px;display:flex;justify-content:center}
 .card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
 .timerRow{display:flex;gap:12px}
@@ -35,13 +35,27 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
 .navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
 
-/* Cumulative Rental Timer */
-#cumulativeTimerContainer{
-  margin-top:18px;
-  text-align:center;
-  font-size:1.3rem;
-  font-weight:700;
-  color:var(--accent);
+/* --- Rental circular timer (centered below card) --- */
+.rental-timer-wrap { width: 100%; display:flex; justify-content:center; margin-top:16px; }
+.rental-timer {
+  width: 140px; /* slightly larger but not huge */
+  height: 140px;
+  position: relative;
+}
+.rental-timer svg { transform: rotate(-90deg); width:100%; height:100%; }
+.rental-timer .bg-circle { stroke: rgba(255,255,255,0.06); stroke-width:10; fill:none; }
+.rental-timer .fg-circle { stroke: var(--accent); stroke-width:10; stroke-linecap:round; fill:none; transition: stroke-dashoffset 0.6s linear; }
+.rental-timer .timer-text {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;
+  font-weight:700; color:var(--accent); font-size:14px;
+  line-height:1;
+}
+.rental-due { margin-top:8px; text-align:center; color:rgba(234,244,248,0.85); font-size:0.95rem; }
+
+/* responsive tweaks */
+@media (max-width:420px){
+  .rental-timer { width: 120px; height: 120px; }
+  .rental-timer .timer-text { font-size:12px; }
 }
 </style>
 </head>
@@ -53,7 +67,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 </div>
 
 <div class="container">
-  <div class="card">
+  <div class="card" id="mainCard">
     <div class="title">Rider Dashboard</div>
     <div id="riderName">Loading...</div>
 
@@ -78,10 +92,20 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
       <div class="pill">Battery: <strong id="battery">--</strong></div>
     </div>
     <div style="margin-top:8px;font-size:0.85rem" id="statusLine">Status: --</div>
+    <div id="dueLine" style="margin-top:6px;font-size:0.95rem;color:rgba(234,244,248,0.85)"></div>
   </div>
 
-  <!-- Cumulative rental timer -->
-  <div id="cumulativeTimerContainer">Rental Time Left: -- days</div>
+  <!-- CENTERED CIRCULAR TIMER BELOW CARD -->
+  <div class="rental-timer-wrap" aria-hidden="false">
+    <div class="rental-timer" id="rentalTimer" title="Rental remaining time">
+      <svg viewBox="0 0 100 100" role="img" aria-label="Remaining rental time">
+        <!-- circle radius 45 centered at 50,50 -->
+        <circle class="bg-circle" cx="50" cy="50" r="45"></circle>
+        <circle class="fg-circle" id="rentalProgress" cx="50" cy="50" r="45" stroke-dasharray="282.743" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="timer-text" id="rentalTimerText">--d 00:00:00</div>
+    </div>
+  </div>
 </div>
 
 <div class="bottomNav">
@@ -112,7 +136,17 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
   const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getElementById("breakLabel");
   const statusLine=document.getElementById("statusLine");
-  const rentalTimerEl = document.getElementById("cumulativeTimerContainer");
+  const dueLine = document.getElementById("dueLine");
+
+  // rental timer elements
+  const rentalProgress = document.getElementById("rentalProgress");
+  const rentalTimerText = document.getElementById("rentalTimerText");
+  const rentalTimerWrap = document.querySelector(".rental-timer-wrap");
+
+  // circle constants
+  const R = 45;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+  rentalProgress.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
 
   const pad=n=>String(n).padStart(2,"0");
   const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
@@ -142,7 +176,6 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   function startTickers(){
     setInterval(updateUI,1000);
     setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
-    setInterval(updateRentalTimer,1000); // Update rental timer every second
   }
 
   async function syncToServer(){
@@ -222,12 +255,33 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   const u=await db.collection("users").doc(email).get();
   if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
-  // Real-time Scooty & Battery
-  db.collection("scooty_master").where("assignedTo","==",email).where("state","==","active")
-    .onSnapshot(snap=>{ document.getElementById("scooty").innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--"; });
+  // 🔄 Real-time Scooty & Battery
+  db.collection("scooty_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{
+      const scootyEl = document.getElementById("scooty");
+      scootyEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
+      // whenever scooty changes we refresh the rental timer source
+      if(!snap.empty){
+        const scootyId = snap.docs[0].id;
+        // refresh rental timer sources
+        refreshRentalTimerSources(scootyId);
+      } else {
+        // hide timer if no active scooty
+        rentalTimerText.innerText = "--d 00:00:00";
+        rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
+        dueLine.innerText = "";
+      }
+    });
 
-  db.collection("battery_master").where("assignedTo","==",email).where("state","==","active")
-    .onSnapshot(snap=>{ document.getElementById("battery").innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--"; });
+  db.collection("battery_master")
+    .where("assignedTo","==",email)
+    .where("state","==","active")
+    .onSnapshot(snap=>{
+      const batteryEl = document.getElementById("battery");
+      batteryEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
+    });
 
   document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
   document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
@@ -249,7 +303,9 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
       if(state.onBreak && state.breakStartTime){
         state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
       }
-      if(state.punchedIn){ await logEvent("PunchOut"); }
+      if(state.punchedIn){
+        await logEvent("PunchOut");
+      }
       state.punchedIn=false; state.punchInTime=null;
       state.onBreak=false; state.breakStartTime=null;
       await syncToServer();
@@ -258,46 +314,163 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     }
   }
 
-  // ================= CUMULATIVE RENTAL TIMER =================
-  function fmtDays(sec){
-    const days = Math.floor(sec/86400);
-    const hrs = Math.floor((sec%86400)/3600);
-    const mins = Math.floor((sec%3600)/60);
-    const secs = sec%60;
-    return `${days}d ${hrs}h ${mins}m ${secs}s`;
+  // --- Rental timer logic (cumulative) ---
+  // We'll obtain:
+  //  - latest approved rental_request for the assigned scooty (by scootyId)
+  //  - users doc (rentalPlan and pausedDays)
+  // fallback rules:
+  //  - rentalRequest.timestamp || rentalRequest.approvedAt || scooty_master.lastAssignedAt || users.lastAssignedAt
+
+  let rentalRequestDoc = null;   // firestore doc data
+  let rentalRequestTimestampMs = null;
+  let totalDays = 0;
+  let totalSeconds = 0;
+  let intervalId = null;
+
+  function parsePlanToDays(planStr){
+    // plan is like "7d" or number
+    if(!planStr) return 0;
+    if(typeof planStr === 'number') return planStr;
+    const m = String(planStr).match(/(\d+)/);
+    return m ? parseInt(m[1],10) : 0;
   }
 
-  async function updateRentalTimer(){
-    try{
-      const rentalSnap = await db.collection("rental_requests")
-        .where("email","==",email)
-        .where("status","==","approved")
-        .orderBy("timestamp","asc")
-        .get();
+  async function refreshRentalTimerSources(scootyId){
+    // stop old interval
+    if(intervalId) { clearInterval(intervalId); intervalId = null; }
 
-      const userDoc = await db.collection("users").doc(email).get();
-      let totalSeconds = 0;
-      if(userDoc.exists){
-        const data = userDoc.data();
-        totalSeconds += (data.rentalPlan || 0)*86400;
-        totalSeconds += (data.pausedDays || 0)*86400;
+    // fetch user doc
+    const userSnap = await db.collection('users').doc(email).get();
+    const userData = userSnap.exists ? userSnap.data() : {};
+
+    // find the most relevant rental_request: scootyId match, approved, latest
+    let rentQuery = db.collection('rental_requests')
+      .where('scootyId','==',scootyId)
+      .where('email','==',email)
+      .orderBy('timestamp','desc')
+      .limit(5);
+
+    // try to get the most reasonable rental_request (prefer approved, then latest)
+    const rentSnap = await rentQuery.get();
+    let chosen = null;
+    rentSnap.forEach(doc=>{
+      const d = doc.data();
+      if(!chosen) chosen = { id: doc.id, data: d };
+      else {
+        // prefer approved
+        if(d.status === 'approved' && chosen.data.status !== 'approved') chosen = { id: doc.id, data: d };
       }
+    });
 
-      const now = Date.now();
-      rentalSnap.docs.forEach(doc=>{
-        const d = doc.data();
-        const planDays = parseInt((d.plan || "0").replace(/\D/g,'')) || 0;
-        const assignTime = d.timestamp ? d.timestamp.toMillis() : now;
-        const usedSecs = Math.floor((now - assignTime)/1000);
-        const planSecs = planDays*86400;
-        totalSeconds += Math.max(0, planSecs - usedSecs);
-      });
+    // fetch scooty master doc to find lastAssignedAt if needed
+    const scootySnap = await db.collection('scooty_master').doc(scootyId).get();
+    const scootyData = scootySnap.exists ? scootySnap.data() : {};
 
-      rentalTimerEl.innerText = "Rental Time Left: " + fmtDays(totalSeconds);
-    }catch(e){ console.error(e); }
+    // determine timestamp to use:
+    // priority: rental_request.timestamp -> rental_request.approvedAt -> scooty.lastAssignedAt -> users.lastAssignedAt
+    let timestampMs = null;
+    if(chosen && chosen.data){
+      rentalRequestDoc = chosen.data;
+      if(chosen.data.timestamp && chosen.data.timestamp.toMillis) timestampMs = chosen.data.timestamp.toMillis();
+      else if(chosen.data.timestamp && typeof chosen.data.timestamp === 'number') timestampMs = chosen.data.timestamp;
+      else if(chosen.data.approvedAt && chosen.data.approvedAt.toMillis) timestampMs = chosen.data.approvedAt.toMillis();
+      else if(chosen.data.approvedAt && typeof chosen.data.approvedAt === 'number') timestampMs = chosen.data.approvedAt;
+    } else {
+      rentalRequestDoc = null;
+    }
+
+    if(!timestampMs && scootyData && scootyData.lastAssignedAt && scootyData.lastAssignedAt.toMillis){
+      timestampMs = scootyData.lastAssignedAt.toMillis();
+    }
+    if(!timestampMs && userData && userData.lastAssignedAt && userData.lastAssignedAt.toMillis){
+      timestampMs = userData.lastAssignedAt.toMillis();
+    }
+
+    // compute totalDays: rental_request.plan (number) + user.rentalPlan (remaining previous days) + user.pausedDays (admin)
+    const planDaysFromReq = rentalRequestDoc ? parsePlanToDays(rentalRequestDoc.plan) : 0;
+    const userRentalPlan = userData.rentalPlan ? Number(userData.rentalPlan) : 0;
+    const userPausedDays = userData.pausedDays ? Number(userData.pausedDays) : 0;
+
+    totalDays = planDaysFromReq + userRentalPlan + userPausedDays;
+    // if totalDays is 0 then hide timer & show N/A
+    if(!timestampMs || totalDays <= 0){
+      rentalTimerText.innerText = '--d 00:00:00';
+      rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
+      dueLine.innerText = '';
+      return;
+    }
+
+    // store timestamp and total seconds
+    rentalRequestTimestampMs = timestampMs;
+    totalSeconds = Math.max(1, Math.floor(totalDays * 24 * 3600)); // avoid zero
+
+    // compute due date and display next to Status
+    const dueDate = new Date(Number(rentalRequestTimestampMs) + totalDays * 24*3600*1000);
+    dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining shown below`;
+
+    // start ticking
+    tickRentalTimer(); // immediate
+    intervalId = setInterval(tickRentalTimer, 1000);
   }
+
+  function tickRentalTimer(){
+    if(!rentalRequestTimestampMs || !totalSeconds){
+      rentalTimerText.innerText = '--d 00:00:00';
+      rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
+      return;
+    }
+    const now = Date.now();
+    const elapsedSeconds = Math.floor((now - rentalRequestTimestampMs)/1000); // seconds since assignment
+    const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+
+    // compute days + hh:mm:ss
+    const days = Math.floor(remainingSeconds / 86400);
+    const hms = remainingSeconds % 86400;
+    const hours = Math.floor(hms / 3600);
+    const minutes = Math.floor((hms % 3600) / 60);
+    const seconds = hms % 60;
+
+    rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+    // progress (we want visual: full circle when full remaining, empty when 0)
+    const fraction = (totalSeconds > 0) ? (remainingSeconds / totalSeconds) : 0;
+    const offset = CIRCUMFERENCE * (1 - fraction);
+    rentalProgress.style.strokeDashoffset = String(offset);
+
+    // if remaining is zero, leave the circle at completed state (offset full)
+    if(remainingSeconds === 0){
+      // you might want to show 'Expired' or similar
+      // rentalTimerText.innerText = '0d 00:00:00';
+    }
+  }
+
+  // helper to refresh when user doc changes (pausedDays/resume etc)
+  db.collection('users').doc(email).onSnapshot(snap => {
+    if(snap.exists){
+      // if pause/resume changed we should recompute based on current assigned scooty
+      const scootyIdEl = document.getElementById('scooty').innerText;
+      if(scootyIdEl && scootyIdEl !== '--'){
+        // scootyId may be comma separated - pick first
+        const scootyId = scootyIdEl.split(',')[0].trim();
+        if(scootyId) refreshRentalTimerSources(scootyId).catch(console.error);
+      }
+    }
+  });
+
+  // also refresh when rental_requests change (for this user)
+  db.collection('rental_requests').where('email','==',email).onSnapshot(()=> {
+    const scootyIdEl = document.getElementById('scooty').innerText;
+    if(scootyIdEl && scootyIdEl !== '--'){
+      const scootyId = scootyIdEl.split(',')[0].trim();
+      if(scootyId) refreshRentalTimerSources(scootyId).catch(console.error);
+    }
+  });
+
+  // Also refresh when scooty master doc changes for assigned scooty(s).
+  // We already call refresh when the scooty snapshot listener triggers above.
 
 })();
 </script>
+
 </body>
 </html>
