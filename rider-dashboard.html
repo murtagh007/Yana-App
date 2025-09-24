@@ -20,8 +20,8 @@
 body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
 .header h1{margin:0;font-size:1rem;color:var(--accent)}
-.container{padding:14px;display:flex;justify-content:center}
-.card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border)}
+.container{padding:14px;display:flex;justify-content:center;flex-direction:column;align-items:center;}
+.card{width:92vw;max-width:520px;background:var(--card);border-radius:var(--r);padding:18px;border:1px solid var(--border);margin-bottom:20px;}
 .title{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
 .timerRow{display:flex;gap:12px}
 .block{flex:1;background:rgba(255,255,255,0.02);padding:12px;border-radius:12px;border:1px solid var(--border);text-align:center}
@@ -38,24 +38,24 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 /* --- Rental circular timer (centered below card) --- */
 .rental-timer-wrap { width: 100%; display:flex; justify-content:center; margin-top:16px; }
 .rental-timer {
-  width: 140px; /* slightly larger but not huge */
-  height: 140px;
+  width: 90vw; 
+  max-width: 400px;
+  height: 90vw; 
+  max-height: 400px;
   position: relative;
 }
 .rental-timer svg { transform: rotate(-90deg); width:100%; height:100%; }
-.rental-timer .bg-circle { stroke: rgba(255,255,255,0.06); stroke-width:10; fill:none; }
-.rental-timer .fg-circle { stroke: var(--accent); stroke-width:10; stroke-linecap:round; fill:none; transition: stroke-dashoffset 0.6s linear; }
+.rental-timer .bg-circle { stroke: rgba(255,255,255,0.06); stroke-width:12; fill:none; }
+.rental-timer .fg-circle { stroke: var(--accent); stroke-width:12; stroke-linecap:round; fill:none; transition: stroke-dashoffset 0.5s linear; }
 .rental-timer .timer-text {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;
-  font-weight:700; color:var(--accent); font-size:14px;
-  line-height:1;
+  font-weight:700; color:var(--accent); font-size:16px;
+  line-height:1.1;
 }
 .rental-due { margin-top:8px; text-align:center; color:rgba(234,244,248,0.85); font-size:0.95rem; }
-
-/* responsive tweaks */
 @media (max-width:420px){
-  .rental-timer { width: 120px; height: 120px; }
-  .rental-timer .timer-text { font-size:12px; }
+  .rental-timer { width: 80vw; height:80vw; }
+  .rental-timer .timer-text { font-size:14px; }
 }
 </style>
 </head>
@@ -95,11 +95,9 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
     <div id="dueLine" style="margin-top:6px;font-size:0.95rem;color:rgba(234,244,248,0.85)"></div>
   </div>
 
-  <!-- CENTERED CIRCULAR TIMER BELOW CARD -->
-  <div class="rental-timer-wrap" aria-hidden="false">
+  <div class="rental-timer-wrap">
     <div class="rental-timer" id="rentalTimer" title="Rental remaining time">
       <svg viewBox="0 0 100 100" role="img" aria-label="Remaining rental time">
-        <!-- circle radius 45 centered at 50,50 -->
         <circle class="bg-circle" cx="50" cy="50" r="45"></circle>
         <circle class="fg-circle" id="rentalProgress" cx="50" cy="50" r="45" stroke-dasharray="282.743" stroke-dashoffset="0"></circle>
       </svg>
@@ -117,360 +115,200 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 
 <script>
 (async function(){
-  if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase not configured"); return; }
+if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase not configured"); return; }
 
-  const email = new URLSearchParams(window.location.search).get('email');
-  if(!email){ location.href="rider-signin.html"; return; }
+const email = new URLSearchParams(window.location.search).get('email');
+if(!email){ location.href="rider-signin.html"; return; }
 
-  function todayKey(){
-    const now = new Date();
-    if(now.getHours()<2){ now.setDate(now.getDate()-1); }
-    return now.toISOString().slice(0,10);
+function todayKey(){ const now = new Date(); if(now.getHours()<2){ now.setDate(now.getDate()-1); } return now.toISOString().slice(0,10); }
+let currentDay = todayKey();
+const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
+
+let state = { punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0 };
+
+const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
+const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getElementById("breakLabel");
+const statusLine=document.getElementById("statusLine");
+const dueLine = document.getElementById("dueLine");
+
+// rental timer elements
+const rentalProgress = document.getElementById("rentalProgress");
+const rentalTimerText = document.getElementById("rentalTimerText");
+const R = 45;
+const CIRCUMFERENCE = 2*Math.PI*R;
+rentalProgress.setAttribute('stroke-dasharray',String(CIRCUMFERENCE));
+const pad=n=>String(n).padStart(2,"0");
+
+// attendance functions
+function computeTimes(){
+  const now=Date.now();
+  let workSecs=state.workingSeconds;
+  if(state.punchedIn && state.punchInTime && !state.onBreak){ workSecs += Math.floor((now - state.punchInTime)/1000); }
+  let breakSecs=state.totalBreakSeconds;
+  if(state.onBreak && state.breakStartTime){ breakSecs += Math.floor((now - state.breakStartTime)/1000); }
+  return {workSecs, breakSecs};
+}
+function updateUI(){
+  const {workSecs, breakSecs}=computeTimes();
+  workValue.innerText=pad(Math.floor(workSecs/3600))+":"+pad(Math.floor((workSecs%3600)/60))+":"+pad(workSecs%60);
+  breakValue.innerText=pad(Math.floor(breakSecs/3600))+":"+pad(Math.floor((breakSecs%3600)/60))+":"+pad(breakSecs%60);
+  punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
+  breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
+  statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
+}
+
+function startTickers(){
+  setInterval(updateUI,1000);
+}
+
+async function syncToServer(){
+  await stateRef().set({
+    punchedIn:state.punchedIn,
+    punchInTime: state.punchInTime? firebase.firestore.Timestamp.fromMillis(state.punchInTime):null,
+    onBreak:state.onBreak,
+    breakStartTime: state.breakStartTime? firebase.firestore.Timestamp.fromMillis(state.breakStartTime):null,
+    workingSeconds:state.workingSeconds,
+    totalBreakSeconds:state.totalBreakSeconds,
+    lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function logEvent(type){
+  await db.collection("attendance").add({
+    email,
+    type,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    day: currentDay
+  });
+}
+
+function applySnapshot(d){
+  state.punchedIn=d.punchedIn;
+  state.onBreak=d.onBreak;
+  state.workingSeconds=d.workingSeconds||0;
+  state.totalBreakSeconds=d.totalBreakSeconds||0;
+  state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
+  state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
+  updateUI();
+}
+
+async function loadState(){
+  const snap=await stateRef().get();
+  if(snap.exists){ applySnapshot(snap.data()); }
+}
+
+// Punch & Break logic
+document.getElementById("punchBtn").addEventListener("click",async()=>{
+  if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); await logEvent("PunchIn"); }
+  else{
+    if(!state.onBreak && state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); }
+    if(state.onBreak && state.breakStartTime){ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; }
+    state.punchedIn=false; state.punchInTime=null; await logEvent("PunchOut");
+  }
+  await syncToServer(); updateUI();
+});
+document.getElementById("breakBtn").addEventListener("click",async()=>{
+  if(!state.punchedIn) return alert("Punch in first!");
+  if(!state.onBreak){ if(state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); } state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null; await logEvent("BreakStart"); }
+  else{ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now(); await logEvent("BreakEnd"); }
+  await syncToServer(); updateUI();
+});
+document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
+
+// rider info
+const u=await db.collection("users").doc(email).get();
+if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
+
+// Scooty & Battery listeners
+db.collection("scooty_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
+  const scootyEl=document.getElementById("scooty");
+  scootyEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
+  const scootyId = scootyEl.innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimerSources(scootyId);
+});
+db.collection("battery_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
+  const batteryEl=document.getElementById("battery");
+  batteryEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
+});
+
+// navigation
+document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
+document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
+document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
+document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
+
+await loadState();
+startTickers();
+stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
+setInterval(syncToServer,30000);
+
+// --- Rental Timer logic ---
+let rentalIntervalId=null;
+let rentalStartMs=null;
+let rentalTotalSeconds=0;
+
+function parsePlanToDays(plan){ if(!plan) return 0; return parseInt(plan)||0; }
+
+async function refreshRentalTimerSources(scootyId){
+  if(rentalIntervalId){ clearInterval(rentalIntervalId); rentalIntervalId=null; }
+
+  const userSnap = await db.collection('users').doc(email).get();
+  const userData = userSnap.exists? userSnap.data() : {};
+
+  // latest approved rental
+  const rentSnap = await db.collection('rental_requests').where('scootyId','==',scootyId).where('email','==',email).orderBy('approvedAt','desc').limit(1).get();
+  let rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
+
+  // use approvedAt timestamp
+  let startMs = rentalDoc?.approvedAt?.toMillis() || Date.now();
+  let totalDays = parsePlanToDays(rentalDoc?.plan) + parsePlanToDays(userData.rentalPlan) + parsePlanToDays(userData.pausedDays);
+
+  if(!rentalDoc || totalDays<=0){
+    rentalTimerText.innerText='--d 00:00:00';
+    rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
+    dueLine.innerText='';
+    return;
   }
 
-  let currentDay = todayKey();
-  const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
+  rentalStartMs=startMs;
+  rentalTotalSeconds = totalDays*24*3600;
+  const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
+  dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
 
-  let state = { punchedIn:false, punchInTime:null, workingSeconds:0, onBreak:false, breakStartTime:null, totalBreakSeconds:0 };
-
-  const workValue=document.getElementById("workValue"), breakValue=document.getElementById("breakValue");
-  const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getElementById("breakLabel");
-  const statusLine=document.getElementById("statusLine");
-  const dueLine = document.getElementById("dueLine");
-
-  // rental timer elements
-  const rentalProgress = document.getElementById("rentalProgress");
-  const rentalTimerText = document.getElementById("rentalTimerText");
-  const rentalTimerWrap = document.querySelector(".rental-timer-wrap");
-
-  // circle constants
-  const R = 45;
-  const CIRCUMFERENCE = 2 * Math.PI * R;
-  rentalProgress.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
-
-  const pad=n=>String(n).padStart(2,"0");
-  const fmt=s=>`${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
-
-  function computeTimes(){
+  function tick(){
     const now=Date.now();
-    let workSecs=state.workingSeconds;
-    if(state.punchedIn && state.punchInTime && !state.onBreak){
-      workSecs += Math.floor((now - state.punchInTime)/1000);
-    }
-    let breakSecs=state.totalBreakSeconds;
-    if(state.onBreak && state.breakStartTime){
-      breakSecs += Math.floor((now - state.breakStartTime)/1000);
-    }
-    return {workSecs, breakSecs};
-  }
+    let elapsed = Math.floor((now-rentalStartMs)/1000);
 
-  function updateUI(){
-    const {workSecs, breakSecs}=computeTimes();
-    workValue.innerText=fmt(workSecs);
-    breakValue.innerText=fmt(breakSecs);
-    punchLabel.innerText=state.punchedIn?"Punch Out":"Punch In";
-    breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
-    statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
-  }
-
-  function startTickers(){
-    setInterval(updateUI,1000);
-    setInterval(autoPunchoutAt2AM,60000); // check every minute for 2AM
-  }
-
-  async function syncToServer(){
-    await stateRef().set({
-      punchedIn:state.punchedIn,
-      punchInTime: state.punchInTime? firebase.firestore.Timestamp.fromMillis(state.punchInTime):null,
-      onBreak:state.onBreak,
-      breakStartTime: state.breakStartTime? firebase.firestore.Timestamp.fromMillis(state.breakStartTime):null,
-      workingSeconds:state.workingSeconds,
-      totalBreakSeconds:state.totalBreakSeconds,
-      lastUpdated:firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-  }
-
-  async function logEvent(type){
-    await db.collection("attendance").add({
-      email,
-      type,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      day: currentDay
-    });
-  }
-
-  function applySnapshot(d){
-    state.punchedIn=d.punchedIn;
-    state.onBreak=d.onBreak;
-    state.workingSeconds=d.workingSeconds||0;
-    state.totalBreakSeconds=d.totalBreakSeconds||0;
-    state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
-    state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
-    updateUI();
-  }
-
-  async function loadState(){
-    const snap=await stateRef().get();
-    if(snap.exists){ applySnapshot(snap.data()); }
-  }
-
-  // Punch logic
-  document.getElementById("punchBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn){
-      state.punchedIn=true; state.punchInTime=Date.now();
-      await logEvent("PunchIn");
-    } else {
-      if(!state.onBreak && state.punchInTime){
-        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
-      }
-      state.punchedIn=false; state.punchInTime=null;
-      if(state.onBreak && state.breakStartTime){
-        state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
-        state.onBreak=false; state.breakStartTime=null;
-      }
-      await logEvent("PunchOut");
-    }
-    await syncToServer(); updateUI();
-  });
-
-  // Break logic
-  document.getElementById("breakBtn").addEventListener("click",async()=>{
-    if(!state.punchedIn) return alert("Punch in first!");
-    if(!state.onBreak){
-      if(state.punchInTime){
-        state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
-      }
-      state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null;
-      await logEvent("BreakStart");
-    } else {
-      state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
-      state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now();
-      await logEvent("BreakEnd");
-    }
-    await syncToServer(); updateUI();
-  });
-
-  document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
-
-  const u=await db.collection("users").doc(email).get();
-  if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
-
-  // 🔄 Real-time Scooty & Battery
-  db.collection("scooty_master")
-    .where("assignedTo","==",email)
-    .where("state","==","active")
-    .onSnapshot(snap=>{
-      const scootyEl = document.getElementById("scooty");
-      scootyEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
-      // whenever scooty changes we refresh the rental timer source
-      if(!snap.empty){
-        const scootyId = snap.docs[0].id;
-        // refresh rental timer sources
-        refreshRentalTimerSources(scootyId);
-      } else {
-        // hide timer if no active scooty
-        rentalTimerText.innerText = "--d 00:00:00";
-        rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
-        dueLine.innerText = "";
+    // check if scooty is returned
+    db.collection('scooty_master').doc(scootyId).get().then(doc=>{
+      if(doc.exists && doc.data().state==='inactive'){
+        elapsed = Math.min(elapsed,rentalTotalSeconds); // freeze progress
       }
     });
 
-  db.collection("battery_master")
-    .where("assignedTo","==",email)
-    .where("state","==","active")
-    .onSnapshot(snap=>{
-      const batteryEl = document.getElementById("battery");
-      batteryEl.innerText = !snap.empty ? snap.docs.map(d=>d.id).join(", ") : "--";
-    });
-
-  document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
-  document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
-  document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
-  document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
-
-  await loadState();
-  startTickers();
-  stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
-  setInterval(syncToServer,30000);
-
-  // Auto Punch Out + Reset at 2 AM
-  async function autoPunchoutAt2AM(){
-    const now = new Date();
-    if(now.getHours() === 2 && now.getMinutes()===0){
-      if(state.punchedIn && state.punchInTime){
-        state.workingSeconds += Math.floor((now - state.punchInTime)/1000);
-      }
-      if(state.onBreak && state.breakStartTime){
-        state.totalBreakSeconds += Math.floor((now - state.breakStartTime)/1000);
-      }
-      if(state.punchedIn){
-        await logEvent("PunchOut");
-      }
-      state.punchedIn=false; state.punchInTime=null;
-      state.onBreak=false; state.breakStartTime=null;
-      await syncToServer();
-      state.workingSeconds=0; state.totalBreakSeconds=0;
-      currentDay = todayKey();
-    }
-  }
-
-  // --- Rental timer logic (cumulative) ---
-  // We'll obtain:
-  //  - latest approved rental_request for the assigned scooty (by scootyId)
-  //  - users doc (rentalPlan and pausedDays)
-  // fallback rules:
-  //  - rentalRequest.timestamp || rentalRequest.approvedAt || scooty_master.lastAssignedAt || users.lastAssignedAt
-
-  let rentalRequestDoc = null;   // firestore doc data
-  let rentalRequestTimestampMs = null;
-  let totalDays = 0;
-  let totalSeconds = 0;
-  let intervalId = null;
-
-  function parsePlanToDays(planStr){
-    // plan is like "7d" or number
-    if(!planStr) return 0;
-    if(typeof planStr === 'number') return planStr;
-    const m = String(planStr).match(/(\d+)/);
-    return m ? parseInt(m[1],10) : 0;
-  }
-
-  async function refreshRentalTimerSources(scootyId){
-    // stop old interval
-    if(intervalId) { clearInterval(intervalId); intervalId = null; }
-
-    // fetch user doc
-    const userSnap = await db.collection('users').doc(email).get();
-    const userData = userSnap.exists ? userSnap.data() : {};
-
-    // find the most relevant rental_request: scootyId match, approved, latest
-    let rentQuery = db.collection('rental_requests')
-      .where('scootyId','==',scootyId)
-      .where('email','==',email)
-      .orderBy('timestamp','desc')
-      .limit(5);
-
-    // try to get the most reasonable rental_request (prefer approved, then latest)
-    const rentSnap = await rentQuery.get();
-    let chosen = null;
-    rentSnap.forEach(doc=>{
-      const d = doc.data();
-      if(!chosen) chosen = { id: doc.id, data: d };
-      else {
-        // prefer approved
-        if(d.status === 'approved' && chosen.data.status !== 'approved') chosen = { id: doc.id, data: d };
-      }
-    });
-
-    // fetch scooty master doc to find lastAssignedAt if needed
-    const scootySnap = await db.collection('scooty_master').doc(scootyId).get();
-    const scootyData = scootySnap.exists ? scootySnap.data() : {};
-
-    // determine timestamp to use:
-    // priority: rental_request.timestamp -> rental_request.approvedAt -> scooty.lastAssignedAt -> users.lastAssignedAt
-    let timestampMs = null;
-    if(chosen && chosen.data){
-      rentalRequestDoc = chosen.data;
-      if(chosen.data.timestamp && chosen.data.timestamp.toMillis) timestampMs = chosen.data.timestamp.toMillis();
-      else if(chosen.data.timestamp && typeof chosen.data.timestamp === 'number') timestampMs = chosen.data.timestamp;
-      else if(chosen.data.approvedAt && chosen.data.approvedAt.toMillis) timestampMs = chosen.data.approvedAt.toMillis();
-      else if(chosen.data.approvedAt && typeof chosen.data.approvedAt === 'number') timestampMs = chosen.data.approvedAt;
-    } else {
-      rentalRequestDoc = null;
-    }
-
-    if(!timestampMs && scootyData && scootyData.lastAssignedAt && scootyData.lastAssignedAt.toMillis){
-      timestampMs = scootyData.lastAssignedAt.toMillis();
-    }
-    if(!timestampMs && userData && userData.lastAssignedAt && userData.lastAssignedAt.toMillis){
-      timestampMs = userData.lastAssignedAt.toMillis();
-    }
-
-    // compute totalDays: rental_request.plan (number) + user.rentalPlan (remaining previous days) + user.pausedDays (admin)
-    const planDaysFromReq = rentalRequestDoc ? parsePlanToDays(rentalRequestDoc.plan) : 0;
-    const userRentalPlan = userData.rentalPlan ? Number(userData.rentalPlan) : 0;
-    const userPausedDays = userData.pausedDays ? Number(userData.pausedDays) : 0;
-
-    totalDays = planDaysFromReq + userRentalPlan + userPausedDays;
-    // if totalDays is 0 then hide timer & show N/A
-    if(!timestampMs || totalDays <= 0){
-      rentalTimerText.innerText = '--d 00:00:00';
-      rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
-      dueLine.innerText = '';
-      return;
-    }
-
-    // store timestamp and total seconds
-    rentalRequestTimestampMs = timestampMs;
-    totalSeconds = Math.max(1, Math.floor(totalDays * 24 * 3600)); // avoid zero
-
-    // compute due date and display next to Status
-    const dueDate = new Date(Number(rentalRequestTimestampMs) + totalDays * 24*3600*1000);
-    dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining shown below`;
-
-    // start ticking
-    tickRentalTimer(); // immediate
-    intervalId = setInterval(tickRentalTimer, 1000);
-  }
-
-  function tickRentalTimer(){
-    if(!rentalRequestTimestampMs || !totalSeconds){
-      rentalTimerText.innerText = '--d 00:00:00';
-      rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
-      return;
-    }
-    const now = Date.now();
-    const elapsedSeconds = Math.floor((now - rentalRequestTimestampMs)/1000); // seconds since assignment
-    const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
-
-    // compute days + hh:mm:ss
-    const days = Math.floor(remainingSeconds / 86400);
-    const hms = remainingSeconds % 86400;
-    const hours = Math.floor(hms / 3600);
-    const minutes = Math.floor((hms % 3600) / 60);
-    const seconds = hms % 60;
-
+    let remaining = Math.max(0,rentalTotalSeconds-elapsed);
+    const days = Math.floor(remaining/86400);
+    const hms = remaining%86400;
+    const hours = Math.floor(hms/3600);
+    const minutes = Math.floor((hms%3600)/60);
+    const seconds = hms%60;
     rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-
-    // progress (we want visual: full circle when full remaining, empty when 0)
-    const fraction = (totalSeconds > 0) ? (remainingSeconds / totalSeconds) : 0;
-    const offset = CIRCUMFERENCE * (1 - fraction);
-    rentalProgress.style.strokeDashoffset = String(offset);
-
-    // if remaining is zero, leave the circle at completed state (offset full)
-    if(remainingSeconds === 0){
-      // you might want to show 'Expired' or similar
-      // rentalTimerText.innerText = '0d 00:00:00';
-    }
+    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1-remaining/rentalTotalSeconds);
   }
+  tick();
+  rentalIntervalId = setInterval(tick,1000);
+}
 
-  // helper to refresh when user doc changes (pausedDays/resume etc)
-  db.collection('users').doc(email).onSnapshot(snap => {
-    if(snap.exists){
-      // if pause/resume changed we should recompute based on current assigned scooty
-      const scootyIdEl = document.getElementById('scooty').innerText;
-      if(scootyIdEl && scootyIdEl !== '--'){
-        // scootyId may be comma separated - pick first
-        const scootyId = scootyIdEl.split(',')[0].trim();
-        if(scootyId) refreshRentalTimerSources(scootyId).catch(console.error);
-      }
-    }
-  });
-
-  // also refresh when rental_requests change (for this user)
-  db.collection('rental_requests').where('email','==',email).onSnapshot(()=> {
-    const scootyIdEl = document.getElementById('scooty').innerText;
-    if(scootyIdEl && scootyIdEl !== '--'){
-      const scootyId = scootyIdEl.split(',')[0].trim();
-      if(scootyId) refreshRentalTimerSources(scootyId).catch(console.error);
-    }
-  });
-
-  // Also refresh when scooty master doc changes for assigned scooty(s).
-  // We already call refresh when the scooty snapshot listener triggers above.
-
+// refresh when user changes
+db.collection('users').doc(email).onSnapshot(snap=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimerSources(scootyId);
+});
+db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimerSources(scootyId);
+});
 })();
 </script>
-
 </body>
 </html>
