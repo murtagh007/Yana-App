@@ -152,7 +152,6 @@ function renderRentals(list){
 
 // --- RETURN REQUESTS ---
 function loadReturns(){
-  // only users with active scooty assigned
   db.collection("users").where("scootyId","!=",null).onSnapshot(snapshot=>{
     pendingReturns=[]; returnContainer.innerHTML="";
     if(snapshot.empty){ returnContainer.innerHTML="<p>No pending returns.</p>"; return; }
@@ -166,13 +165,11 @@ function renderReturns(list){
   returnContainer.innerHTML="";
   list.forEach(d=>{
     const card=document.createElement("div"); card.className="card";
-    // calculate due and excess days
     let rentalDate = d.lastAssignedAt ? new Date(d.lastAssignedAt.seconds*1000) : new Date();
     let planDays = parseInt(d.rentalPlan) || 0;
     let dueDate = new Date(rentalDate); dueDate.setDate(dueDate.getDate()+planDays);
     let today = new Date();
     let excessDays = Math.max(0, Math.floor((today-dueDate)/(1000*60*60*24)));
-    // days left considering pausedDays
     let daysLeft = d.pausedDays && d.pausedDays>0 ? d.pausedDays : Math.max(0, planDays - Math.floor((today-rentalDate)/(1000*60*60*24)));
     card.innerHTML=`<div class="card-left">
       <b>${d.email||""}</b><br>
@@ -243,7 +240,6 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
         const reqSnap=await reqRef.get();
         if(!reqSnap.exists) continue;
         const req=reqSnap.data();
-        // gather checklist for return only
         let checklistItems=[];
         if(type==="return"){
           const card = sel.closest(".card");
@@ -277,9 +273,24 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
               batteryId: null
             });
           }
+
           // update scooty/battery to available
           await db.collection("scooty_master").doc(req.scootyId).update({status:"available",assignedTo:null});
           if(req.batteryId) await db.collection("battery_master").doc(req.batteryId).update({status:"available",assignedTo:null});
+
+          // create rental history
+          const endDate = today;
+          await db.collection("rental_history").add({
+            riderEmail:req.email,
+            scootyID:req.scootyId,
+            rentalPlanDays: planDays,
+            rentalApproved:true,
+            returnApproved:true,
+            carryOverTime: remainingDays,
+            lastAssignedAt:req.lastAssignedAt,
+            approvedAt:req.approvedAt,
+            returnedAt:firebase.firestore.Timestamp.fromDate(endDate)
+          });
         }
 
         // --- RENTAL ASSIGNMENT ---
@@ -288,13 +299,10 @@ document.getElementById("submitBtn").addEventListener("click",async()=>{
           const userSnap = await db.collection("users").doc(req.email).get();
           const userData = userSnap.data();
           if(userData.pausedDays && userData.pausedDays>0){
-            assignDays = userData.pausedDays;
+            assignDays += userData.pausedDays;
             await db.collection("users").doc(req.email).update({pausedDays:0, pausedAt:null});
           }
           const now = new Date();
-          const dueDate = new Date(now);
-          dueDate.setDate(dueDate.getDate() + assignDays);
-
           await db.collection("users").doc(req.email).set({
             scootyId: req.scootyId,
             rentalPlan: assignDays,
