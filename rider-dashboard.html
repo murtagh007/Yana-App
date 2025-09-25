@@ -35,28 +35,14 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
 .navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
 
-/* --- Rental circular timer (centered below card) --- */
+/* --- Rental circular timer --- */
 .rental-timer-wrap { width: 100%; display:flex; justify-content:center; margin-top:16px; }
-.rental-timer {
-  width: 70vw; 
-  max-width: 300px;
-  height: 70vw; 
-  max-height: 300px;
-  position: relative;
-}
+.rental-timer { width: 70vw; max-width: 300px; height: 70vw; max-height: 300px; position: relative; }
 .rental-timer svg { transform: rotate(-90deg); width:100%; height:100%; }
 .rental-timer .bg-circle { stroke: rgba(255,255,255,0.06); stroke-width:8; fill:none; }
 .rental-timer .fg-circle { stroke: var(--accent); stroke-width:8; stroke-linecap:round; fill:none; transition: stroke-dashoffset 0.5s linear; }
-.rental-timer .timer-text {
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;
-  font-weight:700; color:var(--accent); font-size:16px;
-  line-height:1.1;
-}
-.rental-due { margin-top:8px; text-align:center; color:rgba(234,244,248,0.85); font-size:0.95rem; }
-@media (max-width:420px){
-  .rental-timer { width: 80vw; height:80vw; }
-  .rental-timer .timer-text { font-size:14px; }
-}
+.rental-timer .timer-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; font-weight:700; color:var(--accent); font-size:16px; line-height:1.1; }
+@media (max-width:420px){ .rental-timer { width:80vw; height:80vw; } .rental-timer .timer-text { font-size:14px; } }
 </style>
 </head>
 <body>
@@ -112,7 +98,6 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
   <div class="navBtn" id="navAttendance"><i class="fa-solid fa-user-check"></i><div>Attendance</div></div>
   <div class="navBtn" id="navLogs"><i class="fa-solid fa-file-lines"></i><div>Logs</div></div>
 </div>
-
 <script>
 (async function(){
 if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase not configured"); return; }
@@ -120,7 +105,11 @@ if(typeof firebase==='undefined' || typeof db==='undefined'){ alert("Firebase no
 const email = new URLSearchParams(window.location.search).get('email');
 if(!email){ location.href="rider-signin.html"; return; }
 
-function todayKey(){ const now = new Date(); if(now.getHours()<2){ now.setDate(now.getDate()-1); } return now.toISOString().slice(0,10); }
+function todayKey(){
+  const now = new Date();
+  if(now.getHours()<2){ now.setDate(now.getDate()-1); }
+  return now.toISOString().slice(0,10);
+}
 let currentDay = todayKey();
 const stateRef = ()=> db.collection("attendance").doc(`${email}_${currentDay}_state`);
 
@@ -131,23 +120,21 @@ const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getE
 const statusLine=document.getElementById("statusLine");
 const dueLine = document.getElementById("dueLine");
 
-// rental timer elements
-const rentalProgress = document.getElementById("rentalProgress");
-const rentalTimerText = document.getElementById("rentalTimerText");
-const R = 45;
-const CIRCUMFERENCE = 2*Math.PI*R;
-rentalProgress.setAttribute('stroke-dasharray',String(CIRCUMFERENCE));
+// --- Timer helpers ---
 const pad=n=>String(n).padStart(2,"0");
-
-// attendance functions
 function computeTimes(){
   const now=Date.now();
   let workSecs=state.workingSeconds;
-  if(state.punchedIn && state.punchInTime && !state.onBreak){ workSecs += Math.floor((now - state.punchInTime)/1000); }
+  if(state.punchedIn && state.punchInTime && !state.onBreak){
+    workSecs += Math.floor((now - state.punchInTime)/1000);
+  }
   let breakSecs=state.totalBreakSeconds;
-  if(state.onBreak && state.breakStartTime){ breakSecs += Math.floor((now - state.breakStartTime)/1000); }
+  if(state.onBreak && state.breakStartTime){
+    breakSecs += Math.floor((now - state.breakStartTime)/1000);
+  }
   return {workSecs, breakSecs};
 }
+
 function updateUI(){
   const {workSecs, breakSecs}=computeTimes();
   workValue.innerText=pad(Math.floor(workSecs/3600))+":"+pad(Math.floor((workSecs%3600)/60))+":"+pad(workSecs%60);
@@ -156,8 +143,10 @@ function updateUI(){
   breakLabel.innerText=state.onBreak?"Stop Break":"Start Break";
   statusLine.innerText=`Status: ${state.onBreak?"On Break":(state.punchedIn?"Working":"Idle")}`;
 }
+
 setInterval(updateUI,1000);
 
+// --- Firebase sync ---
 async function syncToServer(){
   await stateRef().set({
     punchedIn:state.punchedIn,
@@ -195,77 +184,125 @@ async function loadState(){
 }
 await loadState();
 
-// Punch & Break logic
+// --- Punch & Break button logic ---
 document.getElementById("punchBtn").addEventListener("click",async()=>{
-  if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); await logEvent("PunchIn"); }
-  else{
-    if(!state.onBreak && state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); }
-    if(state.onBreak && state.breakStartTime){ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; }
-    state.punchedIn=false; state.punchInTime=null; await logEvent("PunchOut");
+  if(!state.punchedIn){
+    state.punchedIn=true;
+    state.punchInTime=Date.now();
+    await logEvent("PunchIn");
+  } else {
+    if(!state.onBreak && state.punchInTime){ 
+      state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000);
+    }
+    if(state.onBreak && state.breakStartTime){
+      state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+      state.onBreak=false;
+      state.breakStartTime=null;
+    }
+    state.punchedIn=false; 
+    state.punchInTime=null; 
+    await logEvent("PunchOut");
   }
-  await syncToServer(); updateUI();
+  await syncToServer(); 
+  updateUI();
 });
+
 document.getElementById("breakBtn").addEventListener("click",async()=>{
   if(!state.punchedIn) return alert("Punch in first!");
-  if(!state.onBreak){ if(state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); } state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null; await logEvent("BreakStart"); }
-  else{ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now(); await logEvent("BreakEnd"); }
-  await syncToServer(); updateUI();
+  if(!state.onBreak){
+    if(state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); }
+    state.onBreak=true;
+    state.breakStartTime=Date.now();
+    state.punchInTime=null;
+    await logEvent("BreakStart");
+  } else {
+    state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000);
+    state.onBreak=false;
+    state.breakStartTime=null;
+    state.punchInTime=Date.now();
+    await logEvent("BreakEnd");
+  }
+  await syncToServer(); 
+  updateUI();
 });
-document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
-// rider info
+document.getElementById("logoutBtn").addEventListener("click",()=>{
+  firebase.auth().signOut(); 
+  location.href="rider-signin.html";
+});
+
+// --- Rider info & Scooty/Battery listeners ---
 const u=await db.collection("users").doc(email).get();
 if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
-// Scooty & Battery listeners
 db.collection("scooty_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
   const scootyEl=document.getElementById("scooty");
   scootyEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
   const scootyId = scootyEl.innerText.split(',')[0]?.trim();
   if(scootyId) refreshRentalTimer(scootyId);
 });
+
 db.collection("battery_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
   const batteryEl=document.getElementById("battery");
   batteryEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
 });
 
-// navigation
+// Navigation buttons
 document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
 document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
 document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
 document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
 
-// --- Rental Timer logic ---
-let rentalIntervalId=null;
-let rentalStartMs=null;
-let rentalTotalSeconds=0;
-let scootyStateActive=true;
+// Real-time attendance sync
+stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
+setInterval(syncToServer,30000);
+})();
+</script>
+<script>
+// --- Rental Timer setup ---
+let rentalIntervalId = null;
+let rentalStartMs = null;
+let rentalTotalSeconds = 0;
+let scootyStateActive = true;
 
-function parsePlanToDays(plan){ if(!plan) return 0; return parseInt(plan)||0; }
+const rentalProgress = document.getElementById("rentalProgress");
+const rentalTimerText = document.getElementById("rentalTimerText");
+const R = 45;
+const CIRCUMFERENCE = 2 * Math.PI * R;
+rentalProgress.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
 
+// Helper
+function pad(n) { return String(n).padStart(2,"0"); }
+function parsePlanToDays(plan) { return plan ? parseInt(plan) || 0 : 0; }
+
+// --- Refresh rental timer for a scooty ---
 async function refreshRentalTimer(scootyId){
   if(rentalIntervalId){ clearInterval(rentalIntervalId); rentalIntervalId=null; }
 
   const userSnap = await db.collection('users').doc(email).get();
-  const userData = userSnap.exists? userSnap.data() : {};
+  const userData = userSnap.exists ? userSnap.data() : {};
 
-  const rentSnap = await db.collection('rental_requests').where('scootyId','==',scootyId).where('email','==',email).orderBy('approvedAt','desc').limit(1).get();
-  let rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
+  const rentSnap = await db.collection('rental_requests')
+      .where('scootyId','==',scootyId)
+      .where('email','==',email)
+      .orderBy('approvedAt','desc')
+      .limit(1).get();
 
+  const rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
   let startMs = rentalDoc?.approvedAt?.toMillis() || Date.now();
   let totalDays = parsePlanToDays(rentalDoc?.plan) + parsePlanToDays(userData.rentalPlan) + parsePlanToDays(userData.pausedDays);
 
-  if(!rentalDoc || totalDays<=0){
-    rentalTimerText.innerText='--d 00:00:00';
-    rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
-    dueLine.innerText='';
+  if(!rentalDoc || totalDays <= 0){
+    rentalTimerText.innerText = '--d 00:00:00';
+    rentalProgress.style.strokeDashoffset = String(CIRCUMFERENCE);
+    dueLine.innerText = '';
     return;
   }
 
-  rentalStartMs=startMs;
-  rentalTotalSeconds = totalDays*24*3600;
+  rentalStartMs = startMs;
+  rentalTotalSeconds = totalDays * 24 * 3600;
 
-  // Listen Scooty active/inactive
+  // Listen to Scooty active/inactive
   db.collection('scooty_master').doc(scootyId).onSnapshot(doc=>{
     scootyStateActive = doc.exists && doc.data().state==='active';
   });
@@ -273,6 +310,7 @@ async function refreshRentalTimer(scootyId){
   const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
   dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
 
+  // --- Tick function for timer ---
   function tick(){
     const now = Date.now();
     let elapsed = Math.floor((now - rentalStartMs)/1000);
@@ -286,22 +324,23 @@ async function refreshRentalTimer(scootyId){
     const seconds = hms % 60;
 
     rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1 - remaining/rentalTotalSeconds);
+    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE * (1 - remaining / rentalTotalSeconds);
+
+    // Debugging: uncomment below to log
+    // console.log(`Rental timer: ${days}d ${hours}:${minutes}:${seconds}, remaining: ${remaining}s`);
   }
 
-  tick();
-  rentalIntervalId = setInterval(tick, 1000);
+  tick(); // initial tick
+  rentalIntervalId = setInterval(tick, 1000); // run every second
 }
 
-// refresh when user changes
-db.collection('users').doc(email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
-db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
-
-// real-time attendance sync
-stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
-setInterval(syncToServer,30000);
-
-})();
+// --- Re-run timer when user changes or new rental request ---
+db.collection('users').doc(email).onSnapshot(()=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimer(scootyId);
+});
+db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimer(scootyId);
+});
 </script>
-</body>
-</html>
