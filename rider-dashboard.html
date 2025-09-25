@@ -181,7 +181,7 @@ db.collection("scooty_master").where("assignedTo","==",email).where("state","=="
   const scootyEl=document.getElementById("scooty");
   scootyEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
   const scootyId = scootyEl.innerText.split(',')[0]?.trim();
-  if(scootyId) refreshRentalTimer(scootyId);
+  if(scootyId && scootyId!=="--") refreshRentalTimer(scootyId);
 });
 db.collection("battery_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
   const batteryEl=document.getElementById("battery");
@@ -194,7 +194,7 @@ document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email
 document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
 document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
 
-// --- Rental Timer logic ---
+// --- Rental Timer logic with Debug ---
 let rentalIntervalId = null;
 let rentalStartMs = null;
 let rentalTotalSeconds = 0;
@@ -206,66 +206,81 @@ const CIRCUMFERENCE = 2 * Math.PI * R;
 rentalProgress.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
 
 async function refreshRentalTimer(scootyId){
+  console.log("Refreshing rental timer for scooty:", scootyId);
+
   if(rentalIntervalId){ clearInterval(rentalIntervalId); rentalIntervalId=null; }
 
-  const userSnap = await db.collection('users').doc(email).get();
-  const userData = userSnap.exists ? userSnap.data() : {};
-  const rentSnap = await db.collection('rental_requests')
-      .where('scootyId','==',scootyId)
-      .where('email','==',email)
-      .orderBy('approvedAt','desc')
-      .limit(1).get();
+  try {
+    const userSnap = await db.collection('users').doc(email).get();
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const rentSnap = await db.collection('rental_requests')
+        .where('scootyId','==',scootyId)
+        .where('email','==',email)
+        .orderBy('approvedAt','desc')
+        .limit(1).get();
 
-  const rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
-  let startMs = rentalDoc?.approvedAt?.toMillis() || Date.now();
-  let totalDays = (rentalDoc?.plan ? parseInt(rentalDoc.plan)||0 : 0) + (userData.rentalPlan ? parseInt(userData.rentalPlan)||0 : 0) + (userData.pausedDays ? parseInt(userData.pausedDays)||0 : 0);
+    const rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
+    if(!rentalDoc){
+      console.warn("No rental request found. Timer stopped.");
+      rentalTimerText.innerText='--d 00:00:00';
+      rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
+      dueLine.innerText='';
+      return;
+    }
 
-  if(!rentalDoc || totalDays<=0){
-    rentalTimerText.innerText='--d 00:00:00';
-    rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
-    dueLine.innerText='';
-    return;
+    let startMs = rentalDoc?.approvedAt?.toMillis() || Date.now();
+    let totalDays = (parseInt(rentalDoc.plan)||0) + (parseInt(userData.rentalPlan)||0) + (parseInt(userData.pausedDays)||0);
+    if(totalDays <= 0){
+      console.warn("Rental totalDays <= 0. Timer stopped.");
+      rentalTimerText.innerText='--d 00:00:00';
+      rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
+      dueLine.innerText='';
+      return;
+    }
+
+    rentalStartMs=startMs;
+    rentalTotalSeconds = totalDays * 24 * 3600;
+
+    db.collection('scooty_master').doc(scootyId).onSnapshot(doc=>{
+      scootyStateActive = doc.exists && doc.data().state==='active';
+      console.log("Scooty active state:", scootyStateActive);
+    });
+
+    const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
+    dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
+
+    function tick(){
+      if(!rentalStartMs || !rentalTotalSeconds){ console.warn("Invalid timer values"); return; }
+      const now = Date.now();
+      let elapsed = Math.floor((now - rentalStartMs)/1000);
+      if(!scootyStateActive) elapsed = Math.min(elapsed, rentalTotalSeconds);
+      let remaining = Math.max(0, rentalTotalSeconds - elapsed);
+
+      const days = Math.floor(remaining / 86400);
+      const hms = remaining % 86400;
+      const hours = Math.floor(hms / 3600);
+      const minutes = Math.floor((hms % 3600) / 60);
+      const seconds = hms % 60;
+
+      rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+      rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1 - remaining/rentalTotalSeconds);
+
+      console.log(`Timer tick -> remaining: ${remaining}s, ${days}d ${hours}:${minutes}:${seconds}`);
+    }
+
+    tick(); // initial update
+    rentalIntervalId = setInterval(tick, 1000);
+  } catch(e){
+    console.error("Error refreshing rental timer:", e);
   }
-
-  rentalStartMs=startMs;
-  rentalTotalSeconds = totalDays * 24 * 3600;
-
-  db.collection('scooty_master').doc(scootyId).onSnapshot(doc=>{ scootyStateActive = doc.exists && doc.data().state==='active'; });
-  const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
-  dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
-
-  function tick(){
-    const now = Date.now();
-    let elapsed = Math.floor((now - rentalStartMs)/1000);
-    if(!scootyStateActive) elapsed = Math.min(elapsed, rentalTotalSeconds);
-    let remaining = Math.max(0, rentalTotalSeconds - elapsed);
-
-    const days = Math.floor(remaining / 86400);
-    const hms = remaining % 86400;
-    const hours = Math.floor(hms / 3600);
-    const minutes = Math.floor((hms % 3600) / 60);
-    const seconds = hms % 60;
-
-    rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1 - remaining/rentalTotalSeconds);
-
-    // Debug log: uncomment to see timer values
-    // console.log(`Timer: ${days}d ${hours}:${minutes}:${seconds}, remaining: ${remaining}s`);
-  }
-
-  tick();
-  rentalIntervalId = setInterval(tick, 1000);
 }
 
-// Refresh on user or rental change
-db.collection('users').doc(email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
-db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
-
-// Real-time attendance sync
-stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
-setInterval(syncToServer,30000);
+// Force call on page load if scooty assigned
+const scootyId = document.getElementById('scooty')?.innerText.split(',')[0]?.trim();
+if(scootyId && scootyId!=="--") refreshRentalTimer(scootyId);
 
 })();
 </script>
+
 </body>
 </html>
