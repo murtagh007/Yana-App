@@ -208,36 +208,102 @@ document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email
 document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
 document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
 
-// --- Rental Timer logic ---
-let rentalInterval=null;
-function pad2(n){ return String(n).padStart(2,"0"); }
+// --- Full Rental Timer ---
+let rentalIntervalId=null;
+let rentalStartMs=null;
+let rentalTotalSeconds=0;
+function parsePlanToDays(plan){ return plan?parseInt(plan)||0:0; }
+
 async function refreshRentalTimer(scootyId){
-  if(rentalInterval) clearInterval(rentalInterval);
+  if(rentalIntervalId){ clearInterval(rentalIntervalId); rentalIntervalId=null; }
+
+  const userSnap = await db.collection('users').doc(email).get();
+  const userData = userSnap.exists? userSnap.data() : {};
 
   const rentSnap = await db.collection('rental_requests').where('scootyId','==',scootyId).where('email','==',email).orderBy('approvedAt','desc').limit(1).get();
-  if(rentSnap.empty){ rentalTimerText.innerText='--d 00:00:00'; rentalProgress.style.strokeDashoffset=CIRCUMFERENCE; dueLine.innerText=''; return; }
-  const rentalDoc = rentSnap.docs[0].data();
+  let rentalDoc = rentSnap.empty ? null : rentSnap.docs[0].data();
 
-  const startMs = rentalDoc.approvedAt.toMillis();
-  const totalDays = parseInt(rentalDoc.plan||0);
-  const totalSeconds = totalDays*24*3600;
-  const dueDate = new Date(startMs + totalSeconds*1000);
+  let startMs = rentalDoc?.approvedAt?.toMillis() || Date.now();
+  let totalDays = parsePlanToDays(rentalDoc?.plan) + parsePlanToDays(userData.rentalPlan) + parsePlanToDays(userData.pausedDays);
+
+  if(!rentalDoc || totalDays<=0){
+    rentalTimerText.innerText='--d 00:00:00';
+    rentalProgress.style.strokeDashoffset=CIRCUMFERENCE;
+    dueLine.innerText='';
+    return;
+  }
+
+  rentalStartMs=startMs;
+  rentalTotalSeconds = totalDays*24*3600;
+  const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
   dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
 
   function tick(){
-    let elapsed = Math.floor((Date.now()-startMs)/1000);
-    let remaining = Math.max(0,totalSeconds - elapsed);
-    const days=Math.floor(remaining/86400);
-    const hours=Math.floor((remaining%86400)/3600);
-    const minutes=Math.floor((remaining%3600)/60);
-    const seconds=remaining%60;
+    const now=Date.now();
+    let elapsed = Math.floor((now-rentalStartMs)/1000);
 
-    rentalTimerText.innerText=`${days}d ${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
-    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1-remaining/totalSeconds);
+    db.collection('scooty_master').doc(scootyId).get().then(doc=>{
+      if(doc.exists && doc.data().state==='inactive'){ elapsed = Math.min(elapsed,rentalTotalSeconds); }
+    });
+
+    let remaining
+    let remaining = Math.max(0, rentalTotalSeconds - elapsed);
+    const days = Math.floor(remaining / 86400);
+    const hms = remaining % 86400;
+    const hours = Math.floor(hms / 3600);
+    const minutes = Math.floor((hms % 3600) / 60);
+    const seconds = hms % 60;
+    rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE * (1 - remaining / rentalTotalSeconds);
   }
+
   tick();
-  rentalInterval = setInterval(tick,1000);
+  rentalIntervalId = setInterval(tick, 1000);
 }
+
+// refresh timer when user changes
+db.collection('users').doc(email).onSnapshot(snap=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimer(scootyId);
+});
+db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{
+  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
+  if(scootyId) refreshRentalTimer(scootyId);
+});
+
+// --- Load initial state ---
+async function loadState(){
+  const snap = await stateRef().get();
+  if(snap.exists){
+    const d = snap.data();
+    state.punchedIn = d.punchedIn;
+    state.onBreak = d.onBreak;
+    state.workingSeconds = d.workingSeconds || 0;
+    state.totalBreakSeconds = d.totalBreakSeconds || 0;
+    state.punchInTime = d.punchInTime ? d.punchInTime.toMillis() : null;
+    state.breakStartTime = d.breakStartTime ? d.breakStartTime.toMillis() : null;
+    updateUI();
+  }
+}
+await loadState();
+
+// real-time update
+stateRef().onSnapshot(snap=>{
+  if(snap.exists){
+    const d = snap.data();
+    state.punchedIn = d.punchedIn;
+    state.onBreak = d.onBreak;
+    state.workingSeconds = d.workingSeconds || 0;
+    state.totalBreakSeconds = d.totalBreakSeconds || 0;
+    state.punchInTime = d.punchInTime ? d.punchInTime.toMillis() : null;
+    state.breakStartTime = d.breakStartTime ? d.breakStartTime.toMillis() : null;
+    updateUI();
+  }
+});
+
+// auto-sync every 30s
+setInterval(syncToServer, 30000);
+
 })();
 </script>
 </body>
