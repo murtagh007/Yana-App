@@ -35,7 +35,7 @@ body{margin:0;font-family:Inter,Arial;background:#061014;color:var(--text);}
 .bottomNav{position:fixed;left:0;right:0;bottom:0;padding:10px;background:var(--card);display:flex;justify-content:space-around;border-top:1px solid var(--border)}
 .navBtn{color:var(--text);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;align-items:center}
 
-/* --- Rental circular timer --- */
+/* --- Rental circular timer (centered below card) --- */
 .rental-timer-wrap { width: 100%; display:flex; justify-content:center; margin-top:16px; }
 .rental-timer {
   width: 70vw; 
@@ -131,6 +131,7 @@ const punchLabel=document.getElementById("punchLabel"), breakLabel=document.getE
 const statusLine=document.getElementById("statusLine");
 const dueLine = document.getElementById("dueLine");
 
+// rental timer elements
 const rentalProgress = document.getElementById("rentalProgress");
 const rentalTimerText = document.getElementById("rentalTimerText");
 const R = 45;
@@ -138,7 +139,7 @@ const CIRCUMFERENCE = 2*Math.PI*R;
 rentalProgress.setAttribute('stroke-dasharray',String(CIRCUMFERENCE));
 const pad=n=>String(n).padStart(2,"0");
 
-// --- Attendance & punch/break logic ---
+// attendance functions
 function computeTimes(){
   const now=Date.now();
   let workSecs=state.workingSeconds;
@@ -169,28 +170,54 @@ async function syncToServer(){
   },{merge:true});
 }
 
+async function logEvent(type){
+  await db.collection("attendance").add({
+    email,
+    type,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    day: currentDay
+  });
+}
+
+function applySnapshot(d){
+  state.punchedIn=d.punchedIn;
+  state.onBreak=d.onBreak;
+  state.workingSeconds=d.workingSeconds||0;
+  state.totalBreakSeconds=d.totalBreakSeconds||0;
+  state.punchInTime=d.punchInTime?d.punchInTime.toMillis():null;
+  state.breakStartTime=d.breakStartTime?d.breakStartTime.toMillis():null;
+  updateUI();
+}
+
+async function loadState(){
+  const snap=await stateRef().get();
+  if(snap.exists){ applySnapshot(snap.data()); }
+}
+await loadState();
+
+// Punch & Break logic
 document.getElementById("punchBtn").addEventListener("click",async()=>{
-  if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); }
+  if(!state.punchedIn){ state.punchedIn=true; state.punchInTime=Date.now(); await logEvent("PunchIn"); }
   else{
     if(!state.onBreak && state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); }
     if(state.onBreak && state.breakStartTime){ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; }
-    state.punchedIn=false; state.punchInTime=null;
+    state.punchedIn=false; state.punchInTime=null; await logEvent("PunchOut");
   }
   await syncToServer(); updateUI();
 });
 document.getElementById("breakBtn").addEventListener("click",async()=>{
   if(!state.punchedIn) return alert("Punch in first!");
-  if(!state.onBreak){ if(state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); } state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null; }
-  else{ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now(); }
+  if(!state.onBreak){ if(state.punchInTime){ state.workingSeconds += Math.floor((Date.now()-state.punchInTime)/1000); } state.onBreak=true; state.breakStartTime=Date.now(); state.punchInTime=null; await logEvent("BreakStart"); }
+  else{ state.totalBreakSeconds += Math.floor((Date.now()-state.breakStartTime)/1000); state.onBreak=false; state.breakStartTime=null; state.punchInTime=Date.now(); await logEvent("BreakEnd"); }
   await syncToServer(); updateUI();
 });
 document.getElementById("logoutBtn").addEventListener("click",()=>{ firebase.auth().signOut(); location.href="rider-signin.html"; });
 
-// --- Rider Info ---
+// rider info
 const u=await db.collection("users").doc(email).get();
 if(u.exists){ document.getElementById("riderName").innerText=u.data().name+" ("+email+")"; }
 
-// --- Scooty & Battery listeners ---
+// Scooty & Battery listeners
 db.collection("scooty_master").where("assignedTo","==",email).where("state","==","active").onSnapshot(snap=>{
   const scootyEl=document.getElementById("scooty");
   scootyEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
@@ -202,17 +229,19 @@ db.collection("battery_master").where("assignedTo","==",email).where("state","==
   batteryEl.innerText=!snap.empty?snap.docs.map(d=>d.id).join(", "):"--";
 });
 
-// --- Navigation ---
+// navigation
 document.getElementById("navScanner").onclick=()=>location.href=`scanner.html?email=${email}`;
 document.getElementById("navIssues").onclick=()=>location.href=`issue.html?email=${email}`;
 document.getElementById("navAttendance").onclick=()=>location.href=`rider-dashboard.html?email=${email}`;
 document.getElementById("navLogs").onclick=()=>location.href=`rider-logs.html?email=${email}`;
 
-// --- Full Rental Timer ---
+// --- Rental Timer logic ---
 let rentalIntervalId=null;
 let rentalStartMs=null;
 let rentalTotalSeconds=0;
-function parsePlanToDays(plan){ return plan?parseInt(plan)||0:0; }
+let scootyStateActive=true;
+
+function parsePlanToDays(plan){ if(!plan) return 0; return parseInt(plan)||0; }
 
 async function refreshRentalTimer(scootyId){
   if(rentalIntervalId){ clearInterval(rentalIntervalId); rentalIntervalId=null; }
@@ -228,81 +257,49 @@ async function refreshRentalTimer(scootyId){
 
   if(!rentalDoc || totalDays<=0){
     rentalTimerText.innerText='--d 00:00:00';
-    rentalProgress.style.strokeDashoffset=CIRCUMFERENCE;
+    rentalProgress.style.strokeDashoffset=String(CIRCUMFERENCE);
     dueLine.innerText='';
     return;
   }
 
   rentalStartMs=startMs;
   rentalTotalSeconds = totalDays*24*3600;
+
+  // Listen Scooty active/inactive
+  db.collection('scooty_master').doc(scootyId).onSnapshot(doc=>{
+    scootyStateActive = doc.exists && doc.data().state==='active';
+  });
+
   const dueDate = new Date(rentalStartMs + rentalTotalSeconds*1000);
   dueLine.innerText = `Due: ${dueDate.toLocaleDateString()} — Remaining below`;
 
   function tick(){
-    const now=Date.now();
-    let elapsed = Math.floor((now-rentalStartMs)/1000);
-
-    db.collection('scooty_master').doc(scootyId).get().then(doc=>{
-      if(doc.exists && doc.data().state==='inactive'){ elapsed = Math.min(elapsed,rentalTotalSeconds); }
-    });
-
-    let remaining
+    const now = Date.now();
+    let elapsed = Math.floor((now - rentalStartMs)/1000);
+    if(!scootyStateActive) elapsed = Math.min(elapsed, rentalTotalSeconds);
     let remaining = Math.max(0, rentalTotalSeconds - elapsed);
+
     const days = Math.floor(remaining / 86400);
     const hms = remaining % 86400;
     const hours = Math.floor(hms / 3600);
     const minutes = Math.floor((hms % 3600) / 60);
     const seconds = hms % 60;
+
     rentalTimerText.innerText = `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE * (1 - remaining / rentalTotalSeconds);
+    rentalProgress.style.strokeDashoffset = CIRCUMFERENCE*(1 - remaining/rentalTotalSeconds);
   }
 
   tick();
   rentalIntervalId = setInterval(tick, 1000);
 }
 
-// refresh timer when user changes
-db.collection('users').doc(email).onSnapshot(snap=>{
-  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
-  if(scootyId) refreshRentalTimer(scootyId);
-});
-db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{
-  const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim();
-  if(scootyId) refreshRentalTimer(scootyId);
-});
+// refresh when user changes
+db.collection('users').doc(email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
+db.collection('rental_requests').where('email','==',email).onSnapshot(()=>{ const scootyId = document.getElementById('scooty').innerText.split(',')[0]?.trim(); if(scootyId) refreshRentalTimer(scootyId); });
 
-// --- Load initial state ---
-async function loadState(){
-  const snap = await stateRef().get();
-  if(snap.exists){
-    const d = snap.data();
-    state.punchedIn = d.punchedIn;
-    state.onBreak = d.onBreak;
-    state.workingSeconds = d.workingSeconds || 0;
-    state.totalBreakSeconds = d.totalBreakSeconds || 0;
-    state.punchInTime = d.punchInTime ? d.punchInTime.toMillis() : null;
-    state.breakStartTime = d.breakStartTime ? d.breakStartTime.toMillis() : null;
-    updateUI();
-  }
-}
-await loadState();
-
-// real-time update
-stateRef().onSnapshot(snap=>{
-  if(snap.exists){
-    const d = snap.data();
-    state.punchedIn = d.punchedIn;
-    state.onBreak = d.onBreak;
-    state.workingSeconds = d.workingSeconds || 0;
-    state.totalBreakSeconds = d.totalBreakSeconds || 0;
-    state.punchInTime = d.punchInTime ? d.punchInTime.toMillis() : null;
-    state.breakStartTime = d.breakStartTime ? d.breakStartTime.toMillis() : null;
-    updateUI();
-  }
-});
-
-// auto-sync every 30s
-setInterval(syncToServer, 30000);
+// real-time attendance sync
+stateRef().onSnapshot(snap=>{ if(snap.exists){ applySnapshot(snap.data()); } });
+setInterval(syncToServer,30000);
 
 })();
 </script>
