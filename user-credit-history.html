@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — Credit History</title>
+
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .row {
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+  }
+  .positive { color:#32ff7e; }
+  .negative { color:#ff4d4d; }
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+  <h2>⚡ Credit History</h2>
+
+  <div class="profile">
+    <div class="profile-pic" id="profilePic">A</div>
+
+    <div class="dropdown">
+      <button onclick="history.back()">⬅ Back</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <h2 id="title">History</h2>
+  <p class="muted">Track all credit changes for this rider.</p>
+
+  <button id="exportBtn" class="menu-btn ripple">
+    ⬇ Export CSV
+  </button>
+
+  <div id="list"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+
+const params = new URLSearchParams(location.search);
+const email = params.get("email");
+
+document.getElementById("title").innerText =
+  `Credit History — ${email}`;
+
+const list = document.getElementById("list");
+const rows = [];
+
+auth.onAuthStateChanged(async user=>{
+  if(!user) return location.href="admin-signin.html";
+
+  profilePic.innerText = user.email.charAt(0).toUpperCase();
+
+  const doc = await db.collection("users").doc(user.email).get();
+  if(!doc.exists || doc.data().role!=="admin"){
+    alert("Admins only.");
+    return history.back();
+  }
+
+  loadHistory();
+});
+
+async function loadHistory(){
+  list.innerHTML = "Loading...";
+
+  const snap = await db.collection("credit_history")
+    .where("email","==",email)
+    .orderBy("timestamp","desc")
+    .get();
+
+  list.innerHTML="";
+
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const time = d.timestamp?.toDate?.().toLocaleString() || "-";
+
+    rows.push([
+      time,
+      d.change,
+      d.reason || ""
+    ]);
+
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML=`
+      <div class="row">
+        <b>${time}</b>
+        <span class="${d.change>0?'positive':'negative'}">
+          ${d.change>0?'+':''}${d.change}
+        </span>
+      </div>
+      <div class="row">
+        <span>${d.reason || ""}</span>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  if(rows.length===0){
+    list.innerHTML="<p>No history yet.</p>";
+  }
+}
+
+/* EXPORT */
+exportBtn.onclick=()=>{
+  const header=["Time","Change","Reason"];
+  const csv=[header,...rows].map(r=>r.join(",")).join("\n");
+
+  const blob=new Blob([csv],{type:"text/csv"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download=`credit-history-${email}.csv`;
+  link.click();
+};
+
+</script>
+</body>
+</html>
