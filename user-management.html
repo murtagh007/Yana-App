@@ -9,12 +9,36 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-border-radius:var(--radius);padding:12px;margin-bottom:12px;display:flex;
-justify-content:space-between;align-items:center;flex-wrap:wrap}
-.card-right{display:flex;gap:6px;flex-wrap:wrap}
-input,select{padding:6px;border-radius:8px}
-.credit-info{font-size:12px;color:#00eaff}
+  .card{
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:var(--radius);
+    padding:12px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  #searchBar{
+    width:100%;
+    padding:10px;
+    margin:10px 0;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--bg2);
+    color:var(--text);
+  }
+  .menu-btn{
+    margin-top:10px;
+    width:100%;
+  }
+  .pill{
+    background:rgba(0,234,255,0.15);
+    padding:4px 8px;
+    border-radius:10px;
+    font-size:12px;
+  }
 </style>
 </head>
 
@@ -23,10 +47,9 @@ input,select{padding:6px;border-radius:8px}
 <div class="navbar">
   <h2>⚡ YANA Admin</h2>
   <div class="profile">
-    <div class="profile-pic">A</div>
+    <div class="profile-pic" id="profilePic">A</div>
     <div class="dropdown">
       <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
-      <button onclick="location.href='credits-history.html'">Credits History</button>
       <button id="logoutBtn">Logout</button>
     </div>
   </div>
@@ -34,10 +57,19 @@ input,select{padding:6px;border-radius:8px}
 
 <div class="container">
   <h2>User Management</h2>
+  <p class="muted">
+    Manage roles, assign captains, locations — and allocate credits.
+  </p>
 
   <input id="searchBar" placeholder="Search by name / vendor / partner">
 
-  <button onclick="bulkCredit()">➕ Bulk Credit</button>
+  <button id="bulkCreditBtn" class="menu-btn ripple">
+    ➕ Bulk Credit
+  </button>
+
+  <button id="exportBtn" class="menu-btn ripple">
+    ⬇ Export Users (CSV)
+  </button>
 
   <div id="cardsContainer"></div>
 
@@ -46,185 +78,243 @@ input,select{padding:6px;border-radius:8px}
   </button>
 </div>
 
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 
 <script>
-const cardsContainer=document.getElementById("cardsContainer");
-let allUsers=[], allLocations=[], allCaptains=[], currentUserRole=null;
 
-document.getElementById("logoutBtn").onclick=()=>auth.signOut();
+const cardsContainer = document.getElementById("cardsContainer");
+let allUsers = [];
+let allLocations = [];
+let allCaptains = [];
+let currentUser = null;
+let currentUserRole = null;
 
 auth.onAuthStateChanged(async user=>{
   if(!user) return location.href="admin-signin.html";
 
-  const doc=await db.collection("users").doc(user.email).get();
-  if(!doc.exists || doc.data().role!=="admin"){
-    alert("Admins only");
+  currentUser = user;
+  profilePic.innerText = user.email.charAt(0).toUpperCase();
+
+  const snap = await db.collection("users").doc(user.email).get();
+
+  if(!snap.exists || snap.data().role!=="admin"){
+    alert("Admins only.");
     return location.href="index.html";
   }
-
-  currentUserRole="admin";
-  document.querySelector(".profile-pic").innerText=(user.email[0]||"A").toUpperCase();
 
   await loadLocations();
   await loadCaptains();
   loadUsers();
 });
 
+document.getElementById("logoutBtn").onclick=()=>auth.signOut();
+
 async function loadLocations(){
-  const snap=await db.collection("locations").orderBy("name").get();
-  allLocations=snap.docs.map(d=>({id:d.id,name:d.data().name}));
+  const s=await db.collection("locations").get();
+  allLocations=s.docs.map(d=>({id:d.id,name:d.data().name}));
 }
 
 async function loadCaptains(){
-  const snap=await db.collection("users").where("role","==","captain").get();
-  allCaptains=snap.docs.map(d=>({id:d.id,name:d.data().name}));
+  const s=await db.collection("users").where("role","==","captain").get();
+  allCaptains=s.docs.map(d=>({id:d.id,name:d.data().name}));
 }
 
 function loadUsers(){
-  db.collection("users").onSnapshot(snap=>{
+  db.collection("users").onSnapshot(s=>{
     allUsers=[];
-    cardsContainer.innerHTML="";
-    snap.forEach(doc=>{
-      const d=doc.data(); d.id=doc.id;
+    s.forEach(doc=>{
+      const d=doc.data();
+      d.id=doc.id;
       allUsers.push(d);
     });
-    renderCards();
+    renderCards(allUsers);
   });
 }
 
-function renderCards(){
+function renderCards(list){
   cardsContainer.innerHTML="";
-  allUsers.forEach(d=>{
+
+  list.forEach(u=>{
     const card=document.createElement("div");
     card.className="card";
 
-    const locationOptions = allLocations.map(loc=>{
-      return `<option value="${loc.id}" ${d.locationId===loc.id?"selected":""}>
-        ${loc.name}
-      </option>`;
-    }).join("");
+    const locOptions=allLocations.map(l=>(
+      `<option value="${l.id}" ${u.locationId===l.id?'selected':''}>${l.name}</option>`
+    )).join("");
 
-    const captainOptions = allCaptains.map(c=>{
-      return `<option value="${c.id}" ${d.captainId===c.id?"selected":""}>${c.name}</option>`;
-    }).join("");
+    const capOptions=allCaptains.map(c=>(
+      `<option value="${c.id}" ${u.captainId===c.id?'selected':''}>${c.name}</option>`
+    )).join("");
 
     card.innerHTML=`
       <div>
-        <b>${d.name||""}</b><br>
-        ${d.email}<br>
-        <span class="credit-info">
-          Remaining: ${d.remainingDays||0} |
-          Paused: ${d.pausedDays||0} |
-          Credits: ${d.creditedDays||0}
-        </span>
+        <b>${u.name||""}</b> <span class="pill">${u.role||""}</span><br>
+        ${u.email}<br>
+        Vendor: ${u.vendor||"-"}<br>
+        Partners: ${(u.partners||[]).join(", ")}
+        <br>
+        Credits: <b>${u.credits||0}</b>
+        |
+        <a href="user-credit-history.html?email=${u.id}">
+          View History
+        </a>
       </div>
-      <div class="card-right">
-        <select data-id="${d.id}" data-field="role">
-          <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
-          <option value="captain" ${d.role==="captain"?"selected":""}>Captain</option>
-          <option value="admin" ${d.role==="admin"?"selected":""}>Admin</option>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+
+        <select data-id="${u.id}" data-field="role">
+          <option value="rider" ${u.role==="rider"?"selected":""}>Rider</option>
+          <option value="captain" ${u.role==="captain"?"selected":""}>Captain</option>
+          <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
         </select>
 
-        <select data-id="${d.id}" data-field="state">
-          <option value="active" ${d.state==="active"?"selected":""}>Active</option>
-          <option value="inactive" ${d.state==="inactive"?"selected":""}>Inactive</option>
-          <option value="blocked" ${d.state==="blocked"?"selected":""}>Blocked</option>
+        <select data-id="${u.id}" data-field="state">
+          <option value="active" ${u.state==="active"?"selected":""}>Active</option>
+          <option value="inactive" ${u.state==="inactive"?"selected":""}>Inactive</option>
+          <option value="blocked" ${u.state==="blocked"?"selected":""}>Blocked</option>
         </select>
 
-        <select data-id="${d.id}" data-field="locationId">${locationOptions}</select>
+        <select data-id="${u.id}" data-field="locationId">
+          <option value="">--Location--</option>
+          ${locOptions}
+        </select>
 
-        <select data-id="${d.id}" data-field="captainId">
+        <select data-id="${u.id}" data-field="captainId">
           <option value="">--Captain--</option>
-          ${captainOptions}
+          ${capOptions}
         </select>
 
-        <button onclick="creditIndividual('${d.id}')">➕ Credit</button>
+        <button onclick="addCredit('${u.id}')">➕ Credit</button>
+        <button onclick="undoCredit('${u.id}')">↩ Undo</button>
 
-        <button onclick="location.href='credits-history.html?email=${d.id}'">
-          📜 History
-        </button>
       </div>
     `;
+
     cardsContainer.appendChild(card);
   });
 }
 
+/* SEARCH */
 document.getElementById("searchBar").addEventListener("input",e=>{
-  const term=e.target.value.toLowerCase();
-  const filtered=allUsers.filter(d=>
-    (d.name||"").toLowerCase().includes(term) ||
-    (d.vendor||"").toLowerCase().includes(term) ||
-    (d.partners||[]).join(",").toLowerCase().includes(term)
+  const t=e.target.value.toLowerCase();
+  renderCards(
+    allUsers.filter(u=>
+      (u.name||"").toLowerCase().includes(t) ||
+      (u.vendor||"").toLowerCase().includes(t) ||
+      (u.partners||[]).join(", ").toLowerCase().includes(t)
+    )
   );
-  cardsContainer.innerHTML="";
-  filtered.forEach(u=>renderCards([u]));
 });
 
-document.getElementById("submitBtn").onclick=async ()=>{
+/* SUBMIT UPDATES */
+submitBtn.addEventListener("click",async()=>{
   const updates=[];
   document.querySelectorAll("select[data-id]").forEach(sel=>{
-    updates.push(db.collection("users").doc(sel.dataset.id).update({
-      [sel.dataset.field]: sel.value
-    }));
+    updates.push(
+      db.collection("users").doc(sel.dataset.id)
+        .update({[sel.dataset.field]:sel.value})
+    );
+  });
+  await Promise.all(updates);
+  alert("Saved.");
+});
+
+/* BULK CREDIT */
+bulkCreditBtn.onclick=async()=>{
+  const amount=parseInt(prompt("Credit days to add for ALL riders?"));
+  if(!amount) return;
+
+  const riders=await db.collection("users").where("role","==","rider").get();
+
+  const batch=db.batch();
+  riders.forEach(doc=>{
+    const d=doc.data();
+    const newVal=(d.credits||0)+amount;
+    batch.update(doc.ref,{credits:newVal});
+
+    db.collection("credit_history").add({
+      email:doc.id,
+      change:+amount,
+      reason:"Bulk credit",
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
   });
 
-  if(!updates.length) return alert("No changes");
-  await Promise.all(updates);
-  alert("Saved");
+  await batch.commit();
+  alert("Bulk credit added.");
 };
 
-async function creditIndividual(email){
-  const days=parseInt(prompt("Enter number of days to credit:"),10);
-  if(!days || days<=0) return;
+/* INDIVIDUAL CREDIT */
+async function addCredit(email){
+  const amount=parseInt(prompt("Credit days:"));
+  if(!amount) return;
 
-  await db.runTransaction(async t=>{
-    const ref=db.collection("users").doc(email);
-    const snap=await t.get(ref);
-    let current=snap.exists ? (snap.data().creditedDays||0) : 0;
-    t.update(ref,{ creditedDays: current + days });
+  const ref=db.collection("users").doc(email);
+  const snap=await ref.get();
+  const current=snap.data().credits||0;
 
-    t.set(db.collection("credits_logs").doc(),{
-      email,
-      days,
-      reason:"Manual credit",
-      creditedBy: auth.currentUser.email,
-      type:"manual",
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
+  await ref.update({credits:current+amount});
+
+  await db.collection("credit_history").add({
+    email,
+    change:+amount,
+    reason:"Manual credit",
+    timestamp:firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  alert("Credited");
+  alert("Credited.");
 }
 
-async function bulkCredit(){
-  const days=parseInt(prompt("Credit days to ALL riders? Enter number:"),10);
-  if(!days || days<=0) return;
-  if(!confirm("Apply to ALL riders?")) return;
+/* UNDO CREDIT */
+async function undoCredit(email){
+  const amount=parseInt(prompt("Undo how many days?"));
+  if(!amount) return;
 
-  const riders = allUsers.filter(u=>u.role==="rider");
+  const ref=db.collection("users").doc(email);
+  const snap=await ref.get();
+  const current=snap.data().credits||0;
 
-  for(const r of riders){
-    const ref=db.collection("users").doc(r.id);
-    await ref.update({
-      creditedDays: (r.creditedDays||0)+days
-    });
+  await ref.update({credits:Math.max(0,current-amount)});
 
-    await db.collection("credits_logs").add({
-      email:r.id,
-      days,
-      reason:"Bulk credit",
-      creditedBy: auth.currentUser.email,
-      type:"bulk",
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
+  await db.collection("credit_history").add({
+    email,
+    change:-amount,
+    reason:"Undo credit",
+    timestamp:firebase.firestore.FieldValue.serverTimestamp()
+  });
 
-  alert("Bulk credit applied");
+  alert("Credit undone.");
 }
+
+/* EXPORT CSV */
+exportBtn.onclick=()=>{
+  const rows=[
+    ["Name","Email","Role","Vendor","Credits"]
+  ];
+
+  allUsers.forEach(u=>{
+    rows.push([
+      u.name||"",
+      u.id,
+      u.role||"",
+      u.vendor||"",
+      u.credits||0
+    ]);
+  });
+
+  const csv=rows.map(r=>r.join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="users.csv";
+  link.click();
+};
+
 </script>
 </body>
 </html>
