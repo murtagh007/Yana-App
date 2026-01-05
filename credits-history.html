@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — Credits History</title>
+
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  body { color:#eaf4f8; }
+
+  .navbar {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 16px;
+    background:rgba(255,255,255,0.06);
+    border-bottom:1px solid rgba(255,255,255,0.2);
+    position:sticky;
+    top:0;
+    z-index:100;
+    backdrop-filter:blur(6px);
+  }
+
+  .profile { position:relative; cursor:pointer; }
+  .profile-pic {
+    width:32px;height:32px;border-radius:50%;
+    background:#00eaff;color:#000;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .dropdown { display:none; position:absolute; right:0; top:36px; background:rgba(0,0,0,0.6); border-radius:10px;}
+  .profile:hover .dropdown { display:block; }
+
+  .container { padding:14px; }
+
+  .filters {
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:14px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;
+  }
+
+  .filters input, .filters select {
+    width:100%;
+    padding:8px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.2);
+    background:rgba(0,0,0,0.4);
+    color:#fff;
+  }
+
+  table {
+    width:100%;
+    border-collapse:collapse;
+    background:rgba(255,255,255,0.05);
+    border-radius:14px;
+    overflow:hidden;
+  }
+
+  th,td {
+    padding:10px;
+    border-bottom:1px solid rgba(255,255,255,0.12);
+    font-size:13px;
+  }
+
+  th {
+    background:#00eaff;
+    color:#000;
+    font-weight:700;
+  }
+
+  @media(max-width:700px){
+    table,thead,tbody,tr,th,td { display:block; }
+    thead { display:none; }
+    tr {
+      background:rgba(255,255,255,0.05);
+      margin:10px 0;
+      border-radius:14px;
+      padding:8px;
+    }
+    td {
+      border:none;
+      display:flex;
+      justify-content:space-between;
+    }
+    td::before {
+      content:attr(data-label);
+      font-weight:bold;
+      color:#00eaff;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+  <h2>⚡ YANA Admin</h2>
+
+  <div class="profile">
+    <div class="profile-pic" id="profilePic">A</div>
+    <div class="dropdown">
+      <button onclick="location.href='user-management.html'">⬅ Back</button>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <h2>Credits History</h2>
+  <p class="muted">Track all credited days across riders.</p>
+
+  <div class="filters">
+    <input id="filterEmail" type="text" placeholder="Filter by rider email">
+    <input id="filterAdmin" type="text" placeholder="Filter by credited by">
+    <select id="filterType">
+      <option value="">Type — All</option>
+      <option value="individual">Individual</option>
+      <option value="bulk">Bulk</option>
+    </select>
+
+    <input id="fromDate" type="date">
+    <input id="toDate" type="date">
+
+    <button onclick="loadLogs()">Apply Filters</button>
+  </div>
+
+  <table id="logsTable">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Rider</th>
+        <th>Days</th>
+        <th>Reason</th>
+        <th>Credited By</th>
+        <th>Type</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+const tbody = document.querySelector("#logsTable tbody");
+
+auth.onAuthStateChanged(async user=>{
+  if(!user) return location.href="admin-signin.html";
+
+  document.getElementById("profilePic").innerText =
+    user.email.charAt(0).toUpperCase();
+
+  const doc = await db.collection("users").doc(user.email).get();
+  if(!doc.exists || doc.data().role!=="admin"){
+    alert("Admins only");
+    return location.href="index.html";
+  }
+
+  loadLogs();
+});
+
+document.getElementById("logoutBtn").onclick=()=>auth.signOut();
+
+async function loadLogs(){
+  tbody.innerHTML = "";
+
+  let ref = db.collection("credits_logs").orderBy("timestamp","desc");
+
+  const email = document.getElementById("filterEmail").value.trim();
+  const admin = document.getElementById("filterAdmin").value.trim();
+  const type  = document.getElementById("filterType").value;
+
+  const from = document.getElementById("fromDate").value;
+  const to   = document.getElementById("toDate").value;
+
+  let snap = await ref.get();
+  let rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+
+  if(email) rows = rows.filter(r=> (r.email||"").includes(email));
+  if(admin) rows = rows.filter(r=> (r.creditedBy||"").includes(admin));
+  if(type)  rows = rows.filter(r=> r.type===type);
+
+  if(from){
+    const f = new Date(from).getTime();
+    rows = rows.filter(r=> r.timestamp?.toMillis() >= f);
+  }
+
+  if(to){
+    const t = new Date(to).getTime();
+    rows = rows.filter(r=> r.timestamp?.toMillis() <= t + 86400000);
+  }
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="6">No records found</td></tr>`;
+    return;
+  }
+
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Time">${r.timestamp?.toDate?.()?.toLocaleString()||"-"}</td>
+      <td data-label="Rider">${r.email||"-"}</td>
+      <td data-label="Days">${r.days||0}</td>
+      <td data-label="Reason">${r.reason||"-"}</td>
+      <td data-label="Credited By">${r.creditedBy||"-"}</td>
+      <td data-label="Type">${r.type||"-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+</script>
+
+</body>
+</html>
