@@ -1,147 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>YANA — User Management</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YANA — User Management</title>
 
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <style>
-    .card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: var(--radius);
-      padding: 12px;
-      margin-bottom: 12px;
-      backdrop-filter: blur(10px);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      transition: var(--transition);
-    }
-
-    .card:hover {
-      border-color: var(--action);
-      box-shadow: 0 0 10px var(--action);
-    }
-
-    .card-left {
-      flex: 1;
-      min-width: 180px;
-      font-size: 14px;
-    }
-
-    .card-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    select {
-      padding: 4px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
-      font-size: 12px;
-    }
-
-    #searchBar {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      margin-bottom: 12px;
-      border: 1px solid var(--border);
-      background: var(--bg2);
-      color: var(--text);
-      box-sizing: border-box;
-    }
-
-    #submitBtn { float:right }
-
-    .credit-btn {
-      background: #00eaff;
-      color:#000;
-      padding:6px 8px;
-      border:none;
-      border-radius:10px;
-      font-weight:700;
-      font-size:11px;
-      cursor:pointer;
-    }
-
-    .toolbar {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin:10px 0 14px;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .toolbar button {
-      background: transparent;
-      border: 2px solid var(--action);
-      color: var(--action);
-      border-radius: 10px;
-      padding: 8px 10px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .modal {
-      position:fixed;
-      top:0;left:0;right:0;bottom:0;
-      background:rgba(0,0,0,0.6);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:5000;
-    }
-
-    .modal-card{
-      background:rgba(255,255,255,0.05);
-      border:1px solid rgba(255,255,255,0.2);
-      border-radius:14px;
-      padding:16px;
-      width:92%;
-      max-width:360px;
-    }
-
-    .modal-card input,
-    .modal-card textarea,
-    .modal-card select{
-      width:100%;
-      margin:6px 0;
-      padding:8px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,0.2);
-      background:rgba(0,0,0,0.3);
-      color:#fff;
-    }
-
-    .modal-actions{
-      display:flex;
-      gap:10px;
-      margin-top:10px;
-    }
-
-    .modal-actions button{
-      flex:1;
-      border:none;
-      padding:10px;
-      border-radius:10px;
-      font-weight:700;
-      cursor:pointer;
-    }
-
-    .danger{ background:#f33;color:#fff; }
-    .primary{ background:#00eaff;color:#000; }
-  </style>
+<style>
+.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+border-radius:var(--radius);padding:12px;margin-bottom:12px;display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap}
+.card-right{display:flex;gap:6px;flex-wrap:wrap}
+input,select{padding:6px;border-radius:8px}
+.credit-info{font-size:12px;color:#00eaff}
+</style>
 </head>
 
 <body>
@@ -152,158 +26,102 @@
     <div class="profile-pic">A</div>
     <div class="dropdown">
       <button onclick="location.href='admin-dashboard.html'">⬅ Dashboard</button>
+      <button onclick="location.href='credits-history.html'">Credits History</button>
       <button id="logoutBtn">Logout</button>
     </div>
   </div>
 </div>
 
 <div class="container">
-
   <h2>User Management</h2>
-  <p class="muted">
-    Manage users. Admins can credit days (individual or bulk).
-  </p>
 
-  <div class="toolbar">
-    <input type="text" id="searchBar" placeholder="Search by name / vendor / partner">
-    <button id="bulkCreditBtn"><i class="fa-solid fa-plus"></i> Bulk Credit Days</button>
-  </div>
+  <input id="searchBar" placeholder="Search by name / vendor / partner">
+
+  <button onclick="bulkCredit()">➕ Bulk Credit</button>
 
   <div id="cardsContainer"></div>
 
-  <button class="menu-btn ripple" id="submitBtn">
+  <button id="submitBtn" class="menu-btn ripple">
     <i class="fas fa-check"></i> Submit Changes
   </button>
 </div>
 
-<!-- CREDIT MODAL -->
-<div class="modal" id="creditModal">
-  <div class="modal-card">
-    <h3>Credit Days</h3>
-    <p style="font-size:13px" id="creditTarget"></p>
-
-    <label>Days</label>
-    <input type="number" id="creditDays" min="1" placeholder="e.g. 2">
-
-    <label>Reason</label>
-    <textarea id="creditReason" rows="2" placeholder="Compensation / Promotion / Custom"></textarea>
-
-    <div class="modal-actions">
-      <button class="danger" onclick="closeCredit()">Cancel</button>
-      <button class="primary" onclick="confirmCredit()">Credit</button>
-    </div>
-  </div>
-</div>
-
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="firebase-config.js"></script>
 
 <script>
-const cardsContainer = document.getElementById("cardsContainer");
+const cardsContainer=document.getElementById("cardsContainer");
+let allUsers=[], allLocations=[], allCaptains=[], currentUserRole=null;
 
-let allUsers = [];
-let allLocations = [];
-let allCaptains = [];
-let currentUser = null;
-let currentUserRole = null;
+document.getElementById("logoutBtn").onclick=()=>auth.signOut();
 
-let creditTargetUser = null;   // used in modal
-const MAX_CREDIT_PER_OP = 30;  // ✋ change anytime
+auth.onAuthStateChanged(async user=>{
+  if(!user) return location.href="admin-signin.html";
 
-auth.onAuthStateChanged(async user => {
-  if (!user) return location.href="admin-signin.html";
-  currentUser = user;
-
-  document.querySelector(".profile-pic").innerText =
-    (user.email[0]||"A").toUpperCase();
-
-  const doc = await db.collection("users").doc(user.email).get();
-
-  if (!doc.exists || !["admin","captain"].includes(doc.data().role)) {
-    alert("❌ Access denied.");
+  const doc=await db.collection("users").doc(user.email).get();
+  if(!doc.exists || doc.data().role!=="admin"){
+    alert("Admins only");
     return location.href="index.html";
   }
 
-  currentUserRole = doc.data().role;
+  currentUserRole="admin";
+  document.querySelector(".profile-pic").innerText=(user.email[0]||"A").toUpperCase();
 
   await loadLocations();
   await loadCaptains();
   loadUsers();
 });
 
-document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-async function loadLocations() {
-  const snap = await db.collection("locations").orderBy("name").get();
-  allLocations = snap.docs.map(d => ({ id:d.id, name:d.data().name }));
+async function loadLocations(){
+  const snap=await db.collection("locations").orderBy("name").get();
+  allLocations=snap.docs.map(d=>({id:d.id,name:d.data().name}));
 }
 
-async function loadCaptains() {
-  const snap = await db.collection("users").where("role","==","captain").get();
-  allCaptains = snap.docs.map(d => ({ id:d.id, name:d.data().name }));
+async function loadCaptains(){
+  const snap=await db.collection("users").where("role","==","captain").get();
+  allCaptains=snap.docs.map(d=>({id:d.id,name:d.data().name}));
 }
 
-function loadUsers() {
-  db.collection("users").onSnapshot(snapshot => {
-    allUsers = [];
-    cardsContainer.innerHTML = "";
-
-    snapshot.forEach(doc => {
-      const d = doc.data();
-      d.id = doc.id;
+function loadUsers(){
+  db.collection("users").onSnapshot(snap=>{
+    allUsers=[];
+    cardsContainer.innerHTML="";
+    snap.forEach(doc=>{
+      const d=doc.data(); d.id=doc.id;
       allUsers.push(d);
     });
-
     renderCards();
   });
 }
 
-function renderCards() {
-  cardsContainer.innerHTML = "";
+function renderCards(){
+  cardsContainer.innerHTML="";
+  allUsers.forEach(d=>{
+    const card=document.createElement("div");
+    card.className="card";
 
-  let visibleUsers = [];
-
-  if(currentUserRole === "admin") visibleUsers = allUsers;
-  else visibleUsers = allUsers.filter(
-      u => u.role==="rider" && u.captainId===currentUser.email
-  );
-
-  visibleUsers.forEach(d => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const locationOptions = allLocations.map(loc =>
-      `<option value="${loc.id}" ${d.locationId===loc.id?"selected":""}>
+    const locationOptions = allLocations.map(loc=>{
+      return `<option value="${loc.id}" ${d.locationId===loc.id?"selected":""}>
         ${loc.name}
-      </option>`).join("");
+      </option>`;
+    }).join("");
 
-    const captainOptions = allCaptains.map(c =>
-      `<option value="${c.id}" ${d.captainId===c.id?"selected":""}>
-        ${c.name}
-      </option>`).join("");
+    const captainOptions = allCaptains.map(c=>{
+      return `<option value="${c.id}" ${d.captainId===c.id?"selected":""}>${c.name}</option>`;
+    }).join("");
 
-    card.innerHTML = `
-      <div class="card-left">
+    card.innerHTML=`
+      <div>
         <b>${d.name||""}</b><br>
-        <small>${d.email}</small><br>
-        Vendor: ${d.vendor||""}<br>
-        Partners: ${(d.partners||[]).join(", ")}<br><br>
-
-        <b>Remaining Days:</b> ${d.rentalRemainingDays||0}<br>
-        <b>Paused Days:</b> ${d.pausedDays||0}<br>
-        <b>Credited Days:</b> ${d.creditedDays||0}
-        ${
-          currentUserRole==="admin"
-          ? `<br><br><button class="credit-btn" onclick='openCredit(${JSON.stringify(d.id)})'>
-               + Credit Days
-             </button>`
-          : ""
-        }
+        ${d.email}<br>
+        <span class="credit-info">
+          Remaining: ${d.remainingDays||0} |
+          Paused: ${d.pausedDays||0} |
+          Credits: ${d.creditedDays||0}
+        </span>
       </div>
-
       <div class="card-right">
         <select data-id="${d.id}" data-field="role">
           <option value="rider" ${d.role==="rider"?"selected":""}>Rider</option>
@@ -320,137 +138,93 @@ function renderCards() {
         <select data-id="${d.id}" data-field="locationId">${locationOptions}</select>
 
         <select data-id="${d.id}" data-field="captainId">
-          <option value="">--Assign Captain--</option>
+          <option value="">--Captain--</option>
           ${captainOptions}
         </select>
+
+        <button onclick="creditIndividual('${d.id}')">➕ Credit</button>
+
+        <button onclick="location.href='credits-history.html?email=${d.id}'">
+          📜 History
+        </button>
       </div>
     `;
-
     cardsContainer.appendChild(card);
   });
 }
 
-document.getElementById("searchBar").addEventListener("input", e => {
-  const term = e.target.value.toLowerCase();
-
-  const filtered = allUsers.filter(d =>
+document.getElementById("searchBar").addEventListener("input",e=>{
+  const term=e.target.value.toLowerCase();
+  const filtered=allUsers.filter(d=>
     (d.name||"").toLowerCase().includes(term) ||
     (d.vendor||"").toLowerCase().includes(term) ||
-    (d.partners||[]).join(", ").toLowerCase().includes(term)
+    (d.partners||[]).join(",").toLowerCase().includes(term)
   );
-
-  // render only filtered results
   cardsContainer.innerHTML="";
-  filtered.forEach(d=>{
-    // reuse render logic by temporarily limiting visible set
-  });
-  allUsers = filtered;
-  renderCards();
+  filtered.forEach(u=>renderCards([u]));
 });
 
-document.getElementById("submitBtn").addEventListener("click", async () => {
-  const updates = [];
+document.getElementById("submitBtn").onclick=async ()=>{
+  const updates=[];
   document.querySelectorAll("select[data-id]").forEach(sel=>{
-    updates.push(
-      db.collection("users").doc(sel.dataset.id)
-        .update({[sel.dataset.field]: sel.value})
-    );
+    updates.push(db.collection("users").doc(sel.dataset.id).update({
+      [sel.dataset.field]: sel.value
+    }));
   });
 
-  if(!updates.length) return alert("ℹ No changes to save.");
+  if(!updates.length) return alert("No changes");
   await Promise.all(updates);
-  alert("✅ Changes applied!");
-});
+  alert("Saved");
+};
 
-//
-// CREDIT — INDIVIDUAL
-//
-function openCredit(email){
-  creditTargetUser = email;
-  document.getElementById("creditTarget").innerText =
-    "User: " + email;
-  document.getElementById("creditDays").value = "";
-  document.getElementById("creditReason").value = "";
-  document.getElementById("creditModal").style.display="flex";
-}
-
-function closeCredit(){
-  creditTargetUser = null;
-  document.getElementById("creditModal").style.display="none";
-}
-
-async function confirmCredit(){
-  const days = parseInt(document.getElementById("creditDays").value||0);
-  const reason = (document.getElementById("creditReason").value||"").trim();
-
-  if(!days || days<=0) return alert("Enter valid days.");
-  if(days>MAX_CREDIT_PER_OP) return alert("Max "+MAX_CREDIT_PER_OP+" days per operation.");
-  if(!reason) return alert("Enter a reason.");
-
-  const ref = db.collection("users").doc(creditTargetUser);
-  const snap = await ref.get();
-
-  if(!snap.exists) return alert("User not found.");
-
-  const d = snap.data();
-  if(d.state==="blocked") return alert("User is blocked.");
-
-  await ref.update({
-    creditedDays: (d.creditedDays||0) + days
-  });
-
-  await db.collection("credits_logs").add({
-    email: creditTargetUser,
-    days,
-    reason,
-    creditedBy: currentUser.email,
-    type:"individual",
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  alert("✅ "+days+" days credited.");
-  closeCredit();
-}
-
-//
-// BULK CREDIT
-//
-document.getElementById("bulkCreditBtn").addEventListener("click", async ()=>{
-  const days = parseInt(prompt("Enter days to credit:")||0);
+async function creditIndividual(email){
+  const days=parseInt(prompt("Enter number of days to credit:"),10);
   if(!days || days<=0) return;
-  if(days>MAX_CREDIT_PER_OP) return alert("Max "+MAX_CREDIT_PER_OP+" days.");
-  const reason = prompt("Reason for bulk credit:")||"Bulk";
 
-  let confirmDo = confirm("Confirm credit "+days+" days to ALL active riders?");
-  if(!confirmDo) return;
+  await db.runTransaction(async t=>{
+    const ref=db.collection("users").doc(email);
+    const snap=await t.get(ref);
+    let current=snap.exists ? (snap.data().creditedDays||0) : 0;
+    t.update(ref,{ creditedDays: current + days });
 
-  const snap = await db.collection("users").where("role","==","rider").get();
+    t.set(db.collection("credits_logs").doc(),{
+      email,
+      days,
+      reason:"Manual credit",
+      creditedBy: auth.currentUser.email,
+      type:"manual",
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
 
-  let success=0, skipped=0;
+  alert("Credited");
+}
 
-  for(const doc of snap.docs){
-    const d = doc.data();
-    if(d.state==="blocked") { skipped++; continue; }
+async function bulkCredit(){
+  const days=parseInt(prompt("Credit days to ALL riders? Enter number:"),10);
+  if(!days || days<=0) return;
+  if(!confirm("Apply to ALL riders?")) return;
 
-    await db.collection("users").doc(doc.id).update({
-      creditedDays:(d.creditedDays||0)+days
+  const riders = allUsers.filter(u=>u.role==="rider");
+
+  for(const r of riders){
+    const ref=db.collection("users").doc(r.id);
+    await ref.update({
+      creditedDays: (r.creditedDays||0)+days
     });
 
     await db.collection("credits_logs").add({
-      email: doc.id,
+      email:r.id,
       days,
-      reason,
-      creditedBy: currentUser.email,
+      reason:"Bulk credit",
+      creditedBy: auth.currentUser.email,
       type:"bulk",
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-
-    success++;
   }
 
-  alert(`Done.\nCredited: ${success}\nSkipped: ${skipped}`);
-});
+  alert("Bulk credit applied");
+}
 </script>
-
 </body>
 </html>
